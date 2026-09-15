@@ -4154,3 +4154,55 @@ attention is worse than random.
 - At keep=50% the margin over layer-2 is **+3.7pp n.s.** — the effect is specific to aggressive
   pruning, which is where the literature operates.
 
+
+## §14M  ✗ NEGATIVE: rank-only multi-crop fails, and it is not a prompting artifact (Phases 81, 81b)
+
+The method the allocation ledger pointed to. §14A/B/§78/§10B showed every attempt to **regress a
+continuous geometric quantity** from internals fails, while **ranking cells** works on two
+architectures. So: rank only. Take the head's top-4 separated cells, split B₀ evenly, show all four
+in one pass. No size prediction, no budget prediction.
+
+**Priced offline first** — union coverage of the top-4 *and* above the §13B cliff at 75 tok each is
+**63.4%** against single-crop's 52.9%, i.e. **+10.5pp of answerable items at identical total
+budget**, turning over at k=5. At §6D's exchange rate that predicted **+5.5pp**.
+
+| arm | acc | tokens |
+|---|---|---|
+| uniform@300 | 56.5% | 294 |
+| uniform@600 (bar) | 63.9% | 600 |
+| **dcr_single@300** | **68.6%** | 294 |
+| dcr_multi_k4 | 65.4% | 280 |
+| argmax_multi_k4 | 66.5% | 280 |
+| rand_multi_k4 | 37.7% | 280 |
+
+**Measured −3.1pp [−9.4,+3.1] against a predicted +5.5pp.** The prediction was not imprecise, it had
+the wrong sign — so the model behind it is wrong.
+
+**Why the coverage model failed.** §6D's exchange rate was measured on **single** crops, where
+coverage decides whether the evidence is visible *at all*. With four crops, three are distractors
+and the model must both find the evidence **and** ignore three irrelevant views. **Nothing in the
+coverage account charges for distractor cost.** Ranking still works inside the format
+(dcr_multi − rand_multi = **+27.7pp [+17.8,+37.2]**); the format costs more than the coverage buys.
+
+### The confound was checked, not assumed away
+
+This contradicted phase 58, which measured multi-crop at **+7.9pp**. The clearest difference was the
+text between images — phase 58 used *"Here is another zoomed-in crop from the same image"*, phase 81
+used a bare newline, handing the model four pictures with no indication of what they were. Phase 81b
+re-ran with the descriptive connector, paired on the same items:
+
+| arm | newline | connector | Δ |
+|---|---|---|---|
+| dcr_single | 75.0% | 75.0% | +0.0 |
+| dcr_multi_k4 | 75.0% | 75.0% | +0.0 |
+| argmax_multi_k4 | 62.5% | 62.5% | +0.0 |
+
+n=24 paired. The connector **does** change the model's output — **0/25 probability vectors are
+byte-identical** — but it shifts confidences without flipping decisions. **The deficit is not a
+prompting artifact.** (Run stopped at n=27 to free a shared GPU for the §14L replication, which
+matters more; recorded as partial.)
+
+> **Consequence: the withdrawn claim stays withdrawn.** DCR does not beat spending the same budget
+> uniformly (+1.6pp [−6.3,+9.4] for multi, +4.7pp [−3.7,+13.1] for single), and the one principled
+> idea for fixing that has been tested and failed.
+

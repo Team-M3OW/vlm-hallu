@@ -179,7 +179,9 @@ def main():
     print("=" * 66)
     print("INVARIANT TESTS -- analysis primitives (no GPU, no model, no network)")
     print("=" * 66)
-    for t in (test_pruning_by_early_layer_is_worse_than_random,
+    for t in (test_coverage_model_does_not_extend_to_multicrop,
+              test_multicrop_deficit_is_not_a_prompting_artifact,
+              test_pruning_by_early_layer_is_worse_than_random,
               test_pruning_gain_is_layer_choice_not_signed_weights,
               test_averaging_defect_replicates_but_contrast_mechanism_does_not,
               test_best_single_layer_must_be_fold_validated,
@@ -857,6 +859,28 @@ def test_pruning_gain_is_layer_choice_not_signed_weights():
     assert all(abs(d) < 0.04 for d in deltas), "signed combination adds nothing on this task"
     vs_fastv_10, vs_fastv_lo = 0.241, 0.162
     assert vs_fastv_lo > 0, "but the layer choice itself is decisive"
+
+
+def test_coverage_model_does_not_extend_to_multicrop():
+    """SS14M. The SS6D coverage exchange rate predicted +5.5pp for 4-crop allocation; the measured
+    value was -3.1pp. Wrong SIGN, not merely wrong magnitude. The rate was estimated on SINGLE
+    crops, where coverage decides visibility; with k crops, k-1 are distractors and the account has
+    no term for that. Do not extrapolate SS6D past k=1."""
+    predicted, measured = 0.055, -0.031
+    assert predicted > 0 > measured, "the prediction had the wrong sign"
+    ranking_still_works = 0.277
+    assert ranking_still_works > 0.2, "ranking works inside the format; the format is the problem"
+
+
+def test_multicrop_deficit_is_not_a_prompting_artifact():
+    """SS14M. Phase 81b re-ran with phase 58's descriptive connector. Accuracy identical on all
+    three arms though 0/25 probability vectors matched byte-for-byte -- the prompt changes the
+    output without flipping decisions. A contradicting in-project result must be chased to its
+    difference before the negative is recorded."""
+    newline_multi, connector_multi = 0.750, 0.750
+    identical_prob_vectors = 0
+    assert newline_multi == connector_multi
+    assert identical_prob_vectors == 0, "the inputs genuinely differed, so this is a real null"
 
 if __name__ == "__main__":   # must stay LAST: main() references tests defined above it
     main()

@@ -49,20 +49,30 @@ changed · keep-in-paper rating · stepwise method.
 - **ViCrop** (2502.17422) — attention-guided crop + original image (phases 31/54).
 - **DoLa** (2309.03883), **DeCo** (2410.11779) — layer-contrastive decoding (phase 63).
 
-## Phases 69-78 — the method arc (2026-09-15)
+## Phases 69-83 — the method arc (2026-09-15/16)
+
+**Standard from 2026-09-16:** every claim must hold on >1 model or be REJECTED. See
+`REPLICATION_LEDGER.md`. Paper structure: `PAPER_FLOW.md` v12 (method-led). Method: `METHOD.md`.
 
 | phase | class | one line | keep |
 |---|---|---|---|
-| [69](phase69.md) | NEGATIVE | no free pass-1 signal predicts required budget; adaptive-budget family closed | 7/10 |
-| [70](phase70.md) | METHOD | learned re-ranking head: 39.3% -> 52.9% top-1 evidence coverage | 9/10 |
-| [71](phase71.md) | METHOD | it converts: 56.5% -> 68.6% (+12.0pp vs vanilla); +13.0pp over the 2-pass bar on single-region | 10/10 |
-| [72](phase72.md) | MIXED | re-ranker transfers zero-shot to HR-Bench (+4.9pp, +6.5 circular); allocator still loses at 4K | 9/10 |
-| [73](phase73.md) | FINDING | the mechanism: layers disagree, the final layer is anti-correlated, a mean can only add | 10/10 |
-| 74 | — | cross-architecture replication — NOT RUN (launcher died; 7B models, GPU contended) | — |
-| 75 | — | token pruning vs FastV — WRITTEN, NOT RUN | — |
-| [76](phase76.md) | NEGATIVE | vision tower is at chance; localisation is built by the LM from the question | 8/10 |
-| [77](phase77.md) | NEGATIVE + causal | contrastive decoding fails (-5.5pp vs bar) but proves the evidence region is load-bearing (3.32x, -10.5pp) | 8/10 |
-| 78 | — | is there anything for a learned allocation function to learn? — RUNNING | — |
+| [69](phase69.md) | NEGATIVE | no free pass-1 signal predicts required budget | 7/10 |
+| [70](phase70.md) | METHOD | learned re-ranking head: 39.3 → 52.9% evidence coverage | 9/10 |
+| [71](phase71.md) | METHOD | it converts: 56.5 → 68.6% (+12.0pp vs vanilla) | 10/10 |
+| [72](phase72.md) | MIXED | re-ranker transfers zero-shot to HR-Bench; allocator still loses at 4K | 9/10 |
+| [73](phase73.md) | FINDING | layers disagree; averaging dilutes — ⚠ signed-contrast part later REJECTED | 8/10 |
+| 74 | REPLICATION | Qwen2-VL: averaging defect holds (+8.4pp); **final-layer & signed-contrast claims fail** | 9/10 |
+| [75](phase75.md) | **★ FINDING** | **pruning at layer 2 is worse than random; late read-out deletes 90% of tokens free** | **10/10** |
+| [76](phase76.md) | NEGATIVE | vision tower at chance — localisation is built by the LM from the question | 8/10 |
+| [77](phase77.md) | NEGATIVE + causal | contrastive decoding fails, but proves the evidence region is load-bearing (3.32×) | 8/10 |
+| [78](phase78.md) | FINDING | W=0.25 beats deployed 0.15; +11.0pp sizer headroom, no known predictor | 7/10 |
+| [79](phase79.md) | **★ FINDING** | **why it works: answer formation restored at L21; 37.6pp coverage swing** | **10/10** |
+| [80](phase80.md) | MIXED | DCR replicates vs vanilla (+10.5pp) but **not** vs the argmax proposer | 9/10 |
+| [81](phase81.md) | NEGATIVE | rank-only multi-crop −3.1pp against a predicted +5.5pp; confound excluded (81b) | 6/10 |
+| 82 | QUEUED | LLaVA extraction (separator-aware) → second model *family* | — |
+| 83 | **RUNNING** | **pruning replication on Qwen2-VL — decides the paper's headline** | — |
 
-**Closing method:** see `METHOD.md` — gated Depth-Contrast Re-ranking, **+16.2pp [+10.5,+22.5]**
-over the vanilla VLM at 1.61 passes; **+12.0pp [+4.2,+19.9]** ungated.
+**Current method (`METHOD.md`):** read attention late, not early.
+Pruning: **+24.1pp [+16.2,+31.9]** over FastV's layer-2 at 10% keep, no training.
+Crop placement: **+12.0pp / +10.5pp** over vanilla on two architectures.
+⚠ Neither beats simply spending the same budget uniformly — stated, not buried.
