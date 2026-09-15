@@ -16,6 +16,8 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **Averaging across depth dilutes the read-out** | **Q3, Q2** | fixing it is worth +6.2pp (Q3) / +8.4pp (Q2); averaging all layers → 36.6% / 21.5% |
 | **Some layers are anti-correlated with the target, and averaging them in is what hurts** | **Q3, Q2** | Q3 final layer 0.529; Q2 early 0.620 / mid 0.515 — 15/28 layers worse than 0.45 |
 | **A learned re-ranking head improves proposals** | **Q3, Q2** | 39.3→52.9% (+13.6) / 35.1→44.0% (+8.9) |
+| **DCR beats the vanilla VLM** | **Q3, Q2** | **+12.0pp [+4.2,+19.9]** / **+10.5pp [+2.6,+18.3]** — both CIs clear |
+| **DCR beats random placement** | **Q3, Q2** | +28.3pp / +20.9pp [+11.5,+30.4] |
 | **The encoding cliff** | **Q3, Q2** | step at 0.15–0.25 merged tokens, oracle flat across it (§13C) |
 | **The serialization sink** | **Q3, Q2, OV, NX** | 3.4–4.5× implicit, 2.0–2.3× on `image_newline` (§5) |
 | **No published crop policy beats the budget axis at matched tokens** | **Q3, Q2** | §9A/§9B |
@@ -29,6 +31,8 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **"The final layer is anti-correlated with the target"** | Q3 0.529, **Q2 0.416 (better than chance)**. Cut. |
 | **"Signed contrast is the mechanism"** | On Q2 the learned combination = best single layer **exactly** (43.5% = 43.5%). Cut as a general claim; retained only as a Q3 observation if §2.3 survives review. |
 | **"No single layer is a good localiser"** | False on Q2 — L21 alone beats the block mean by 8.4pp and all 5 folds pick it. Cut. |
+| **"DCR beats the compute-matched budget baseline"** | **Never survived on EITHER model.** Q3 +4.7pp [−3.7,+13.1], Q2 +3.1pp [−5.2,+11.0]. Only a V\*Bench single-region stratum ever cleared zero. **Remove from METHOD.md.** |
+| **"DCR beats the argmax proposer it replaces"** | Q3 **+8.4pp [+2.6,+14.7]** ✔, Q2 **+4.7pp [−1.0,+11.0]** ✗. Direction consistent, magnitude halved, significance lost. Demoted to provisional; cannot be claimed pooled. |
 
 ---
 
@@ -36,7 +40,8 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 
 | claim | models | status |
 |---|---|---|
-| **DCR end-task gain (+12.0pp vs vanilla)** | Q3 | **phase 80b running on Q2.** Rejection rule: head must beat argmax with CI clear of zero. |
+| ~~DCR end-task gain vs vanilla~~ | **RESOLVED → ✅** | Survived on Q2 (+10.5pp). Moved above. |
+| **DCR vs the argmax proposer** | Q3 only | Q2 gives +4.7pp with CI spanning zero (n=191). Needs more power or a third model to settle. |
 | **Answer formation restored at L21 (§14I)** | Q3 | Needs the logit lens on Q2. The mechanism section rests on this. |
 | **Zero-shot transfer to HR-Bench (§14E)** | Q3 | Needs a Q2 head transferred to HR-Bench. |
 | **Depth profile worth +7.3pp; sink indicators worth +0.0pp (§14C(b))** | Q3 | Ablation must be re-run on Q2. |
@@ -61,5 +66,9 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
    36.1% out-of-fold — *below* the block mean it appeared to beat. Best-of-28 on n=191.
 2. **Never present one model's numbers as both.** §2.1 briefly carried Q3's gt_pct table as if it
    covered Q2; Q2's profile is completely different (0.620/0.515/0.392 vs 0.456/0.413/0.409).
-3. **A replication that fails is a result, not a setback** — §14K's failure produced a better-specified
+3. **The pre-registered rejection rule was applied as written.** Phase 80b fixed "head must beat
+   argmax with CI clear of zero" before the run; it came out +4.7pp [−1.0,+11.0] and the claim was
+   demoted, not re-argued. The internal control (+0.0pp [+0.0,+0.0], n=70) rules out a pipeline
+   fault as the explanation.
+4. **A replication that fails is a result, not a setback** — §14K's failure produced a better-specified
    general claim (anti-correlated layers exist on both; *which* ones differs) than the one it killed.

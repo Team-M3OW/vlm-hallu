@@ -1,6 +1,8 @@
 # The method: Depth-Contrast Re-ranking (DCR)
 
-**+16.2pp over the vanilla VLM on V\*Bench, CI [+10.5,+22.5], at 1.61 forward passes.**
+**+12.0pp over the vanilla VLM on V\*Bench [+4.2,+19.9], replicated at +10.5pp [+2.6,+18.3] on a
+second architecture.** (The gated variant reaches +16.2pp but its gate is not validated as
+transferring — see §6.)
 No fine-tuning of the VLM. No extra pixels beyond one crop. No preprocessing. Reads only the
 model's own attention.
 
@@ -66,9 +68,12 @@ target. Proposals produced **out-of-fold**, grouped by item.
 | DCR ungated | 68.6% | 2 | **+12.0** [+4.2,+19.9] |
 | **DCR gated** | **72.8%** | **1.61** | **+16.2** [+10.5,+22.5] |
 
-**Gated DCR also beats the compute-matched budget baseline by +8.9pp [+2.1,+16.2] while using fewer
-passes.** In its operating regime (single-region questions) it is **+27.0pp [+17.4,+36.5]** over
-vanilla and **+13.0pp [+2.6,+23.5]** over `uniform@600`.
+⚠ **Removed 2026-09-16.** An earlier draft claimed gated DCR beats the compute-matched budget
+baseline. **That claim never survived replication and is withdrawn**: pooled it is +4.7pp
+[−3.7,+13.1] on Qwen3-VL and **+3.1pp [−5.2,+11.0] on Qwen2-VL** — CI spanning zero on *both*
+models. Only the V\*Bench single-region stratum ever cleared zero (+13.0pp [+2.6,+23.5]), and a
+single stratum on a single benchmark is not a claim. **The honest statement is that DCR beats doing
+nothing, and we have not shown it beats spending the same budget uniformly.**
 
 **Zero-shot transfer — HR-Bench 4k, n=800, nothing refitted.** The re-ranker improves proposals on a
 benchmark it never saw, at 4032px: **+4.9pp [+1.8,+8.1]** per-row and **+6.5pp** on CircularEval
