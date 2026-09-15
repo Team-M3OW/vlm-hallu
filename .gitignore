@@ -12,3 +12,9 @@ data/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+
+# Model checkpoints and archives — exceed GitHub's 100MB file limit; pull from HF instead
+models/
+*.safetensors
+*.bin
+*.tgz
