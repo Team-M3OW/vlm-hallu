@@ -1,0 +1,21 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+positives (confident denials): 141   negatives (absent): 141
+Loading items...
+  resolved 282/282
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   1%|▏         | 8/625 [00:00<00:07, 79.91it/s]Loading weights:  14%|█▍        | 88/625 [00:00<00:01, 497.93it/s]Loading weights:  25%|██▌       | 157/625 [00:00<00:00, 584.23it/s]Loading weights:  36%|███▌      | 225/625 [00:00<00:00, 619.39it/s]Loading weights:  48%|████▊     | 299/625 [00:00<00:00, 657.52it/s]Loading weights:  96%|█████████▌| 600/625 [00:00<00:00, 1384.23it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 985.82it/s] 
+[20/282] 2.60 it/s eta=1.7min
+[40/282] 2.55 it/s eta=1.6min
+[60/282] 2.50 it/s eta=1.5min
+[80/282] 2.52 it/s eta=1.3min
+[100/282] 2.57 it/s eta=1.2min
+[120/282] 2.58 it/s eta=1.0min
+[140/282] 2.54 it/s eta=0.9min
+[160/282] 2.59 it/s eta=0.8min
+[180/282] 2.60 it/s eta=0.7min
+[200/282] 2.62 it/s eta=0.5min
+[220/282] 2.62 it/s eta=0.4min
+[240/282] 2.63 it/s eta=0.3min
+[260/282] 2.64 it/s eta=0.1min
+[280/282] 2.64 it/s eta=0.0min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase10_context_interference_results.jsonl

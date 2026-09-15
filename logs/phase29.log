@@ -1,0 +1,12 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 9918.80it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:01<11:41,  1.12s/it]Loading weights:  11%|█▏        | 71/625 [00:01<00:07, 79.08it/s]Loading weights:  18%|█▊        | 110/625 [00:01<00:05, 92.78it/s]Loading weights:  22%|██▏       | 137/625 [00:01<00:05, 91.79it/s]Loading weights:  25%|██▌       | 157/625 [00:02<00:04, 95.58it/s]Loading weights:  28%|██▊       | 176/625 [00:02<00:04, 105.61it/s]Loading weights:  31%|███       | 193/625 [00:02<00:04, 107.68it/s]Loading weights:  33%|███▎      | 209/625 [00:02<00:03, 112.95it/s]Loading weights:  36%|███▌      | 224/625 [00:02<00:03, 113.05it/s]Loading weights:  38%|███▊      | 238/625 [00:02<00:03, 111.13it/s]Loading weights:  41%|████      | 256/625 [00:02<00:03, 121.56it/s]Loading weights:  43%|████▎     | 270/625 [00:02<00:02, 118.61it/s]Loading weights:  45%|████▌     | 284/625 [00:03<00:02, 122.26it/s]Loading weights:  48%|████▊     | 299/625 [00:03<00:02, 127.98it/s]Loading weights:  51%|█████     | 316/625 [00:03<00:02, 134.39it/s]Loading weights:  58%|█████▊    | 363/625 [00:03<00:01, 222.95it/s]Loading weights:  64%|██████▍   | 402/625 [00:03<00:00, 247.15it/s]Loading weights:  72%|███████▏  | 450/625 [00:03<00:00, 298.92it/s]Loading weights:  78%|███████▊  | 486/625 [00:03<00:00, 290.32it/s]Loading weights:  83%|████████▎ | 516/625 [00:04<00:00, 156.01it/s]Loading weights:  89%|████████▊ | 554/625 [00:04<00:00, 189.52it/s]Loading weights:  95%|█████████▌| 594/625 [00:04<00:00, 229.04it/s]Loading weights: 100%|██████████| 625/625 [00:04<00:00, 200.33it/s]Loading weights: 100%|██████████| 625/625 [00:04<00:00, 135.91it/s]
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+[25] 0.46 it/s
+[50] 0.57 it/s
+[75] 0.62 it/s
+[100] 0.55 it/s
+[125] 0.49 it/s
+[150] 0.47 it/s
+[175] 0.50 it/s
+Done.

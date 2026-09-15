@@ -1,0 +1,21 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+candidate pool (2x oversample per group, will stop at N_PER_GROUP=150 post fp16-reverification): 588 unique uids
+Loading items...
+  resolved 588/588
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:01<10:53,  1.05s/it]Loading weights:  13%|█▎        | 80/625 [00:01<00:06, 90.51it/s]Loading weights:  18%|█▊        | 112/625 [00:01<00:04, 103.39it/s]Loading weights:  22%|██▏       | 136/625 [00:01<00:05, 95.48it/s] Loading weights:  25%|██▍       | 154/625 [00:01<00:04, 104.08it/s]Loading weights:  27%|██▋       | 171/625 [00:01<00:04, 107.48it/s]Loading weights:  30%|██▉       | 187/625 [00:02<00:03, 114.57it/s]Loading weights:  32%|███▏      | 202/625 [00:02<00:03, 111.66it/s]Loading weights:  35%|███▍      | 218/625 [00:02<00:03, 117.16it/s]Loading weights:  37%|███▋      | 234/625 [00:02<00:03, 122.24it/s]Loading weights:  40%|███▉      | 248/625 [00:02<00:03, 123.21it/s]Loading weights:  42%|████▏     | 265/625 [00:02<00:02, 131.99it/s]Loading weights:  45%|████▍     | 279/625 [00:02<00:02, 120.27it/s]Loading weights:  48%|████▊     | 297/625 [00:02<00:02, 128.43it/s]Loading weights:  51%|█████     | 316/625 [00:03<00:02, 139.18it/s]Loading weights:  58%|█████▊    | 364/625 [00:03<00:01, 226.04it/s]Loading weights:  66%|██████▌   | 414/625 [00:03<00:00, 286.15it/s]Loading weights:  74%|███████▍  | 462/625 [00:03<00:00, 324.96it/s]Loading weights:  83%|████████▎ | 519/625 [00:03<00:00, 377.52it/s]Loading weights:  91%|█████████ | 567/625 [00:03<00:00, 395.38it/s]Loading weights:  97%|█████████▋| 608/625 [00:03<00:00, 324.04it/s]Loading weights: 100%|██████████| 625/625 [00:03<00:00, 159.74it/s]
+[20] rate=1.32/s
+[40] rate=1.35/s
+[60] rate=1.30/s
+[80] rate=1.56/s
+[100] rate=1.78/s
+[120] rate=1.98/s
+[140] rate=2.09/s
+[160] rate=2.29/s
+[180] rate=2.48/s
+[200] rate=2.68/s
+[220] rate=2.67/s
+[240] rate=2.66/s
+[260] rate=2.66/s
+[280] rate=2.66/s
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase6_attention_results.jsonl

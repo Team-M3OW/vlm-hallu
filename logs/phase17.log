@@ -1,0 +1,17 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+RePOPE-clean fp16 confident denials: 54   clean negatives: 160
+Loading items...
+  resolved 214/214
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:43,  6.02it/s]Loading weights:  18%|█▊        | 110/625 [00:00<00:01, 504.08it/s]Loading weights:  29%|██▊       | 179/625 [00:00<00:00, 569.15it/s]Loading weights:  39%|███▉      | 246/625 [00:00<00:00, 598.70it/s]Loading weights:  56%|█████▌    | 347/625 [00:00<00:00, 736.68it/s]Loading weights:  98%|█████████▊| 612/625 [00:00<00:00, 1287.97it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 904.10it/s] 
+[20/214] 0.64 it/s eta=5.1min
+[40/214] 0.63 it/s eta=4.6min
+[60/214] 0.65 it/s eta=3.9min
+[80/214] 0.66 it/s eta=3.4min
+[100/214] 0.68 it/s eta=2.8min
+[120/214] 0.70 it/s eta=2.2min
+[140/214] 0.70 it/s eta=1.8min
+[160/214] 0.71 it/s eta=1.3min
+[180/214] 0.71 it/s eta=0.8min
+[200/214] 0.72 it/s eta=0.3min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase17_budget_results.jsonl

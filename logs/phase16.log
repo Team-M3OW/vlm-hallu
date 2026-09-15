@@ -1,0 +1,19 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+RePOPE-clean fp16 confident denials: 54
+clean negatives for the FP arm:      220
+direction derived at L16 from 882 disjoint items (dropped 11 overlapping)
+Loading items...
+  resolved 274/274
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<08:34,  1.21it/s]Loading weights:  33%|███▎      | 207/625 [00:00<00:01, 305.01it/s]Loading weights:  52%|█████▏    | 328/625 [00:01<00:00, 421.84it/s]Loading weights:  97%|█████████▋| 606/625 [00:01<00:00, 833.33it/s]Loading weights: 100%|██████████| 625/625 [00:01<00:00, 518.10it/s]
+[25/274] 1.75 it/s eta=2.4min
+[50/274] 1.69 it/s eta=2.2min
+[75/274] 1.69 it/s eta=2.0min
+[100/274] 1.70 it/s eta=1.7min
+[125/274] 1.68 it/s eta=1.5min
+[150/274] 1.66 it/s eta=1.2min
+[175/274] 1.68 it/s eta=1.0min
+[200/274] 1.67 it/s eta=0.7min
+[225/274] 1.66 it/s eta=0.5min
+[250/274] 1.65 it/s eta=0.2min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase16_steering_results.jsonl

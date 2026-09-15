@@ -1,0 +1,16 @@
+HR-Bench 4k: 800 rows, 200 instances x 4 (hash-verified)
+Loading Qwen3-VL-2B (fp16)...
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   4%|▍         | 25/625 [00:00<00:02, 238.48it/s]Loading weights:  12%|█▏        | 78/625 [00:00<00:01, 406.60it/s]Loading weights:  21%|██        | 130/625 [00:00<00:01, 445.22it/s]Loading weights:  29%|██▉       | 183/625 [00:00<00:00, 474.34it/s]Loading weights:  38%|███▊      | 235/625 [00:00<00:00, 486.50it/s]Loading weights:  45%|████▌     | 284/625 [00:00<00:00, 484.12it/s]Loading weights:  56%|█████▌    | 348/625 [00:00<00:00, 528.01it/s]Loading weights:  69%|██████▊   | 429/625 [00:00<00:00, 616.00it/s]Loading weights:  80%|███████▉  | 499/625 [00:00<00:00, 636.33it/s]Loading weights:  91%|█████████ | 570/625 [00:01<00:00, 657.16it/s]Loading weights: 100%|██████████| 625/625 [00:01<00:00, 569.10it/s]
+resuming: 0
+  [80/800] 2.30 rows/s eta=5.2min
+  [160/800] 2.35 rows/s eta=4.5min
+  [240/800] 2.33 rows/s eta=4.0min
+  [320/800] 2.33 rows/s eta=3.4min
+  [400/800] 2.33 rows/s eta=2.9min
+  [480/800] 2.31 rows/s eta=2.3min
+  [560/800] 2.30 rows/s eta=1.7min
+  [640/800] 2.31 rows/s eta=1.2min
+  [720/800] 2.31 rows/s eta=0.6min
+  [800/800] 2.31 rows/s eta=0.0min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase33b_rand_control.jsonl

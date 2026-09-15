@@ -1,0 +1,15 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 12360.07it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<07:41,  1.35it/s]Loading weights:  48%|████▊     | 300/625 [00:00<00:00, 475.95it/s]Loading weights:  73%|███████▎  | 457/625 [00:01<00:00, 578.36it/s]Loading weights:  93%|█████████▎| 580/625 [00:01<00:00, 621.11it/s]Loading weights: 100%|██████████| 625/625 [00:01<00:00, 489.01it/s]
+resuming: 0
+  [20] 0.28 it/s eta=10.2min
+  [40] 0.27 it/s eta=9.4min
+  [60] 0.26 it/s eta=8.4min
+  [80] 0.26 it/s eta=7.2min
+  [100] 0.25 it/s eta=6.0min
+  [120] 0.25 it/s eta=4.7min
+  [140] 0.26 it/s eta=3.3min
+  [160] 0.26 it/s eta=2.0min
+  [180] 0.26 it/s eta=0.7min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase40_multiwindow.jsonl

@@ -1,0 +1,22 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+phase6 items available: 291
+targets with a valid swap category: 291
+Loading items...
+  resolved 291/291
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:40,  6.21it/s]Loading weights:  18%|█▊        | 112/625 [00:00<00:00, 522.58it/s]Loading weights:  29%|██▉       | 181/625 [00:00<00:00, 585.63it/s]Loading weights:  40%|████      | 253/625 [00:00<00:00, 634.16it/s]Loading weights:  62%|██████▏   | 386/625 [00:00<00:00, 871.34it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 943.35it/s]
+[20] rate=8.82/s
+[40] rate=8.99/s
+[60] rate=8.53/s
+[80] rate=8.93/s
+[100] rate=9.18/s
+[120] rate=8.91/s
+[140] rate=9.00/s
+[160] rate=9.12/s
+[180] rate=9.21/s
+[200] rate=9.39/s
+[220] rate=9.54/s
+[240] rate=9.65/s
+[260] rate=9.71/s
+[280] rate=9.80/s
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase6b_query_swap_results.jsonl

@@ -1,0 +1,394 @@
+# Paper flow — v2, 2026-09-11
+**Every number below was recomputed from the result files on 2026-09-11.** Claims that failed
+verification are marked ✗ and replaced. Provenance for each is in `FINDINGS.md`.
+
+**Working title:** *Where You Look Is Worth More Than How Much You See: Budget-Matched Evidence
+That Query-Independent Token Allocation Is the Bottleneck in VLMs*
+
+**Thesis.** Production VLMs spend their visual token budget uniformly over space and independently
+of the question. At matched *realized* token budget this costs more than 26x the compute on
+localizable-evidence questions; the evidence still reaches the readout; and the model does not use it.
+
+---
+
+## §1 Introduction
+
+**The gap.** Every shipped high-resolution pathway — LLaVA-NeXT AnyRes, InternVL2 dynamic tiling,
+Qwen dynamic resolution — makes the same choice: spend a large budget, laid out **uniformly over
+space**, with the layout fixed **before the question is read**. That choice has never been priced,
+because the natural comparison has only been run at matched image *area*, never at matched *token
+budget*.
+
+**Contributions, in the order the paper earns them.**
+1. **A budget-matched protocol on realized tokens, and evidence it is not a technicality (§2).**
+   Applying the gate **per item** rather than to the median changed this paper's headline from
+   **+33.5pp to +25.9pp** — a 23% relative reduction — because a median-based gate reported 0.0%
+   spread on a run where **39.3% of items were individually mismatched** (p90 46.4%, max 115.2%).
+   The direction of a mismatch is also **not predictable in advance**: in one earlier experiment it
+   *favoured* the arm under test by 19%, while in three rejected builds of the experiment reported
+   here it *handicapped* the winning arm (which received 1176-1488 tokens against the baseline's
+   2144). Those builds therefore understated rather than inflated the effect — but that can only be
+   asserted *after* running the gated version. Reporting realized tokens per arm is what converts an
+   unknown-sign bias into a measured one.
+2. **The operative variable is placement, not budget (§3).** At matched tokens, on the architecture
+   that introduced AnyRes: query placement beats the shipped pathway by **+25.9pp**, and the same
+   budget spent on a *random* region is **12.9pp worse than tiling**.
+3. **No crossing at 26x budget (§4).** Query-independent spending is still significantly behind a
+   300-token query-placed crop at 7957 realized tokens — **and we report where this fails**: on
+   relative-position questions the gap closes to insignificance.
+4. **The regime is sharply bounded (§5):** error rate **32.8% -> 1.0%** across target token budget.
+5. **A mechanism (§6):** the evidence is present at the answer position and unused — a *use*
+   failure, not a routing or capacity failure.
+6. **Boundaries, and five hypotheses of our own that died to their own controls (§7).**
+
+**Not claimed.** Oracle regions throughout; no localizer proposed; no comparison with V*/SEAL. §9.
+
+---
+
+## §2 Method: matched realized budget
+
+**Protocol.** Each arm is calibrated by iterating on the processor's own `image_grid_thw` until
+realized merged-token counts agree, then verified by a **per-item budget gate**: an item enters a
+contrast only if its own arms agree within 10%. Items failing the gate are dropped and counted.
+
+**Why analytic budgets fail.** Solving token count from pixel geometry is overridden by the
+processor's internal resize. In an early build, requesting 150 tokens gave the single-image arm 120
+and the two-image arms 143 — a **19% budget advantage to the arm under test**.
+
+**Two measured architectural constraints.**
+* **Qwen3-VL:** every image costs **>=64 merged tokens** regardless of size (28x28 px -> 64;
+  112x112 px -> 64). A 2x2 grid plus thumbnail therefore cannot cost below 320 tokens.
+* **LLaVA-NeXT:** the count is a **coarse step function** of input size (it snaps to an
+  `image_grid_pinpoints` entry), and the reachable values depend on **aspect ratio** — measured on
+  real V*Bench images, `anyres` realized **21 distinct counts spanning 1752-2634** (124/191 at
+  2144). It also **unpads tile features by aspect ratio**, so a region whose aspect differs from the
+  source can never realize the source's count at any scale.
+  *(✗ An earlier draft said "only 1416 or 2242 are realizable." That came from a synthetic probe at
+  one fixed image size and is false for real images.)*
+⇒ **The tiling pathway has a minimum budget.** It cannot be run cheaply at all.
+
+**Table 1 (the receipts).** Void builds compared **on their own items**, with the admissible build
+restricted to those same items. The void builds died early (n=52, n=57) and V*Bench is ordered with
+easier `direct_attributes` questions first, so raw cross-build percentages are **not** comparable
+and are not used.
+
+| build | n | tokens: `alloc_query` vs `anyres` | spread | `alloc_query` | admissible, SAME items | `anyres` | same items |
+|---|---|---|---|---|---|---|---|
+| v1 proportional solver / global budget axis | 52 | **1176** vs 2144 | 82.3% | 96.2% | **94.2%** | 50.0% | **48.1%** |
+| v2 ladder, no aspect match | 57 | **1488** vs 2144 | 44.1% | 96.5% | **94.7%** | 49.1% | **49.1%** |
+| **v3 ladder + aspect match (used)** | 191 | 2144 vs 2144 | per-item gated | 86.2% (n=116) | — | 60.3% | — |
+
+**How to read Table 1 — and what it does NOT show.** On identical items the void and admissible
+builds agree to within ~2pp, so these particular void builds were *approximately right*, not
+artifacts. The reason is visible in the token columns: in every one of them `alloc_query` received
+**fewer** tokens than `anyres` (1176-1488 vs 2144), so the mismatch **handicapped the arm that won**
+and the reported effect was conservative.
+
+That is the honest lesson, and it is not "the gate saved us here." It is: **the sign of a budget
+mismatch is not predictable from the design.** In Phase 17 an analytic budget solve handed the arm
+under test a **19% advantage** (which would have inflated the result); here the same class of error
+produced a **45-83% disadvantage** to the same kind of arm. Nothing about the experiment's shape
+told us which we had. Measuring realized tokens is what turns an unknown-sign bias into a known one,
+and the per-item gate is what stops matched and unmatched items being averaged into a single
+number.
+
+**The gate must be per item.** On the final run medians agreed exactly (0.0% spread) while
+**39.3% of items were mismatched by >10%** (per-item spread p90 = 46.4%, max = 115.2%).
+*(✗ The first version of §3 reported all 191 items under a median gate. Corrected below.)*
+
+**Figure 1.** Per-item realized-token spread, ECDF, with the 10% gate line; dropped fraction labelled.
+
+---
+
+## §3 Result 1 — the operative variable is placement, not budget
+
+**Setup.** LLaVA-NeXT-vicuna-7b, V*Bench, 4-way MCQ (argmax over {A,B,C,D} logits — a readout
+intrinsically immune to the bias-shift artifact that inflates yes/no metrics). Every arm is a
+**single image** through `LlavaNextProcessor` unmodified: no arm differs in image count or format.
+Each item matched to **its own native AnyRes cost**. Reported on the **per-item matched subset,
+n=116 of 191** (75 dropped, §2).
+
+| arm | accuracy (n=116) |
+|---|---|
+| uniform (cheapest whole-image; unmatched reference) | 50.0% |
+| **anyres** — the shipped high-resolution path | 60.3% |
+| **alloc_query** — same budget, the question's region | **86.2%** |
+| **alloc_random** — same budget, size-matched wrong region | 47.4% |
+
+| contrast (paired, per-item matched) | delta |
+|---|---|
+| query placement vs native AnyRes | **+25.9pp** [+17.2, +34.5] |
+| query vs size-matched random (decider) | **+38.8pp** [+29.3, +48.3] |
+| **random sub-region vs tiling** | **-12.9pp** [-22.4, -4.3] **reversed** |
+
+*(Under the looser median gate over all 191 these read +33.5 / +48.7 / -15.2pp. All three
+conclusions survive the stricter gate; all three shrink. We report the stricter numbers.)*
+
+**Figure 2.** Four bars with CIs; the reversed contrast annotated.
+
+**The third row is the section.** A placement-free sub-region at the identical budget *loses* to
+tiling. So this is not "cropping beats tiling" and not "sub-regions beat whole images." The budget
+is not the constraint; the placement policy is.
+
+**By question type (n=116):** `direct_attributes` **+32.1pp** [+20.8, +45.3] (n=53);
+`relative_position` **+20.6pp** [+9.5, +31.7] (n=63). Both significant; the effect is larger where
+evidence is single-region. This foreshadows §4's failure case.
+
+**Supporting, at matched image count (Qwen3-VL, appendix):** a tight crop beats a **grid-aligned
+tile containing the same target** by +27.2pp (B=600) and +18.8pp (B=1200). Grid alignment is itself
+expensive — a constraint on any tiling method, tested by neither prior system, since both select
+free-form boxes.
+
+**Stated limitation of the arm.** Because aspect matching is required (§2), `alloc_query` here is
+*the query region expanded to source aspect ratio*, not a tight crop. It is **not** a tight-crop
+upper bound.
+
+---
+
+## §4 Result 2 — the asymptote: no crossing at 26x
+
+**Setup.** Qwen3-VL-2B (chosen because its budget knob is *continuous*; LLaVA-NeXT's step function
+cannot sweep). `crop_only` held **fixed** at 300 tokens; `uniform` swept over a measured ladder.
+**Both arms single image** — format-clean at every rung. Per-item realization is tight here
+(|off| p90 <= 4% on every rung), so no items are dropped. n=191.
+
+Reference: `crop_only@300` = **93.7%** [89.3, 96.4]. `crop_random@300` = **38.2%** — same budget,
+wrong place, and *below* `uniform` at the same 300 tokens (56.5%).
+
+| uniform, realized tokens | accuracy | vs `crop_only@300` |
+|---|---|---|
+| 150 | 46.6% | -47.1pp [-54.5, -39.3] |
+| 294 | 56.5% | -37.2pp [-45.0, -29.3] |
+| 600 | 66.0% | -27.7pp [-35.1, -20.4] |
+| 1176 | 70.2% | -23.6pp [-30.9, -16.2] |
+| 2400 | 75.4% | -18.3pp [-25.1, -11.0] |
+| 4760 | 81.2% | -12.6pp [-19.4, -6.3] |
+| **7957** | **84.8%** | **-8.9pp [-15.2, -2.6]** |
+
+**Figure 3 (headline).** Accuracy vs realized tokens, log-x; `crop_only@300` as a horizontal line;
+shaded gap; last rung annotated *"26x the budget, still 8.9pp behind."*
+
+**Stated as a bound.** No crossing up to 7957 realized tokens = **26.5x** the placed budget.
+Robustness: restricting to the 189 items whose `crop_only` realized within 10% of 300 gives
+-8.5pp [-14.8, -2.6] — unchanged. The gap closes ~3.7pp per doubling in the last rungs, so parity
+by extrapolation lies beyond ~40k tokens; **that is extrapolation, not a measured result.**
+
+### §4.1 Where this fails — and it is the honest half of the section
+Split by question type:
+
+| category | n | `crop_only@300` | `uniform@7957` | gap |
+|---|---|---|---|---|
+| `direct_attributes` | 115 | 97.4% | 85.2% | **-12.2pp [-19.1, -5.2]** significant |
+| `relative_position` | 76 | 88.2% | 84.2% | **-3.9pp [-15.8, +6.6]** **spans zero** |
+
+⇒ **The no-crossing result holds for single-region questions and does NOT hold for
+relative-position questions**, where enough uniform budget does catch up. This is the boundary that
+makes the claim scientific: *query-independent budget fails to substitute for placement when the
+evidence is localizable, and substitutes adequately when the question needs multiple regions.*
+
+### §4.2 The 1/area scaling law is NOT supported — reported as a negative
+All three target-size terciles fail to cross by 7957 tokens (smallest 83% vs 90.5%; largest 86% vs
+96.9%), because V*Bench's *largest* targets are still tiny (median area fraction 0.001). The
+benchmark occupies one regime, so the size-dependence of the crossing budget cannot be resolved
+here. Testing the exponent needs a wide target-size range — RePOPE-clean spans 0.08 to 290 merged
+tokens — and is left open.
+
+---
+
+## §5 Result 3 — the regime is sharply bounded
+
+RePOPE-clean positives, n=3387; error rate by merged tokens on the target, computed from stored
+`image_grid_thw` plus COCO boxes (no additional inference).
+
+| tokens on object | n | error rate |
+|---|---|---|
+| [0, 0.5) | 174 | **32.8%** |
+| [0.5, 1) | 129 | 18.6% |
+| [1, 2) | 189 | 7.9% |
+| [2, 4) | 219 | 5.5% |
+| [4, 8) | 252 | 4.8% |
+| [8, 32) | 678 | 2.2% |
+| [32, inf) | 1746 | **1.0%** |
+
+**Figure 4.** Error rate vs tokens-on-object, log-x, monotone across seven strata — a **33x** swing
+on a benchmark that is 95.5% accurate in aggregate. *The aggregate hides the entire phenomenon.*
+
+This defines where the allocation effect can bind, and is why V*Bench (median area fraction 0.001)
+is the right venue while POPE's aggregate is not.
+
+---
+
+## §6 Result 4 — mechanism: a *use* failure
+
+**Eliminations, each with its own control.**
+* **Not a capacity floor.** A linear probe recovers the target from hidden states.
+* **Not misdirected attention.** Attention-guided top-k retention keeps the target **+20 to +35pp
+  above chance** at L2/L4/L8. *This refuted our own draft claim that "there is nothing at that
+  location to attend to."*
+* **Not fixable by pointing.** A box drawn on the pixels recovers 5.6%; normalized coordinates in
+  the prompt, 0.0%; a "focus on X" instruction, 0.0%.
+* **Not fixable by one-layer steering.** L16 steering shows no real recovery once the matched
+  random-direction control is applied.
+* **Not miscalibration.** Retuning the decision threshold per size stratum buys **0.2pp**
+  (93.7% -> 93.9%), because negatives sit at **median p_yes = 0.0000** and the class distributions
+  barely overlap. *This kills the most obvious reviewer alternative in one line.*
+
+**The positive result — answer-matched probe.** Condition on the model's answer, then probe the
+truth inside it. **ANSWERED-NO cohort, n=612**: 153 objects actually present (false negatives) vs
+459 actually absent (true negatives). The model said "no" to all 612, so its answer is **constant
+across both probe classes** and decoding it yields nothing.
+
+| | AUROC |
+|---|---|
+| permutation null (label-shuffled, same CV) | 0.531 |
+| baseline: `p_yes` alone, a single scalar | 0.899 |
+| `last_blank` (same position, blank image = language prior) | 0.70 - 0.83 |
+| **`last` (answer position)** | **0.958 (L8) -> 0.982 (L16) -> 0.977 (L28)** |
+
+**Figure 5.** AUROC vs layer for `last` and `last_blank`, with the `p_yes` baseline and permutation
+null as horizontal lines.
+
+⇒ **Graded evidence survives to the readout and is not thresholded into the answer.** Same picture
+in the sub-token stratum (n=555, 96 present / 459 absent; baseline 0.870, null 0.575).
+
+**Caveats printed with the result.** `last_blank` at 0.70-0.83 is high — within a "said no" cohort
+the question text alone predicts a lot — so the claim rests on the **gap**, not on 0.98 absolute.
+And `p_yes` alone already carries 0.899, so the defensible phrasing is *"graded evidence is not
+used"*, not *"the model secretly knows."*
+
+---
+
+## §7 Boundaries, negative results, and our own retractions
+
+A section, not a footnote. Five of our hypotheses died to their own controls:
+1. **"VLMs localize well but answer poorly"** — killed; P(yes) AUROC **0.9725** on POPE.
+2. **"Answer-by-grounding as a detector"** — killed; the grounding channel emits a box on 100% of
+   P(yes)'s false positives.
+3. **"Re-anchoring on the model's own failed percept"** — +17.0pp on raw recovery, died on its
+   false-positive control (discrimination CI [-10.6, +6.4]).
+4. **"Attention pruning drops small targets"** — refuted; we had conflated attention *mass* with
+   attention *rank*.
+5. **"Presence information arrives at L6-L9"** — **retracted the same day**. The `last` probe was
+   circular: it decodes the model's own answer. Proven by a pre-registered diagnostic — cohorts with
+   *opposite* label-answer signs both reached AUROC 1.000.
+
+**Plus one methodological self-correction (§2, §3):** our own budget gate was median-based and
+passed a run in which 39.3% of items were individually mismatched.
+
+**Scope limits.** CUB fine-grained over-acceptance is **not** explained by allocation (2.2%, a
+different failure mode). Relational questions benefit less (§3) and lose the no-crossing property
+entirely (§4.1).
+
+**Orthogonal finding.** Confidence-selected cohorts are **7.2x enriched** for benchmark label errors
+— a warning for anyone selecting "confident failures" on POPE.
+
+---
+
+## §8 Related work
+
+**Cite for the phenomenon, which is theirs.** Q-CueGraph (2608.04452): V*Bench 0.696 full-image ->
+0.833, with an area-matched anti-region control at 0.393 and a shuffled-question control at 0.618.
+RUTA (2608.04132): a random-region control on Qwen3-VL. **Our `alloc_random` at 38-47% lands on
+their anti-region number — a healthy external replication, and we say so.**
+
+**What is ours.** (i) matching on **realized tokens** rather than image area — Q-CueGraph matches
+area; RUTA states outright its localizer comparison is "not a strictly rate-matched ranking";
+(ii) a **native-tiling arm** at that matched budget, which neither runs; (iii) the **asymptote and
+its failure case** (§4, §4.1), which only a rate-matched protocol can ask; (iv) the **use-failure
+mechanism** (§6), since neither paper touches internals. Q-CueGraph's §4.4 (14% of crops containing
+the gold answer still yield a wrong answer) is the *behavioural* shadow of our §6 and is cited as
+such.
+
+---
+
+## §9 Limitations
+
+Oracle regions throughout — every `alloc_query` arm uses ground-truth boxes, stated as an oracle.
+No localizer proposed; a training-free proposer would be reported as *% of oracle gain captured*,
+not as a method. We do not compete with V*/SEAL. §6 is one model. §3's `alloc_query` is aspect-
+expanded, not a tight crop. The 1/area scaling law is unsupported (§4.2). §4's no-crossing bound is
+category-dependent (§4.1).
+
+---
+
+## Missing before submission (ranked)
+
+1. **RQ-C — is the exchange rate architecture-invariant?** Run §4's sweep on tokenizers that
+   disagree about everything (Qwen3-VL 16px dynamic; LLaVA-NeXT 336px AnyRes; Qwen2-VL 14px;
+   llava-onevision 384px). Roughly constant => a property of the **task**. Wildly varying => the
+   claim narrows to a survey, honestly.
+2. **RQ-D — where does placement HURT?** §4.1 says relative-position is the place to look.
+   Pre-registered admissibility: uniform accuracy must be <85% or the test is void.
+3. **RQ-B on RePOPE** — the scaling exponent, on the only benchmark with the target-size range.
+4. **§6 on a second model.**
+5. Re-run §3's per-item gate over the dropped 75 items with tighter aspect matching, to recover
+   power.
+
+---
+
+# METHOD SECTION (added 2026-09-11) — the paper was all measurement, no method. This fixes it.
+
+## §2b The primitive: budget-preserving spatial reallocation
+
+Every prior comparison in this space varies the token budget while varying the strategy. We hold
+the **realized** token budget fixed and vary only *where* it is spent. `fit_to_budget` is the
+implementation: iterate on the processor's own `image_grid_thw` until the realized merged-token
+count matches a target, then compare.
+
+**What is genuinely new here is narrower than "a new method," and §8 must say so plainly:**
+> We do not propose a better cropper. ViCrop already crops from attention and re-encodes. Our delta
+> is the **budget-preserving constraint** — ViCrop's crop costs whatever it costs; ours costs
+> exactly B — plus the demonstration that **the token budget, held fixed, is the axis on which
+> cropping and pruning should have been compared all along.**
+
+## §6b The method claim: allocation vs pruning
+
+The two families that address this problem move on different axes:
+
+| family | what it does | encoder cost | LLM cost |
+|---|---|---|---|
+| **pruning** (FastV, D2Pruner, RoRA, HoloV, VisionZip) | selects which already-encoded tokens reach the LLM | **full** | reduced to B |
+| **allocation** (ours) | changes what the encoder samples | reduced to B | reduced to B |
+
+> **Pruning selects among a fixed spatial sampling. Allocation changes the sampling.**
+
+A pruner cannot spend more resolution on a region than the encoder's grid already gave it.
+
+**Prediction with a mechanism, and a crossing point.** In the sub-token regime the target occupies
+<1 merged token *at the encoder's grid*, so **no subset of those tokens carries it**, whichever
+subset the pruner keeps. Above ~2-4 tokens the pruner has something to select and the gap should
+close. §5's dose-response curve supplies the x-axis.
+
+**How we make this comparison — and what we could NOT do.** We attempted a faithful FastV
+reimplementation on Qwen3-VL (attention rank at an early layer, keep top-k, re-forward on the
+pruned sequence). **It is blocked by the backbone**: Qwen3-VL injects *deepstack* visual features
+at several LLM layers, so `get_image_features` returns 4x as many feature rows as visual token
+positions (560 rows of dim 1024 for 140 positions at hidden 2048). Subsetting the main sequence
+without subsetting the deepstack injections identically produces a silently wrong model. We judged
+the risk of a subtly incorrect baseline higher than the value of the row, and did not ship it.
+*(Recorded so this reads as a decision, not an omission.)*
+
+**The argument we make instead is citation-grounded and needs no new run.** A pruner's source is
+the unpruned model, and the pruning literature reports retaining **~96-107%** of unpruned accuracy
+at aggressive ratios (RoRA 96.5% at 88.9% pruning on LLaVA-1.5; 106.9% on Qwen2.5-VL at 75%).
+Meanwhile:
+
+> **Allocation at 300 tokens (93.7%) exceeds this backbone's own UNPRUNED accuracy at 7957 tokens
+> (84.8%) — 110.5% of unpruned, at 1/26th the budget.**
+
+To match it, a pruner would have to exceed its own source by >10%. The best figure we could find
+anywhere in the family is 106.9%, on a different backbone and benchmark. **The margin is real but
+it is not decisive, and the paper must say so rather than rounding it into a claim.**
+
+**Falsification, restated for this weaker form.** If any pruning method is reported above ~110% of
+unpruned on V*Bench with a comparable backbone, this argument fails and the section is cut.
+
+## What this does to §8 (Related Work)
+
+Three families, and we must be precise about which we extend:
+1. **Zoom / visual retrieval** (V*, SEAL, ZoomEye, ViCrop, RAP, Chain-of-Spot, Visual CoT) — crop
+   and re-encode. **Prior art; we do not claim a better cropper.**
+2. **Routing** (ViRGo) — decides *whether* to zoom, via a learned router on an accuracy-vs-**time**
+   Pareto axis. **Prior art for the routing idea**; our axis is tokens, not seconds, and we say why.
+3. **Pruning** (FastV, D2Pruner, RoRA, HoloV) — selects among encoded tokens. **Not a competitor
+   but a contrast**: different axis, and §6b tests whether the axis matters.

@@ -1,0 +1,14 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 11184.37it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   6%|▌         | 38/625 [00:00<00:01, 375.95it/s]Loading weights:  15%|█▌        | 95/625 [00:00<00:01, 465.17it/s]Loading weights:  25%|██▌       | 157/625 [00:00<00:00, 530.15it/s]Loading weights:  34%|███▍      | 212/625 [00:00<00:00, 533.73it/s]Loading weights:  44%|████▍     | 276/625 [00:00<00:00, 570.88it/s]Loading weights:  55%|█████▍    | 343/625 [00:00<00:00, 603.23it/s]Loading weights:  66%|██████▋   | 415/625 [00:00<00:00, 636.93it/s]Loading weights:  77%|███████▋  | 483/625 [00:00<00:00, 647.18it/s]Loading weights:  89%|████████▉ | 558/625 [00:00<00:00, 677.86it/s]Loading weights: 100%|██████████| 625/625 [00:01<00:00, 615.57it/s]
+resuming: 0
+  [20/191] 1.43 it/s eta=2.0min
+  [40/191] 1.50 it/s eta=1.7min
+  [60/191] 1.53 it/s eta=1.4min
+  [80/191] 1.54 it/s eta=1.2min
+  [100/191] 1.55 it/s eta=1.0min
+  [120/191] 1.56 it/s eta=0.8min
+  [140/191] 1.57 it/s eta=0.5min
+  [160/191] 1.57 it/s eta=0.3min
+  [180/191] 1.58 it/s eta=0.1min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase48_query_token.jsonl

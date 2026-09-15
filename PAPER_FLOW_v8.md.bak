@@ -1,0 +1,174 @@
+# Paper flow (v8) — Allocate where the evidence is: predicting coverage before paying for it
+
+> **What changed from v7.** v7 was an interpretability paper with a method attached. v8 is the
+> reverse, as intended. Three *internal* interventions (§4) now establish **causally** that
+> allocation must happen in pixel space, which is what makes a pixel-space method necessary rather
+> than merely convenient. A prior-art head-to-head at matched budget (§7) shows no published policy
+> beats the budget axis. And the method is no longer beaten by its own compute-matched control (§6).
+
+---
+
+## The claim
+
+> At a **matched realized token budget**, *where* a VLM spends visual tokens dominates *how many* —
+> by ≥26×. Whether reallocation pays is predicted by one measurable quantity, **the fraction of the
+> question's evidence set the window covers**: below ~25% it *costs* up to 15.6pp, at full coverage
+> it *gains* 37pp. Three internal interventions show this cannot be fixed inside the model —
+> allocation must add pixels, not redistribute attention or activations. So the method is not a
+> better proposer but a **coverage predictor that runs before the crop is paid for**, and it is the
+> only policy we tested that beats the budget axis at its own spend.
+
+---
+
+## §1 — Problem: nobody holds realized tokens fixed
+
+Pruning holds LLM-side tokens fixed; LLMind/Gizdov hold pixels; ViRGo holds seconds; crop/zoom
+(V\*/SEAL, Zoom Eye, Chain-of-Spot, Visual CoT, DualFocus) hold **nothing**. None isolates placement
+at fixed cost, so none can be compared to simply spending the budget.
+
+**Instrument.** Arms calibrated on the processor's own `image_grid_thw`; counts **measured, never
+computed**; a **budget gate** voids contrasts spreading >10%. Dynamic range is architectural:
+1944× (Qwen2-VL) → **1.5× (LLaVA-NeXT)**, where we report "NO AXIS" rather than a bound.
+
+## §2 — The finding that motivates a method
+
+| | oracle-placed crop | uniform, same budget | placement effect |
+|---|---|---|---|
+| Qwen3-VL-2B | **92.7%** @300 tok | 56.5% | — |
+| Qwen2-VL-7B | 93.2% @300 | 52.9% | +59.2pp over random |
+| LLaVA-OneVision-7B | 86.9% @1323 | — | +49.2pp over random |
+| LLaVA-NeXT-7B | 80.6% @1176 | — | +42.4pp over random |
+
+**No uniform rung ever reaches the crop arm** — not at 7957 tokens. Every exchange rate is a lower
+bound set by the model's own ceiling: **≥26×**. Reproduced on RePOPE (yes/no, +16.7pp at sub-token,
+monotone over a 400× size range, false-positive rate unchanged).
+
+## §3 — What the method must predict: coverage
+
+Two candidate rules died on their own decisive tests — **target size** (HR-Bench is deeply sub-token
+and allocation *lost* 8.8pp) and **region count** (the oracle GT-box crop *wins* on relational
+questions). Both are causes of one quantity.
+
+| coverage of the evidence set | n | Δ vs uniform |
+|---|---|---|
+| **0% (window missed)** | 96 | **−15.6** [−26.0,−5.2] |
+| 25–75% | 12 | +25.0 |
+| **100%** | 62 | **+37.1** [+24.2,+50.0] |
+
+Crossing zero at ~25%, categories pooled. **Half of all windows miss.** Holding difficulty fixed, a
+**70.8pp** gap in one stratum: on items uniform got wrong, covering windows score 83.8%, missing
+ones 13.0% — *below chance*. Replicates on Qwen2-VL (−9.4 / +41.8pp).
+
+## §4 — ★★ Causality: allocation must add pixels (three internal interventions)
+
+Each would have been **free** if it worked. Each is **one pass at identical realized tokens**, so all
+are paired with no compute bar. All three fail, and they fail where the mechanism says they must.
+
+| intervention | result |
+|---|---|
+| **(a) suppress the serialization sink** (§10A) | **null**: −0.5pp, indistinguishable from random and interior controls. The machinery bites: suppressing the same number of *prompt* tokens costs −17.3pp. |
+| **(b) amplify attention on the target** (§10B) | oracle-targeted **+5.8pp** [+1,+10], recovering only **15.9%** of the crop's +36.2pp. Every practical arm (top-1/5/15, deployed window) is **indistinguishable from random**. |
+| **(c) residual-stream steering** (§10C) | a shared direction *exists* (cosine 0.53–0.75) and an item's own displacement is 47% reachable at L20 — but the transferable mean direction gives **+0.0pp at every layer**, losing to a norm-matched random vector. |
+
+**Why, and it is visible in one number:** the oracle amplification set is **1 cell of 294** — the
+target is sub-token, so there is no token to amplify. **Cropping creates tokens on the target;
+attention and activations can only reweight tokens that already exist.**
+
+This rules out the main alternative explanation — "the model just isn't looking in the right place."
+We *made* it look in exactly the right place and got 16% of the benefit. The effect is about the
+**information content of visual tokens**, not routing. Pixel-space allocation is therefore
+**necessary**, which is what forces a method that spends compute — and makes spending it wisely the
+contribution.
+
+## §5 — Interpretability: why the proposer misses
+
+**The sink is a raster-serialization artifact, not a corner effect — four architectures.** Last
+column **3.4–4.5×** enriched where the row boundary is implicit; the learned `image_newline`
+**2.0–2.3×** where it is explicit. Every CI excludes 1.0. A newline embedding is not a corner, not a
+pixel, not image content — only the serialization account predicts it. Transpose test and interior
+replay (1.1% vs 3.3% chance, *below* chance) rule out register tokens; present at **L0**.
+
+*Retracted as a universal:* "rows carry no excess mass" — true of top rows everywhere, but the bottom
+row is enriched 2.1–3.0× in LLaVA and 0.6–0.8× in Qwen.
+
+**Read-out choices, validated not assumed.** The deployed last-token read-out is the **best of seven**
+query positions; attention from the noun *naming the target* is near chance (gt_pct 0.367) —
+localization is not lexical lookup. The relative layer block is validated on Qwen2-VL (**8/8** best
+layers inside it; gt_pct 0.041 inside vs 0.390 outside).
+
+## §6 — ★ The method: predict coverage before paying for the crop
+
+The two-pass gate detects coverage at **AUROC 0.835/0.885** without being designed to — but it
+detects it *by cropping first*, which is what costs the second pass, and its bar is `uniform@600`.
+On HR-Bench it **lost** to that bar by 3.1pp.
+
+**Coverage is predictable from pass 1 for free.** `peak` — the max of the ring-masked attention map,
+already computed by the localizer — predicts coverage at **AUROC 0.788 at zero cost**, beating a
+fitted multi-feature model (which overfits at n=191).
+
+| policy | cost | acc | compute-matched bar | **margin** |
+|---|---|---|---|---|
+| always-2-pass gate | 2.00× | 67.0% | 66.0% | +1.0pp |
+| **adaptive, peak-gated** | **1.40×** | 66.5% | 61.3% | **+5.2pp** |
+
+Positive at **every** firing rate tested, and it routes without ever seeing a box (fired items have
+76.9% coverage vs 31.0% declined). *Honest:* random routing at the same cost earns +3.3pp from the
+concavity of the uniform curve, so `peak`'s own contribution is **+1.9pp**. On HR-Bench the
+transferred policy reaches **break-even (−0.5pp), up from −3.1pp** — the failure is removed, not
+converted to a win.
+
+## §7 — ★★ Prior art at matched realized budget
+
+Every policy charged for every image token across every pass, against the uniform sweep measured
+**in-run on the same items**.
+
+| policy | passes | tokens | acc | bar | **margin** |
+|---|---|---|---|---|---|
+| grounding (Chain-of-Spot · Visual CoT · DualFocus) | 2.00 | 595 | 57.6% | 63.8% | **−6.2pp** |
+| Zoom Eye (tree search) | **9.00** | **2664** | 75.9% | 77.8% | **−1.9pp** |
+| ours, fixed policy | 2.00 | 591 | 61.3% | 63.8% | −2.5pp |
+| **ours, adaptive** | **1.40** | **414** | 62.8% | 60.0% | **+2.8pp** |
+
+**No prior-art policy beats the budget axis at its own spend.** Zoom Eye has the highest raw accuracy
+in the table and still loses to one uniform image of its own budget; per token it is the worst arm
+(0.28 vs our 1.52 acc/1k). Grounding fails exactly as §3 predicts — median IoU **0.029**, because it
+must ground on the view that cannot resolve the target.
+
+⚠ **No margin is individually significant at n=191.** The defensible form: *no policy significantly
+beats the budget axis, and ours is the only positive point estimate, at a third of Zoom Eye's cost.*
+Zoom Eye beats us on raw accuracy (+13.1pp, significant) at 6.4× the tokens. These are
+**reimplementations of the policies on a common backbone**, not released checkpoints; V\*/SEAL's
+search module is absent.
+
+## §8 — Boundary and transfer
+
+HR-Bench 4k (CircularEval, image-hash keyed after a silent wrong-image bug hit 26.5% of rows):
+localizer transfers (**+13.6pp** over random), keyword rule fails (53.5% concordance vs V\*Bench's
+99%) — a **detector** failure, which §6 already names as the open problem.
+
+> **Boundary condition.** Reallocation pays in proportion to how much of the evidence set the window
+> covers. Coverage predicts the sign and most of the magnitude; a residual question-type effect
+> remains at high coverage. Size and region count are two causes of coverage, not rivals.
+
+## §9 — Limitations and the negatives we keep
+
+- **Internal interventions all negative** (§4) — reported as the paper's causal backbone, not hidden.
+- Retracted: the AUROC-1.000 `obj` probe (ROI artifact); the size boundary; the region-count
+  boundary; the "interior optimum" (every CI crossed zero); a capture fraction that divided one arm
+  by another's ceiling (83% → **88%**); "rows carry no excess mass".
+- **Two bugs in our own analysis, both caught and encoded as tests:** a bf16 checkpoint loaded in
+  fp16 produced all-NaN logits that read as a clean architecture-specificity negative (every arm
+  37.2%, CI [+0.0,+0.0]); and a row-segmentation error swallowed LLaVA's base image as "row 0"
+  (59.8% of positions in a bucket capped at ~5%), manufacturing a bottom-row result.
+- Coverage is measured on **V\*Bench only** (n=191) — HR-Bench ships no boxes.
+- The multi-window intervention nets to **zero** at the population level (+38.9pp where the dose is
+  nonzero, −4.0pp where it is not).
+- No prior-art margin is significant at n=191; the sink uses n=24 images/model.
+
+## §10 — Related work
+
+Positioned on the **resource axis**: pruning holds LLM-side tokens fixed; LLMind/Gizdov hold pixels;
+ViRGo holds seconds; crop/zoom hold nothing. **This work holds realized tokens fixed and moves
+them** — and, uniquely, reports the regime where doing so is *harmful*, gives the measurable quantity
+that predicts which regime you are in, shows by intervention that no internal alternative exists, and
+scores the prior art against what its own budget buys uniformly.

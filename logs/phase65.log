@@ -1,0 +1,4 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 14910.25it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   6%|▋         | 40/625 [00:00<00:01, 371.45it/s]Loading weights:  19%|█▉        | 121/625 [00:00<00:00, 620.52it/s]Loading weights:  29%|██▉       | 184/625 [00:00<00:00, 617.43it/s]Loading weights:  40%|████      | 253/625 [00:00<00:00, 614.03it/s]Loading weights:  57%|█████▋    | 354/625 [00:00<00:00, 747.55it/s]Loading weights:  79%|███████▉  | 495/625 [00:00<00:00, 964.85it/s]Loading weights:  98%|█████████▊| 614/625 [00:00<00:00, 1030.51it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 848.14it/s] 
+resuming: 0

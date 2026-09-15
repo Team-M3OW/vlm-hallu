@@ -1,0 +1,43 @@
+downloads complete: 44G
+=== starting qwen2vl at 11:08 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Phase 28: qwen2vl ===
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. 
+  per-image token floor (64x48 px input): 4
+  B0=300   realizable ladder (requested -> realized): [(150, 154), (300, 300), (600, 588), (1200, 1200), (2400, 2451), (4800, 4800), (7800, 7752)]
+  model token cap ~7752; sweeping requested budgets [150, 300, 600, 1200, 2400, 4800, 7800]
+  resuming: 20
+  [20] 0.07 it/s eta=43.7min
+  [40] 0.06 it/s eta=39.1min
+  [60] 0.06 it/s eta=34.3min
+  [80] 0.06 it/s eta=28.8min
+  [100] 0.06 it/s eta=23.8min
+  [120] 0.06 it/s eta=18.7min
+  [140] 0.06 it/s eta=13.4min
+  [160] 0.06 it/s eta=8.2min
+Done qwen2vl.
+=== finished qwen2vl at 11:54 ===
+=== starting onevision at 11:54 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Phase 28: onevision ===
+The image processor of type `LlavaOnevisionImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. 
+  per-image token floor (64x48 px input): 1317
+  B0=1317   realizable ladder (requested -> realized): [(1317, 1317), (2634, 2929), (5268, 5731), (10536, 7309), (21072, 7309), (34242, 7309)]
+  model token cap ~7309; sweeping requested budgets [1317, 2634, 5268]
+  resuming: 0
+  [20] 0.13 it/s eta=22.3min
+  [40] 0.13 it/s eta=20.0min
+  [60] 0.13 it/s eta=17.3min
+  [80] 0.13 it/s eta=14.7min
+  [100] 0.13 it/s eta=12.0min
+  [120] 0.13 it/s eta=9.5min
+  [140] 0.13 it/s eta=6.8min
+  [160] 0.13 it/s eta=4.1min
+  [180] 0.13 it/s eta=1.4min
+Done onevision.
+=== finished onevision at 12:23 ===
+=== starting llavanext at 12:23 ===
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+=== Phase 28: llavanext ===
+The image processor of type `LlavaNextImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. 
+  per-image token floor (64x48 px input): 1368

@@ -1,0 +1,14 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 20194.78it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   6%|▌         | 38/625 [00:00<00:01, 366.13it/s]Loading weights:  17%|█▋        | 105/625 [00:00<00:00, 538.89it/s]Loading weights:  28%|██▊       | 178/625 [00:00<00:00, 598.76it/s]Loading weights:  40%|████      | 251/625 [00:00<00:00, 648.07it/s]Loading weights:  56%|█████▌    | 348/625 [00:00<00:00, 757.54it/s]Loading weights:  76%|███████▌  | 473/625 [00:00<00:00, 920.82it/s]Loading weights:  96%|█████████▌| 600/625 [00:00<00:00, 1018.73it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 832.21it/s] 
+resuming: 0
+  [20/191] eta=18.8min
+  [40/191] eta=16.5min
+  [60/191] eta=14.1min
+  [80/191] eta=11.9min
+  [100/191] eta=9.8min
+  [120/191] eta=7.6min
+  [140/191] eta=5.5min
+  [160/191] eta=3.5min
+  [180/191] eta=1.3min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase65_saliency_warp.jsonl

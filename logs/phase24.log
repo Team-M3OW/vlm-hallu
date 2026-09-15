@@ -1,0 +1,21 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Indexing POPE (lazy image access)...
+  RePOPE-clean pool: 3387 pos, 1409 neg
+  FAILURE COHORT (all of it): 153 wrong positives, 42 wrong negatives
+  size-matched correct positives: 459 (median tok wrong=0.82 vs matched=1.01)
+  total forward passes: 1113
+  GPU has 46.7GB free, proceeding
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:01<12:11,  1.17s/it]Loading weights:  13%|█▎        | 80/625 [00:01<00:06, 84.45it/s]Loading weights:  19%|█▉        | 118/625 [00:01<00:05, 93.38it/s]Loading weights:  23%|██▎       | 144/625 [00:01<00:04, 97.75it/s]Loading weights:  26%|██▌       | 164/625 [00:02<00:04, 102.62it/s]Loading weights:  29%|██▉       | 182/625 [00:02<00:04, 103.27it/s]Loading weights:  32%|███▏      | 201/625 [00:02<00:04, 105.02it/s]Loading weights:  35%|███▍      | 218/625 [00:02<00:03, 114.98it/s]Loading weights:  37%|███▋      | 233/625 [00:02<00:03, 117.82it/s]Loading weights:  40%|███▉      | 247/625 [00:02<00:03, 112.96it/s]Loading weights:  43%|████▎     | 267/625 [00:02<00:02, 127.46it/s]Loading weights:  45%|████▌     | 282/625 [00:03<00:02, 120.43it/s]Loading weights:  48%|████▊     | 300/625 [00:03<00:02, 130.89it/s]Loading weights:  51%|█████     | 318/625 [00:03<00:02, 142.54it/s]Loading weights:  59%|█████▊    | 366/625 [00:03<00:01, 221.42it/s]Loading weights:  67%|██████▋   | 420/625 [00:03<00:00, 304.70it/s]Loading weights:  74%|███████▎  | 460/625 [00:03<00:00, 321.98it/s]Loading weights:  82%|████████▏ | 510/625 [00:03<00:00, 356.00it/s]Loading weights:  89%|████████▉ | 558/625 [00:03<00:00, 387.64it/s]Loading weights:  96%|█████████▌| 600/625 [00:03<00:00, 332.67it/s]Loading weights: 100%|██████████| 625/625 [00:04<00:00, 155.05it/s]
+[100/1113] 4.87 it/s eta=3.5min
+[200/1113] 4.86 it/s eta=3.1min
+[300/1113] 4.89 it/s eta=2.8min
+[400/1113] 4.91 it/s eta=2.4min
+[500/1113] 4.91 it/s eta=2.1min
+[600/1113] 4.94 it/s eta=1.7min
+[700/1113] 4.96 it/s eta=1.4min
+[800/1113] 4.97 it/s eta=1.0min
+[900/1113] 4.98 it/s eta=0.7min
+[1000/1113] 4.99 it/s eta=0.4min
+[1100/1113] 5.00 it/s eta=0.0min
+Done. 1113 items -> /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase24_probe_sweep_feats.npz. blocks per layer = ['obj', 'rand', 'last', 'last_blank']

@@ -1,0 +1,17 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 16313.08it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading Qwen/Qwen2-VL-7B-Instruct (fp16, eager)...
+Loading weights:   0%|          | 0/730 [00:00<?, ?it/s]Loading weights:   0%|          | 1/730 [00:00<02:41,  4.51it/s]Loading weights:   2%|▏         | 18/730 [00:00<00:10, 65.18it/s]Loading weights:   4%|▍         | 31/730 [00:00<00:09, 76.50it/s]Loading weights:   7%|▋         | 51/730 [00:00<00:06, 105.12it/s]Loading weights:  12%|█▏        | 86/730 [00:00<00:03, 163.40it/s]Loading weights:  15%|█▍        | 109/730 [00:00<00:03, 168.32it/s]Loading weights:  19%|█▊        | 136/730 [00:00<00:03, 179.21it/s]Loading weights:  22%|██▏       | 161/730 [00:01<00:02, 189.99it/s]Loading weights:  25%|██▍       | 181/730 [00:01<00:03, 176.27it/s]Loading weights:  28%|██▊       | 207/730 [00:01<00:02, 194.35it/s]Loading weights:  31%|███       | 227/730 [00:01<00:02, 168.06it/s]Loading weights:  35%|███▍      | 254/730 [00:01<00:02, 187.41it/s]Loading weights:  38%|███▊      | 280/730 [00:01<00:02, 202.97it/s]Loading weights:  41%|████▏     | 302/730 [00:01<00:02, 178.49it/s]Loading weights:  45%|████▍     | 326/730 [00:02<00:02, 179.78it/s]Loading weights:  57%|█████▋    | 414/730 [00:02<00:00, 343.48it/s]Loading weights:  68%|██████▊   | 495/730 [00:02<00:00, 460.30it/s]Loading weights:  78%|███████▊  | 570/730 [00:02<00:00, 529.28it/s]Loading weights:  89%|████████▉ | 653/730 [00:02<00:00, 603.76it/s]Loading weights: 100%|█████████▉| 727/730 [00:02<00:00, 637.11it/s]Loading weights: 100%|██████████| 730/730 [00:02<00:00, 285.59it/s]
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. 
+  28 layers; relative block 15-26; merge 2
+resuming: 0
+  [20] 0.20 it/s eta=14.3min
+  [40] 0.20 it/s eta=12.4min
+  [60] 0.20 it/s eta=10.8min
+  [80] 0.20 it/s eta=9.1min
+  [100] 0.20 it/s eta=7.5min
+  [120] 0.20 it/s eta=5.8min
+  [140] 0.21 it/s eta=4.1min
+  [160] 0.21 it/s eta=2.5min
+  [180] 0.21 it/s eta=0.9min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase42_qwen2vl_method.jsonl

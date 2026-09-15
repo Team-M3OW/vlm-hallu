@@ -1,0 +1,23 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+positive arm (confident denials, oracle crop available): 141
+negative arm (object absent, size-matched random crop):  141
+Loading items...
+  resolved 282/282
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   3%|▎         | 21/625 [00:00<00:02, 203.11it/s]Loading weights:  15%|█▍        | 91/625 [00:00<00:01, 483.27it/s]Loading weights:  26%|██▌       | 162/625 [00:00<00:00, 582.82it/s]Loading weights:  37%|███▋      | 231/625 [00:00<00:00, 622.97it/s]Loading weights:  48%|████▊     | 300/625 [00:00<00:00, 646.11it/s]Loading weights:  95%|█████████▌| 595/625 [00:00<00:00, 1406.07it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 975.14it/s] 
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+[20/282] 0.53 it/s eta=8.2min
+[40/282] 0.56 it/s eta=7.2min
+[60/282] 0.62 it/s eta=6.0min
+[80/282] 0.65 it/s eta=5.2min
+[100/282] 0.68 it/s eta=4.5min
+[120/282] 0.68 it/s eta=4.0min
+[140/282] 0.65 it/s eta=3.6min
+[160/282] 0.68 it/s eta=3.0min
+[180/282] 0.73 it/s eta=2.3min
+[200/282] 0.77 it/s eta=1.8min
+[220/282] 0.82 it/s eta=1.3min
+[240/282] 0.85 it/s eta=0.8min
+[260/282] 0.89 it/s eta=0.4min
+[280/282] 0.92 it/s eta=0.0min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase9_factorial_results.jsonl

@@ -1,0 +1,15 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+CUB test split: 5794 images, using 1200
+genera with >=2 species: 37/70
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   4%|▍         | 25/625 [00:00<00:02, 245.54it/s]Loading weights:  15%|█▍        | 92/625 [00:00<00:01, 491.92it/s]Loading weights:  27%|██▋       | 166/625 [00:00<00:00, 603.21it/s]Loading weights:  38%|███▊      | 235/625 [00:00<00:00, 631.40it/s]Loading weights:  49%|████▉     | 309/625 [00:00<00:00, 669.72it/s]Loading weights:  97%|█████████▋| 606/625 [00:00<00:00, 1438.68it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 999.93it/s] 
+[100/1200] 8.82 it/s eta=2.1min
+[200/1200] 8.89 it/s eta=1.9min
+[300/1200] 8.93 it/s eta=1.7min
+[400/1200] 9.03 it/s eta=1.5min
+[500/1200] 9.09 it/s eta=1.3min
+[600/1200] 9.14 it/s eta=1.1min
+[700/1200] 9.15 it/s eta=0.9min
+[800/1200] 8.79 it/s eta=0.8min
+[900/1200] 8.82 it/s eta=0.6min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase18_cub_tail.jsonl

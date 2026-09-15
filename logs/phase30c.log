@@ -1,0 +1,14 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 17220.78it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   3%|▎         | 19/625 [00:00<00:03, 188.44it/s]Loading weights:  12%|█▏        | 77/625 [00:00<00:01, 406.31it/s]Loading weights:  22%|██▏       | 135/625 [00:00<00:01, 483.19it/s]Loading weights:  31%|███       | 191/625 [00:00<00:00, 511.56it/s]Loading weights:  40%|███▉      | 247/625 [00:00<00:00, 527.08it/s]Loading weights:  49%|████▉     | 306/625 [00:00<00:00, 547.10it/s]Loading weights:  72%|███████▏  | 451/625 [00:00<00:00, 838.84it/s]Loading weights:  97%|█████████▋| 608/625 [00:00<00:00, 1065.17it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 752.43it/s] 
+  model has 28 text layers; dumping [2, 4, 8, 14, 20]
+resuming: 0
+  [25] 2.38 it/s eta=1.2min
+  [50] 2.41 it/s eta=1.0min
+  [75] 2.40 it/s eta=0.8min
+  [100] 2.43 it/s eta=0.6min
+  [125] 2.44 it/s eta=0.5min
+  [150] 2.46 it/s eta=0.3min
+  [175] 2.53 it/s eta=0.1min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase30c_attn_maps.jsonl

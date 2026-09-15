@@ -1,0 +1,168 @@
+# Paper flow (v9) — Gated visual-token allocation, and the scale at which it stops paying
+
+> **What changed from v8.** v8 claimed a method without bounding it. Four independent attempts to
+> make it win at 4K all failed (§7), and the failure is *predicted by our own mechanism*. v9 claims
+> the **scale boundary as a first-class finding**: the method works in a characterised regime, and
+> the paper characterises the regime. A bounded claim that is true beats an unbounded one that is not.
+
+---
+
+## The claim
+
+> At a **matched realized token budget**, *where* a VLM spends visual tokens dominates *how many* —
+> by ≥26×. Whether reallocation pays is predicted by **evidence-set coverage**, and three internal
+> interventions show the deficit **cannot be repaired inside the model**: allocation must add pixels.
+> The resulting method — a **free pass-1 gate** deciding when to spend a second pass — beats the
+> budget axis at ~1500px (+5.4pp at 30% fewer tokens), reaches **break-even at 4K**, and improves
+> *other* methods' cost-effectiveness too (+17.0pp for ours, −53% tokens for tree search). **The
+> boundary is at image scale, it is sharp, and our mechanism predicts it.**
+
+---
+
+## §1 — Problem: nobody holds realized tokens fixed
+
+Pruning holds LLM-side tokens fixed; LLMind/Gizdov hold pixels; ViRGo holds seconds; crop/zoom
+(V\*/SEAL, Zoom Eye, Chain-of-Spot, Visual CoT, DualFocus) hold **nothing**. Counts are **measured,
+never computed**; a **budget gate** voids contrasts spreading >10%. Dynamic range is architectural:
+1944× (Qwen2-VL) → **1.5× (LLaVA-NeXT)**, reported as "NO AXIS", not a bound.
+
+## §2 — The finding
+
+Oracle placement reaches **92.7%** against uniform's **56.5%** at the same 300 tokens, and **no
+uniform rung catches it at 7957**. Every exchange rate is a lower bound set by the model's ceiling:
+**≥26×**. Placement beats random on four architectures (+40 to +59pp); reproduced on RePOPE
+(+16.7pp at sub-token, monotone over a 400× size range, false-positive rate unchanged).
+
+## §3 — Mechanism: evidence-set coverage
+
+Two rules died on their own tests — **size** (HR-Bench is sub-token and allocation *lost*) and
+**region count** (the oracle GT-box crop *wins* on relational questions). Both are causes of one
+quantity.
+
+| coverage | Δ vs uniform |
+|---|---|
+| **0% (missed)** | **−15.6** [−26.0,−5.2] |
+| **100%** | **+37.1** [+24.2,+50.0] |
+
+Crossing zero at ~25%; **half of all windows miss**. Difficulty held fixed: a **70.8pp** gap in one
+stratum (wrong-at-uniform items score 83.8% covered vs **13.0%** missed — below chance). Replicates
+on Qwen2-VL (−9.4 / +41.8pp).
+
+## §4 — ★★ Causality: the deficit cannot be repaired inside the model
+
+Three internal interventions, each **free if it worked**, each **one pass at identical tokens**:
+
+| intervention | result |
+|---|---|
+| suppress the serialization sink | **null** (−0.5pp) = random/interior controls; but −17.3pp on *prompt* tokens, so the machinery bites |
+| amplify attention on the target | oracle-targeted **+5.8pp** = **16%** of the crop's +36.2pp; every practical arm = random |
+| residual-stream steering | shared direction exists (cos 0.53–0.75), item's own displacement 47% reachable at L20 — transferable mean vector **+0.0pp** |
+
+**The oracle amplification set is 1 cell of 294.** The target is sub-token: there is no token to
+amplify. **Cropping creates tokens; attention and activations only reweight existing ones.** This
+rules out "the model just isn't looking in the right place" — we *made* it look there and got 16%.
+Pixel-space allocation is **necessary**, which is what forces a method that spends compute.
+
+## §5 — Interpretability: why the proposal misses
+
+The sink is a **raster-serialization artifact**, four architectures: last column **3.4–4.5×** where
+the row boundary is implicit, the learned `image_newline` **2.0–2.3×** where explicit. Every CI
+excludes 1.0. A newline embedding is not a corner — only the serialization account predicts it.
+Transpose and interior-replay tests (1.1% vs 3.3% chance, *below*) rule out register tokens; present
+at **L0**. *Retracted as universal:* "rows carry no excess mass" (bottom row is LLaVA-only).
+
+Read-outs **validated, not assumed**: the last-token read-out is best of seven (attention from the
+noun *naming* the target is near chance — localization is not lexical lookup); the relative layer
+block holds on Qwen2-VL (8/8 best layers inside, gt_pct 0.041 vs 0.390 outside).
+
+## §6 — ★ Method: a free gate on when to spend
+
+The two-pass gate detects coverage at **AUROC 0.835/0.885** — but detects it *by cropping first*.
+**`peak`, already computed by pass 1, predicts coverage at AUROC 0.788 for free.**
+
+| | ungated | **gated** | tokens |
+|---|---|---|---|
+| V\*Bench margin vs bar | −2.5pp | **+5.4pp** | −30% |
+| HR-Bench 4k margin vs bar | −17.3pp | **−0.2pp** | −30% |
+
+**Gating is a large, free improvement at both scales** (+7.9pp / **+17.0pp** of margin). It also
+improves a baseline: **Zoom Eye recovers +5.7pp at 4K on 53% fewer tokens**. It is not universal —
+it is matched to the attention proposer, because `peak` measures *that* proposer's reliability
+(grounding gains on V\*Bench only, tree search at 4K only).
+
+## §7 — ★★ The scale boundary, claimed as a finding
+
+Four independent attempts to win at 4K, each at full n=800 with CircularEval:
+
+| attempt | best margin at 4K |
+|---|---|
+| peak-gated adaptive | −0.2pp |
+| scene+crop composite (never discard the scene) | −3.5 to −7.2pp |
+| proposer-agnostic gate | −0.2pp |
+| **coarse-to-fine localizer** (2.9× finer cells) | **−0.2pp** |
+
+**The decisive one:** coarse-to-fine genuinely refines — cell size 237px → 83px, peak relocates a
+median **489px** — and the isolating contrast is **exactly zero**: `c2f_fine − coarse_fine = +0.0pp,
+CI [−3.0,+2.9]`. Same window, same final budget, one localization versus two. **The fine peak is no
+more on-target than the coarse one.** Refinement is not the missing piece.
+
+**Why, and our own mechanism predicts it.** Two quantities move together with image size:
+
+1. the **budget axis becomes more productive**, so the bar climbs faster; and
+2. the localizer's grid cell grows in **absolute pixels** (237px at 4K), so the same attention map
+   buys a **less precise** proposal.
+
+Allocation loses the race on both counts at once. And §3 says why a miss is fatal there: at 4K a
+W=0.15 window keeps **2.25% of the scene**, so coverage collapses and the sign flips.
+
+| | V\*Bench (~1500–2000px) | HR-Bench 4k (4032px) |
+|---|---|---|
+| gated allocation vs bar | **+5.4pp** | **−0.2pp** |
+| crop-only vs bar | −2.5pp | **−17.3pp** |
+
+> **Scale boundary.** Reallocation beats the budget axis while the window can be placed to a
+> precision comparable to the evidence's size. As image scale grows, proposal precision degrades in
+> absolute pixels while the uniform baseline improves, and the two effects meet: by 4K, allocation is
+> at best cost-neutral. This is a property of the *proposal*, not of the allocation idea — the oracle
+> crop still reaches 92.7%.
+
+## §8 — Prior art at matched budget, both scales
+
+| policy | tokens | V\*Bench margin | tokens | HR-Bench 4k margin |
+|---|---|---|---|---|
+| grounding (Chain-of-Spot · Visual CoT · DualFocus) | 595 | **−6.2pp** | 590 | +1.3pp n.s. |
+| **Zoom Eye (tree search)** | **2664** | −5.2pp | **2636** | **−15.3pp SIG** |
+| **ours, gated** | **414** | **+5.4pp** | **411** | **−0.2pp** |
+
+**No published policy beats the budget axis at either scale.** Zoom Eye has the highest raw accuracy
+in both tables and still loses to one uniform image of its own budget; at 4K that loss is **−10.4pp
+against uniform@1200 while spending 2.2× the tokens**, significant at n=800. Grounding flips sign
+across scales (−6.2 → +1.3) exactly as §3 predicts: it must localize from a 300-token view, which
+works at 4032px and fails at 1500px (median IoU **0.029**).
+
+⚠ These are **reimplementations of the policies on a common backbone**, not released checkpoints;
+V\*/SEAL's search module is absent. On V\*Bench no margin is individually significant (n=191); at 4K
+Zoom Eye's loss is.
+
+## §9 — Limitations and the negatives we keep
+
+- **All three internal interventions are negative** (§4) — the paper's causal backbone, not hidden.
+- **Four attempts to win at 4K failed** (§7) — claimed as a boundary, not buried.
+- Retracted: the AUROC-1.000 `obj` probe; the size boundary; the region-count boundary; the
+  "interior optimum"; a mismatched capture fraction (83% → **88%**); "rows carry no excess mass";
+  and **"ours is the only policy with a positive margin"**, which holds at ~1500px and not at 4K.
+- **Two bugs in our own analysis, caught and encoded as tests:** a bf16 checkpoint in fp16 gave
+  all-NaN logits that read as a clean architecture-specificity negative; a row-segmentation error
+  swallowed LLaVA's base image as "row 0" and manufactured a bottom-row sink.
+- Coverage is measured on **V\*Bench only** — HR-Bench ships no boxes.
+- The multi-window intervention nets **zero** at the population level.
+- Sink n=24 images/model; V\*Bench n=191 gives ±7pp CIs throughout.
+
+## §10 — Related work
+
+Positioned on the **resource axis**: pruning holds LLM-side tokens fixed; LLMind/Gizdov hold pixels;
+ViRGo holds seconds; crop/zoom hold nothing. **This work holds realized tokens fixed and moves
+them** — and uniquely: reports the regime where doing so is *harmful*, gives the quantity that
+predicts which regime you are in, shows by intervention that no internal alternative exists, scores
+the prior art against what its own budget buys uniformly, and **bounds its own method by image
+scale rather than leaving the boundary for a reviewer to find.**

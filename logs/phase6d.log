@@ -1,0 +1,15 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+confident_denial cohort: 141
+Loading items...
+  resolved 141/141
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:49,  5.69it/s]Loading weights:  17%|█▋        | 104/625 [00:00<00:01, 459.77it/s]Loading weights:  29%|██▊       | 179/625 [00:00<00:00, 562.75it/s]Loading weights:  40%|████      | 250/625 [00:00<00:00, 613.49it/s]Loading weights:  60%|█████▉    | 374/625 [00:00<00:00, 821.06it/s]Loading weights:  98%|█████████▊| 612/625 [00:00<00:00, 1319.63it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 907.93it/s] 
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+[20] rate=1.76/s
+[40] rate=1.78/s
+[60] rate=1.79/s
+[80] rate=1.80/s
+[100] rate=1.79/s
+[120] rate=1.80/s
+[140] rate=1.80/s
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase6d_decode_steps_results.jsonl

@@ -1,0 +1,27 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 18888.63it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   2%|▏         | 15/625 [00:00<00:04, 144.25it/s]Loading weights:  12%|█▏        | 76/625 [00:00<00:01, 396.49it/s]Loading weights:  23%|██▎       | 143/625 [00:00<00:00, 515.80it/s]Loading weights:  33%|███▎      | 208/625 [00:00<00:00, 565.24it/s]Loading weights:  44%|████▎     | 272/625 [00:00<00:00, 568.42it/s]Loading weights:  60%|██████    | 376/625 [00:00<00:00, 722.73it/s]Loading weights:  83%|████████▎ | 517/625 [00:00<00:00, 940.73it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 759.29it/s]
+28 decoder layers; steering at [8, 14, 20, 26]
+  stage1 [30/191] eta=3.5min
+  stage1 [60/191] eta=2.9min
+  stage1 [90/191] eta=2.3min
+  stage1 [120/191] eta=1.6min
+  stage1 [150/191] eta=0.9min
+  stage1 [180/191] eta=0.2min
+stage1 done, saved /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase52_deltas.pt
+
+baseline 56.5%   oracle 93.2%
+  L8: mean |delta| 5.28   |mean delta| 4.10   cos(delta_i, mean) 0.746
+  L14: mean |delta| 17.76   |mean delta| 13.30   cos(delta_i, mean) 0.711
+  L20: mean |delta| 221.39   |mean delta| 150.33   cos(delta_i, mean) 0.626
+  L26: mean |delta| 495.05   |mean delta| 286.82   cos(delta_i, mean) 0.533
+  stage2 [20/191] eta=18.1min
+  stage2 [40/191] eta=16.0min
+  stage2 [60/191] eta=13.8min
+  stage2 [80/191] eta=11.7min
+  stage2 [100/191] eta=9.6min
+  stage2 [120/191] eta=7.5min
+  stage2 [140/191] eta=5.4min
+  stage2 [160/191] eta=3.3min
+  stage2 [180/191] eta=1.2min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase52_residual_steering.jsonl

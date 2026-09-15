@@ -1,0 +1,21 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+targets: 282
+Loading items...
+  resolved 282/282
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:01<15:15,  1.47s/it]Loading weights:  15%|█▍        | 91/625 [00:01<00:07, 72.65it/s]Loading weights:  18%|█▊        | 115/625 [00:01<00:06, 75.87it/s]Loading weights:  21%|██        | 132/625 [00:02<00:05, 85.74it/s]Loading weights:  24%|██▍       | 149/625 [00:02<00:05, 86.00it/s]Loading weights:  26%|██▌       | 163/625 [00:02<00:05, 87.57it/s]Loading weights:  28%|██▊       | 176/625 [00:02<00:04, 90.04it/s]Loading weights:  30%|███       | 188/625 [00:02<00:05, 86.98it/s]Loading weights:  32%|███▏      | 199/625 [00:02<00:04, 87.53it/s]Loading weights:  34%|███▍      | 212/625 [00:02<00:04, 88.09it/s]Loading weights:  36%|███▌      | 223/625 [00:03<00:04, 90.79it/s]Loading weights:  38%|███▊      | 235/625 [00:03<00:04, 91.56it/s]Loading weights:  39%|███▉      | 246/625 [00:03<00:03, 94.90it/s]Loading weights:  41%|████      | 256/625 [00:03<00:03, 93.05it/s]Loading weights:  43%|████▎     | 267/625 [00:03<00:03, 89.71it/s]Loading weights:  45%|████▌     | 284/625 [00:03<00:03, 105.23it/s]Loading weights:  48%|████▊     | 300/625 [00:03<00:03, 107.54it/s]Loading weights:  53%|█████▎    | 330/625 [00:03<00:01, 149.65it/s]Loading weights:  60%|██████    | 376/625 [00:04<00:01, 222.59it/s]Loading weights:  66%|██████▌   | 414/625 [00:04<00:00, 262.46it/s]Loading weights:  71%|███████   | 442/625 [00:04<00:00, 254.25it/s]Loading weights:  76%|███████▌  | 472/625 [00:04<00:00, 263.93it/s]Loading weights:  80%|████████  | 500/625 [00:04<00:00, 251.36it/s]Loading weights:  87%|████████▋ | 544/625 [00:04<00:00, 287.10it/s]Loading weights:  95%|█████████▍| 592/625 [00:04<00:00, 283.80it/s]Loading weights:  99%|█████████▉| 621/625 [00:04<00:00, 230.16it/s]Loading weights: 100%|██████████| 625/625 [00:04<00:00, 125.33it/s]
+[20/282] 1.23 it/s eta=3.5min
+[40/282] 1.25 it/s eta=3.2min
+[60/282] 1.23 it/s eta=3.0min
+[80/282] 1.23 it/s eta=2.7min
+[100/282] 1.24 it/s eta=2.4min
+[120/282] 1.23 it/s eta=2.2min
+[140/282] 1.22 it/s eta=1.9min
+[160/282] 1.23 it/s eta=1.6min
+[180/282] 1.23 it/s eta=1.4min
+[200/282] 1.23 it/s eta=1.1min
+[220/282] 1.23 it/s eta=0.8min
+[240/282] 1.22 it/s eta=0.6min
+[260/282] 1.22 it/s eta=0.3min
+[280/282] 1.23 it/s eta=0.0min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase13_bfs_results.jsonl

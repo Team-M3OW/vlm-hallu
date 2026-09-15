@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+confident_denial cohort: 141
+Loading items...
+  resolved 141/141
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:07,  9.22it/s]Loading weights:  15%|█▍        | 91/625 [00:00<00:01, 505.81it/s]Loading weights:  25%|██▌       | 158/625 [00:00<00:00, 576.74it/s]Loading weights:  37%|███▋      | 231/625 [00:00<00:00, 631.29it/s]Loading weights:  48%|████▊     | 301/625 [00:00<00:00, 651.59it/s]Loading weights:  96%|█████████▌| 600/625 [00:00<00:00, 1412.09it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 969.98it/s] 
+[20] rate=5.27/s
+[40] rate=5.34/s
+[60] rate=5.42/s
+[80] rate=5.55/s
+[100] rate=5.66/s
+[120] rate=5.71/s
+[140] rate=5.61/s
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase7_vision_zoom_results.jsonl

@@ -1,0 +1,86 @@
+PHASE 26 -- answer-matched probe, built from Phase 24 features (no new forward passes)
+
+================================================================================
+ANSWERED-NO: model said 'no' to EVERY item; probe asks if the object is present   n=612  present=153  absent=459
+================================================================================
+  BASELINE  p_yes alone (a single scalar): AUROC 0.899
+  permutation null (label-shuffled, L14 last): 0.531
+  a probe is only INTERESTING where `last` beats BOTH 0.899 and its own blank-image floor
+
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.994        0.666        0.441        0.441   -
+  L2             0.991        0.656        0.716        0.707   -
+  L4             0.994        0.624        0.765        0.715   -
+  L6             0.994        0.637        0.916        0.792   -
+  L8             0.993        0.624        0.958        0.806   last>baseline+blank
+  L10            0.993        0.656        0.964        0.783   last>baseline+blank
+  L12            0.992        0.631        0.975        0.740   last>baseline+blank
+  L14            0.990        0.625        0.978        0.828   last>baseline+blank
+  L16            0.989        0.631        0.982        0.805   last>baseline+blank
+  L18            0.989        0.604        0.981        0.730   last>baseline+blank
+  L20            0.992        0.611        0.979        0.797   last>baseline+blank
+  L22            0.995        0.631        0.979        0.792   last>baseline+blank
+  L24            0.996        0.666        0.978        0.758   last>baseline+blank
+  L26            0.998        0.640        0.980        0.796   last>baseline+blank
+  L28            0.996        0.651        0.977        0.701   last>baseline+blank
+
+================================================================================
+ANSWERED-NO, SUB-TOKEN targets (<2 tok) -- C2 x C3   n=555  present=96  absent=459
+================================================================================
+  BASELINE  p_yes alone (a single scalar): AUROC 0.870
+  permutation null (label-shuffled, L14 last): 0.575
+  a probe is only INTERESTING where `last` beats BOTH 0.870 and its own blank-image floor
+
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.996        0.712        0.455        0.455   -
+  L2             0.998        0.722        0.779        0.713   -
+  L4             0.999        0.724        0.876        0.821   -
+  L6             0.999        0.729        0.916        0.820   last>baseline+blank
+  L8             0.998        0.741        0.956        0.915   last>baseline+blank
+  L10            0.997        0.734        0.963        0.903   last>baseline+blank
+  L12            0.996        0.689        0.967        0.807   last>baseline+blank
+  L14            0.997        0.677        0.985        0.860   last>baseline+blank
+  L16            0.996        0.687        0.986        0.817   last>baseline+blank
+  L18            0.995        0.670        0.978        0.838   last>baseline+blank
+  L20            0.994        0.669        0.961        0.818   last>baseline+blank
+  L22            0.995        0.727        0.960        0.888   last>baseline+blank
+  L24            0.998        0.731        0.958        0.865   last>baseline+blank
+  L26            0.999        0.724        0.957        0.829   last>baseline+blank
+  L28            0.998        0.741        0.962        0.795   last>baseline+blank
+
+================================================================================
+ANSWERED-YES (mirror; absent class is only the 42 false positives)   n=501  present=459  absent=42
+================================================================================
+  BASELINE  p_yes alone (a single scalar): AUROC 0.890
+  permutation null (label-shuffled, L14 last): 0.628
+  a probe is only INTERESTING where `last` beats BOTH 0.890 and its own blank-image floor
+
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.912        0.444        0.422        0.422   -
+  L2             0.850        0.448        0.673        0.782   -
+  L4             0.834        0.516        0.708        0.781   -
+  L6             0.811        0.499        0.770        0.727   -
+  L8             0.839        0.494        0.868        0.785   -
+  L10            0.840        0.549        0.893        0.776   -
+  L12            0.845        0.548        0.838        0.790   -
+  L14            0.873        0.529        0.900        0.756   -
+  L16            0.936        0.546        0.888        0.711   -
+  L18            0.930        0.575        0.898        0.827   -
+  L20            0.882        0.576        0.892        0.726   -
+  L22            0.913        0.542        0.881        0.630   -
+  L24            0.941        0.554        0.895        0.742   -
+  L26            0.935        0.573        0.903        0.743   -
+  L28            0.941        0.591        0.902        0.751   -
+
+================================================================================
+HOW TO READ THIS
+================================================================================
+  `last` clearly above the p_yes baseline AND above last_blank
+      -> the answer position carries evidence the answer does not use. C2 becomes a USE failure:
+         the information is there at the readout and is not acted on. Rewrite C2.
+  `last` at or below the p_yes baseline
+      -> the probe adds nothing over the model's own confidence. No mechanism claim is licensed;
+         say that plainly rather than reporting the raw AUROC.
+  `last` near the permutation null
+      -> on failures the evidence does not reach the answer position. C2's routing story survives
+         and now has a mechanism.

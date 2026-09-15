@@ -1,0 +1,22 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+CUB test images with >=2 visible head parts: using 420
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   4%|▍         | 25/625 [00:00<00:02, 247.09it/s]Loading weights:  15%|█▍        | 93/625 [00:00<00:01, 498.85it/s]Loading weights:  27%|██▋       | 166/625 [00:00<00:00, 598.09it/s]Loading weights:  38%|███▊      | 240/625 [00:00<00:00, 648.98it/s]Loading weights:  54%|█████▍    | 338/625 [00:00<00:00, 766.30it/s]Loading weights:  99%|█████████▉| 618/625 [00:00<00:00, 1431.44it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 1020.04it/s]
+[20/420] 0.53 it/s eta=12.6min
+[40/420] 0.54 it/s eta=11.7min
+[60/420] 0.56 it/s eta=10.8min
+[80/420] 0.58 it/s eta=9.8min
+[100/420] 0.57 it/s eta=9.3min
+[120/420] 0.30 it/s eta=16.4min
+[140/420] 0.32 it/s eta=14.6min
+[160/420] 0.34 it/s eta=12.9min
+[180/420] 0.33 it/s eta=12.1min
+[200/420] 0.32 it/s eta=11.3min
+[220/420] 0.32 it/s eta=10.5min
+[240/420] 0.29 it/s eta=10.2min
+[260/420] 0.30 it/s eta=9.0min
+[280/420] 0.31 it/s eta=7.5min
+[300/420] 0.32 it/s eta=6.2min
+[320/420] 0.33 it/s eta=5.0min
+[340/420] 0.34 it/s eta=3.9min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase19_cub_parts_results.jsonl

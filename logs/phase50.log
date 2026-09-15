@@ -1,0 +1,16 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 17970.33it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   5%|▍         | 30/625 [00:00<00:02, 250.93it/s]Loading weights:  16%|█▋        | 102/625 [00:00<00:01, 486.77it/s]Loading weights:  25%|██▌       | 158/625 [00:00<00:00, 503.87it/s]Loading weights:  34%|███▍      | 214/625 [00:00<00:00, 516.87it/s]Loading weights:  43%|████▎     | 267/625 [00:00<00:00, 510.06it/s]Loading weights:  51%|█████     | 319/625 [00:00<00:00, 509.18it/s]Loading weights:  63%|██████▎   | 391/625 [00:00<00:00, 572.04it/s]Loading weights:  72%|███████▏  | 449/625 [00:00<00:00, 558.96it/s]Loading weights:  81%|████████  | 506/625 [00:00<00:00, 554.79it/s]Loading weights:  91%|█████████ | 569/625 [00:01<00:00, 567.92it/s]Loading weights: 100%|██████████| 625/625 [00:01<00:00, 541.34it/s]
+28 attention modules patched
+  self-test OK: zero-bias no-op, -8 on 20 tokens moves p by 0.0014
+resuming: 0
+  [20/191] 0.13 it/s eta=22.7min
+  [40/191] 0.13 it/s eta=19.8min
+  [60/191] 0.13 it/s eta=17.1min
+  [80/191] 0.13 it/s eta=14.5min
+  [100/191] 0.13 it/s eta=11.8min
+  [120/191] 0.13 it/s eta=9.2min
+  [140/191] 0.13 it/s eta=6.6min
+  [160/191] 0.13 it/s eta=4.0min
+  [180/191] 0.13 it/s eta=1.4min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase50_sink_steering.jsonl

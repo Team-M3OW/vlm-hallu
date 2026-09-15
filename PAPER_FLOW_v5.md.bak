@@ -1,0 +1,251 @@
+# Paper flow (v5) — when does *where* beat *how many*?
+
+**v1** measurement, no method. **v2** protocol-as-contribution — rejected, correctly. **v3** method
+section reporting a negative. **v4** conditional method that works on V\*Bench. **v5 adds the transfer
+test, and the transfer test changes the claim**: allocation-vs-budget is **benchmark-dependent**, and
+the paper's job is to say when each wins.
+
+---
+
+## The one-sentence claim
+
+> At a **matched realized token budget**, *where* a VLM spends visual tokens can dominate *how many*
+> — by ≥26× on V\*Bench, across four architectures. But this **does not hold universally**: on
+> HR-Bench 4k the budget axis is far from saturated and doubling tokens beats reallocating them. We
+> give a training-free conditional allocator that captures **32.9% of the oracle gain** where
+> allocation pays, show **which half of it transfers** and which does not, and identify the
+> saturation condition that separates the two regimes.
+
+**This is a weaker headline than v4 and a more defensible paper.** A conditional claim with a
+measured boundary beats an unconditional claim that a second benchmark contradicts.
+
+---
+
+## §1 — Problem: nobody holds realized tokens fixed
+
+Pruning holds LLM-side tokens fixed; LLMind/Gizdov hold pixels; ViRGo holds seconds; crop/zoom
+(V\*/SEAL, ZoomEye, DeepEyes, AwaRes, VisionThink) hold nothing and let tokens grow. **Nobody holds
+realized tokens fixed and moves them.**
+
+**Instrument.** Arms calibrated by iterating on the processor's own `image_grid_thw` until realized
+merged-token counts match; a **budget gate** voids any contrast >10% off. Counts are always
+*measured* — computing them once faked an entire phase.
+
+---
+
+## §2 — Where allocation wins: the exchange rate on V\*Bench
+
+n=191, Qwen3-VL-2B, budget-matched:
+
+| arm | tokens | acc |
+|---|---|---|
+| `crop_only@300` | 300 | **93.7%** |
+| `uniform@300` | 294 | 56.5% |
+| `uniform@8000` | 7957 | 84.8% |
+
+Placement at 300 beats uniform at 7957 — **no crossing at 26.5×**. `crop_random@300` = 38.2%, below
+baseline, so the effect is placement, not cropping.
+
+**Four architectures** (placement effect): Qwen2-VL **+59.2pp**, Qwen3-VL +55.5pp, onevision
+**+49.2pp**, LLaVA-NeXT **+42.4pp**.
+
+### §2.1 Two corrections
+- Bare test multiples are not comparable: dynamic ranges differ 1000× (Qwen2-VL 1944×, LLaVA-NeXT
+  **1.5×**). onevision's 3.9× is ~67% of all it can express; Qwen's 26× is 1–21% of theirs.
+  LLaVA-NeXT cannot run the sweep at all (one rung), and its budget row is **VOID** (14% off gate).
+- **All of §2 is one benchmark.** §5 is why that matters.
+
+---
+
+## §3 — Mechanism: sub-token evidence, not routed
+
+- **71% of V\*Bench targets occupy <1 merged token** at B₀=300 (median 0.32).
+- C3 dose-response: error **32.8% → 1.0%** across seven strata (n=3387).
+- On failures the evidence **does not reach the answer position** (Phase 26, answer-matched).
+- Threshold retuning refuted (0.2pp).
+
+⇒ **C2 is a routing failure**, claimed on Phase 26 alone.
+
+### §3.1 Retraction
+An earlier draft also claimed the target is **encoded at its own visual tokens even when the model
+errs** (`obj` probe, AUROC **1.000**). **Withdrawn.** The probe read a **GT box for positives** and a
+**random rectangle for negatives**, so it could win by detecting region *type* — query-independent.
+
+| control | result |
+|---|---|
+| C1 region-type probe (positives only) | **0.964–0.971, flat, L0 = 0.967** |
+| C2 ROI-matched, wrong cohort | 0.742 vs null 0.600 |
+| C2 ROI-matched, all items | 0.599 vs null 0.532 |
+| C3 geometry-only, no hidden states | 0.629 |
+
+**0.967 at layer 0** — the shortcut lives in the raw embeddings, before the LLM computes anything.
+The surviving residual is small, peaks at L0, and (since the matched block reads a *random* region)
+supports only "presence is weakly decodable from **arbitrary** tokens," not local encoding. A
+label-independent ROI is unobtainable on POPE; that is a probe **design** problem, left open.
+
+> **Rule earned**, after two circularity defects in one phase: **an AUROC near 1.000 is a bug report
+> until a matched control says otherwise.**
+
+---
+
+## §4 — Method
+
+### §4.1 The localizer
+Phase 22 pre-registered that attention selects *against* small targets — **refuted**: strongest
+retention at the smallest stratum (+34.8pp). Replicated on a second benchmark: GT cell at the
+**16th percentile** vs exact chance 50th.
+
+The read-out matters more than the layer: min/max bbox is **DEAD** (median area 1.000 everywhere) —
+attention is concentrated but **not co-located**, with positionally-fixed corner sinks holding the
+top ranks. Mean over **layers 16–26** + outer-ring mask + argmax gives **gt_pct 0.034,
+argmax-in-GT 17.3% = 157× chance**, selection-free and data-free.
+
+### §4.2 The fixed policy fails
+Held-out 60.2% vs uniform 56.5% (**CI includes zero**), vs random-window 37.7% (**+22.5pp,
+CI [+13.6,+31.9]**). **FAILS the compute-matched bar (66.0%)**; capture 10.0%. Placement does real
+work; there is not enough of it.
+
+**Why:** cropping around one peak **destroys inter-object layout** — `direct_attributes` +11.3pp,
+`relative_position` **−7.9pp**; smallest quartile +19.1pp, largest **−10.4pp**.
+
+### §4.3 The conditional allocator
+Two rules, no fitted parameter: (1) relational question → don't reallocate; (2) else take whichever
+**pass** is more confident. W by 5-fold CV (W=0.15 in every fold).
+
+| gate | CV acc | vs uniform | capture |
+|---|---|---|---|
+| **text+conf** | **68.6%** | **+12.0pp** [+6.8,+17.3] | **32.9%** |
+| conf only | 66.5% | +10.0pp | 27.2% |
+| `learned_LR` (**fitted**) | 57.1% | +0.5pp | — |
+
+Clears the compute-matched control; capture sits **inside the published training-free proposer's
+31–44%**, with no training or auxiliary model.
+
+**§4.4 Two hand-written rules beat the learned gate by 11.5pp.** At n=191 with ~61 actionable items
+there is no signal to fit. The paper's answer to "should allocation be learned?" is **not at this
+data scale** — and that is a result, not an excuse.
+
+---
+
+## §5 — The transfer test, and the boundary it exposes
+
+HR-Bench 4k, n=800 rows / 200 instances, 4032×4032 images. **Nothing refitted** — W and both rules
+carried over. The V\*Bench confound is genuinely broken here: keyword concordance with the benchmark's
+own category label is **53.5%** (chance) vs **99.0%** on V\*Bench.
+
+| arm | per-row | vs uniform | CircularEval |
+|---|---|---|---|
+| uniform@300 | 52.5% | — | 36.5% |
+| **uniform@600** (compute-matched) | **59.2%** | +6.8pp | **45.5%** |
+| always attn@0.15 | 43.8% | **−8.8pp** | 27.5% |
+| **conf_route@0.15** | **56.1%** | **+3.6pp** [+1.0,+6.2] | **44.5%** |
+| text_gate@0.15 | 45.0% | **−7.5pp** | 27.0% |
+| text+conf (V\*Bench gate) | 53.4% | +0.9pp [−1.2,+3.0] | 39.0% |
+
+**Verdict (pre-registered): PARTIAL TRANSFER.**
+
+### §5.1 The decomposition is the contribution
+- **`conf_route` transfers**: +3.6pp per-row (CI excludes zero), **+8.0pp CircularEval**, nearly
+  matching the compute-matched control at equal cost. **This is the portable method.**
+- **The text rule does not, and is harmful**: −7.5pp alone; it drags `conf_route` 56.1% → **53.4%**.
+  On V\*Bench it was the stronger half. **§4.3's composition is V\*Bench-specific.**
+
+### §5.2 A prediction we made and got wrong
+We pre-registered that HR-Bench's *referential* prepositions would make the rule skip items
+allocation helps. Measured: **−5.6pp on fired rows, −9.7pp on unfired**. Both negative — allocation
+hurts everywhere here and the rule is merely *backwards*. Reported because the prediction was
+recorded before running.
+
+### §5.3 The boundary: budget saturation
+On V\*Bench, doubling tokens buys +9.5pp and placement still wins at 26×. On HR-Bench 4k, doubling
+buys **+6.8pp / +9.0pp circular** while our allocator **loses 8.8pp**. The governing variable appears
+to be **how much headroom remains on the budget axis**, which §2.1's dynamic-range measurements make
+directly measurable per architecture and per benchmark.
+
+### §5.4 The control that resolves it — the localizer transfers, allocation does not
+HR-Bench ships no boxes, so Phase 33 alone could not separate "allocation does not pay at 4K" from
+"our localizer fails at 4032x4032". A random-centre window of the **same size** on the **same
+instances** settles it:
+
+| arm | per-row | CircularEval |
+|---|---|---|
+| uniform@300 | 52.5% | 36.5% |
+| **attn@0.15** | **43.8%** | **27.5%** |
+| **rand@0.15** | **30.1%** | **12.5%** |
+
+    attn - rand = +13.6pp  CI [+10.0, +17.2]     (V*Bench, same contrast: +22.5pp)
+
+**The localizer TRANSFERS** — +13.6pp over random placement at 4K, on a benchmark it was never tuned
+on, CI excluding zero. It is now a **two-benchmark** result and the most portable part of the method.
+**Allocation still loses** (-8.8pp): the crop finds the target well enough to beat random by a wide
+margin, but not well enough to beat seeing the whole image. At W=0.15 a crop is ~605px of a 4032px
+source — **44x magnification at the cost of discarding 97.75% of the image.**
+
+So the claim is precise: **reallocating at a fixed budget does not pay at 4K** — and *not* that the
+attention localizer fails, which is refuted here.
+
+### §5.5 The boundary condition (the paper's sharpest claim)
+| | V\*Bench | HR-Bench 4k |
+|---|---|---|
+| target size at B₀=300 | **71% sub-token** | resolvable at B₀ |
+| doubling the budget buys | +9.5pp | **+6.8pp / +9.0pp circ** |
+| allocation at matched budget | **+37.2pp** (oracle) | **−8.8pp** |
+| localizer vs random placement | +22.5pp | **+13.6pp** |
+
+> **Allocation pays when the evidence is smaller than the budget can resolve, and costs when it is
+> not.** The localizer is good in both regimes; what changes is whether acting on it helps.
+
+This is testable in advance: §2.1's per-architecture floors/ceilings and the sub-token fraction at B₀
+are both measurable without running the method.
+
+**Design implication (untested):** W was transferred at 0.15 unadapted — ~337px on V\*Bench's ~2250px
+sources, ~605px on HR-Bench's 4032px sources: absolutely larger, relatively identical. A window that
+scales with *localizer uncertainty* rather than a constant image fraction is the obvious next design.
+
+## §6 — The same mechanism kills the obvious alternative
+
+Region packing is **not prior art** but is **structurally untestable**: computed from oracle boxes,
+so on a relational question the arrangement it reconstructs *is* the answer. V\*Bench's only
+multi-box split is entirely relational; HR-Bench has no boxes. What survives: **median 81% of the
+union bbox is dead space** (n=54) — a published method spends four-fifths of its budget on nothing.
+
+---
+
+## §7 — What this bounds
+
+| proposer | oracle capture (V\*Bench) |
+|---|---|
+| fixed policy | 10.0% |
+| **conditional (ours, training-free)** | **32.9%** |
+| ViRGo RAP (published, training-free) | 31–44% |
+| perfect gate over our arms | 47.8% |
+| oracle | 100% |
+
+Two rules recover a third of the V\*Bench headroom. The other two-thirds, and the HR-Bench regime,
+are open.
+
+---
+
+## §8 — Limitations
+
+1. §2's exchange rate and all four architecture results are **V\*Bench only**; §5 shows a second
+   benchmark where the budget axis wins.
+2. §5.4's control is now run: "reallocating at a fixed budget does not pay at 4K" IS claimed;
+   "the localizer fails" is refuted (+13.6pp over random placement there).
+3. §4.2's splits are post-hoc.
+4. §4.3's text rule is 99% concordant with the V\*Bench category annotation — and §5 shows it does
+   not transfer, which is consistent with it having been annotation-shaped.
+5. Allocation arms other than §4.3/§5 are **oracle** (GT boxes).
+6. Scale confound: Qwen3-VL is 2B, others 7B; attention results are one model family.
+7. §3.1's encoding claim is retracted; a label-independent presence probe remains unbuilt.
+8. Whether early-layer attention is a worse *pruning* criterion is **conjecture** — we measured
+   localization rank, not pruning quality.
+
+---
+
+## §9 — Related work
+
+Resource-axis table: pruning (LLM tokens fixed); LLMind/Gizdov (pixels); ViRGo (seconds); crop/zoom
+incl. AwaRes, DeepEyes, VisionThink (nothing fixed, tokens grow); CARES (learned *how many*);
+CROP/AwaRes (learned *where*). **Ours holds realized tokens fixed, moves them, and decides whether to
+move them at all** — and reports the regime where that decision is to leave them alone.

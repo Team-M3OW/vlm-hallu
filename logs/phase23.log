@@ -1,0 +1,27 @@
+Fetching V*Bench...
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 14008.07it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+  191 items, root=/home/kavinder/.cache/huggingface/hub/datasets--craigwu--vstar_bench/snapshots/d9ae62c903da0c98336e85c5ee89cd863b04b4da
+  GPU has 38.9GB free, proceeding
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:01<10:30,  1.01s/it]Loading weights:  16%|█▋        | 102/625 [00:01<00:04, 124.96it/s]Loading weights:  25%|██▌       | 158/625 [00:01<00:03, 142.18it/s]Loading weights:  32%|███▏      | 197/625 [00:01<00:02, 157.93it/s]Loading weights:  37%|███▋      | 229/625 [00:01<00:02, 165.95it/s]Loading weights:  41%|████      | 257/625 [00:01<00:02, 172.49it/s]Loading weights:  45%|████▌     | 282/625 [00:02<00:01, 183.93it/s]Loading weights:  49%|████▉     | 307/625 [00:02<00:01, 197.14it/s]Loading weights:  72%|███████▏  | 447/625 [00:02<00:00, 465.55it/s]Loading weights:  81%|████████▏ | 508/625 [00:02<00:00, 477.16it/s]Loading weights:  91%|█████████ | 566/625 [00:02<00:00, 428.90it/s]Loading weights:  99%|█████████▊| 617/625 [00:02<00:00, 402.53it/s]Loading weights: 100%|██████████| 625/625 [00:02<00:00, 232.36it/s]
+[10] 0.06 it/s eta=53.7min
+[20] 0.06 it/s eta=50.0min
+[30] 0.06 it/s eta=46.8min
+[40] 0.06 it/s eta=42.6min
+[50] 0.06 it/s eta=39.5min
+[60] 0.06 it/s eta=37.5min
+[70] 0.06 it/s eta=34.8min
+[80] 0.06 it/s eta=32.1min
+[90] 0.06 it/s eta=29.4min
+[100] 0.06 it/s eta=26.6min
+[110] 0.06 it/s eta=23.5min
+[120] 0.06 it/s eta=20.3min
+[130] 0.06 it/s eta=17.2min
+[140] 0.06 it/s eta=14.3min
+[150] 0.06 it/s eta=11.3min
+[160] 0.06 it/s eta=8.5min
+[170] 0.06 it/s eta=5.7min
+[180] 0.06 it/s eta=3.0min
+[190] 0.06 it/s eta=0.3min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase23_anyres_results.jsonl

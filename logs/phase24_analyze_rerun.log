@@ -1,0 +1,180 @@
+n=1113  positives=612  layers=29  hidden_dim=2048
+model correct on 82.5% of items; median tokens_on_object (positives) = 1.00
+
+==============================================================================
+ALL ITEMS  (context; not the load-bearing cohort)   (n=1113, positives=612)
+==============================================================================
+  permutation null (95th pct of label-shuffled CV AUROC, L14 obj): 0.525  <-- the real chance level, not 0.500
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.960        0.511        0.453        0.453   obj>controls
+  L1             0.964        0.530        0.572        0.586   obj>controls
+  L2             0.960        0.533        0.606        0.628   obj>controls
+  L3             0.962        0.524        0.643        0.635   obj>controls
+  L4             0.964        0.540        0.652        0.685   obj>controls
+  L5             0.965        0.536        0.683        0.669   obj>controls
+  L6             0.965        0.549        0.780        0.719   obj>controls  routed
+  L7             0.964        0.541        0.878        0.722   obj>controls  routed
+  L8             0.967        0.542        0.943        0.736   obj>controls  routed
+  L9             0.968        0.570        0.966        0.744   obj>controls  routed
+  L10            0.965        0.561        0.977        0.707   obj>controls  routed
+  L11            0.965        0.561        0.980        0.743   obj>controls  routed
+  L12            0.962        0.570        0.980        0.711   obj>controls  routed
+  L13            0.965        0.573        0.985        0.730   obj>controls  routed
+  L14            0.969        0.564        0.988        0.728   obj>controls  routed
+  L15            0.967        0.578        0.987        0.754   obj>controls  routed
+  L16            0.965        0.558        0.986        0.763   obj>controls  routed
+  L17            0.964        0.591        0.985        0.751   obj>controls  routed
+  L18            0.963        0.577        0.987        0.707   obj>controls  routed
+  L19            0.965        0.592        0.989        0.769   obj>controls  routed
+  L20            0.968        0.600        0.987        0.737   obj>controls  routed
+  L21            0.968        0.594        0.988        0.668   obj>controls  routed
+  L22            0.969        0.589        0.987        0.678   obj>controls  routed
+  L23            0.973        0.589        0.987        0.716   obj>controls  routed
+  L24            0.974        0.585        0.988        0.711   obj>controls  routed
+  L25            0.972        0.584        0.987        0.650   obj>controls  routed
+  L26            0.972        0.588        0.987        0.679   obj>controls  routed
+  L27            0.974        0.571        0.987        0.748   obj>controls  routed
+  L28            0.976        0.591        0.985        0.663   obj>controls  routed
+  peak `obj` AUROC 0.976 at layer 28
+
+==============================================================================
+ITEMS THE MODEL ANSWERS WRONG  <-- THE C2 COHORT   (n=195, positives=153)
+==============================================================================
+  permutation null (95th pct of label-shuffled CV AUROC, L14 obj): 0.595  <-- the real chance level, not 0.500
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.987        0.767        0.433        0.433   obj>controls
+  L1             0.974        0.744        0.633        0.661   obj>controls
+  L2             0.950        0.679        0.719        0.742   obj>controls
+  L3             0.967        0.642        0.775        0.816   obj>controls
+  L4             0.974        0.640        0.849        0.889   obj>controls
+  L5             0.977        0.630        0.866        0.886   obj>controls
+  L6             0.972        0.616        0.908        0.858   obj>controls  routed
+  L7             0.964        0.608        0.924        0.911   obj>controls
+  L8             0.961        0.595        0.947        0.893   obj>controls  routed
+  L9             0.961        0.601        0.905        0.853   obj>controls  routed
+  L10            0.966        0.631        0.921        0.905   obj>controls
+  L11            0.959        0.615        0.892        0.877   obj>controls
+  L12            0.964        0.615        0.901        0.838   obj>controls  routed
+  L13            0.959        0.596        0.955        0.848   obj>controls  routed
+  L14            0.968        0.586        0.951        0.846   obj>controls  routed
+  L15            0.969        0.601        0.977        0.813   obj>controls  routed
+  L16            0.970        0.615        0.997        0.735   obj>controls  routed
+  L17            0.969        0.637        0.999        0.796   obj>controls  routed
+  L18            0.962        0.649        0.995        0.816   obj>controls  routed
+  L19            0.979        0.641        0.996        0.780   obj>controls  routed
+  L20            0.978        0.642        0.998        0.754   obj>controls  routed
+  L21            1.000        0.649        0.998        0.763   obj>controls  routed
+  L22            0.982        0.610        0.999        0.766   obj>controls  routed
+  L23            0.999        0.655        1.000        0.791   obj>controls  routed
+  L24            1.000        0.689        1.000        0.797   obj>controls  routed
+  L25            1.000        0.667        1.000        0.794   obj>controls  routed
+  L26            0.999        0.688        1.000        0.823   obj>controls  routed
+  L27            0.981        0.682        0.997        0.747   obj>controls  routed
+  L28            0.963        0.705        0.999        0.775   obj>controls  routed
+  peak `obj` AUROC 1.000 at layer 24
+
+==============================================================================
+ITEMS THE MODEL ANSWERS CORRECTLY  (comparison)   (n=918, positives=459)
+==============================================================================
+  permutation null (95th pct of label-shuffled CV AUROC, L14 obj): 0.555  <-- the real chance level, not 0.500
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.978        0.572        0.490        0.490   obj>controls
+  L1             0.983        0.590        0.620        0.571   obj>controls  routed
+  L2             0.981        0.579        0.631        0.627   obj>controls
+  L3             0.982        0.579        0.659        0.654   obj>controls
+  L4             0.981        0.573        0.711        0.713   obj>controls
+  L5             0.980        0.568        0.748        0.692   obj>controls  routed
+  L6             0.981        0.583        0.876        0.705   obj>controls  routed
+  L7             0.978        0.584        0.948        0.703   obj>controls  routed
+  L8             0.978        0.593        0.973        0.728   obj>controls  routed
+  L9             0.979        0.603        0.993        0.757   obj>controls  routed
+  L10            0.976        0.598        0.995        0.744   obj>controls  routed
+  L11            0.974        0.602        0.996        0.733   obj>controls  routed
+  L12            0.976        0.599        0.997        0.701   obj>controls  routed
+  L13            0.977        0.608        1.000        0.759   obj>controls  routed
+  L14            0.979        0.623        1.000        0.740   obj>controls  routed
+  L15            0.981        0.622        1.000        0.718   obj>controls  routed
+  L16            0.979        0.611        1.000        0.725   obj>controls  routed
+  L17            0.977        0.600        1.000        0.754   obj>controls  routed
+  L18            0.977        0.612        1.000        0.679   obj>controls  routed
+  L19            0.980        0.624        1.000        0.731   obj>controls  routed
+  L20            0.980        0.609        1.000        0.723   obj>controls  routed
+  L21            0.982        0.601        1.000        0.729   obj>controls  routed
+  L22            0.985        0.578        1.000        0.734   obj>controls  routed
+  L23            0.987        0.576        1.000        0.708   obj>controls  routed
+  L24            0.990        0.588        1.000        0.724   obj>controls  routed
+  L25            0.991        0.610        1.000        0.709   obj>controls  routed
+  L26            0.990        0.624        1.000        0.659   obj>controls  routed
+  L27            0.990        0.619        1.000        0.662   obj>controls  routed
+  L28            0.989        0.626        1.000        0.725   obj>controls  routed
+  peak `obj` AUROC 0.991 at layer 25
+
+==============================================================================
+SUB-TOKEN TARGETS (<2 tok) THE MODEL GETS WRONG  <-- C2 x C3   (n=138, positives=96)
+==============================================================================
+  permutation null (95th pct of label-shuffled CV AUROC, L14 obj): 0.587  <-- the real chance level, not 0.500
+  layer            obj         rand         last   last_blank   verdict
+  L0             0.993        0.734        0.400        0.400   obj>controls
+  L1             0.992        0.726        0.827        0.824   obj>controls
+  L2             0.996        0.713        0.841        0.786   obj>controls  routed
+  L3             0.993        0.685        0.830        0.876   obj>controls
+  L4             0.996        0.688        0.871        0.918   obj>controls
+  L5             0.996        0.678        0.859        0.894   obj>controls
+  L6             0.996        0.685        0.910        0.933   obj>controls
+  L7             0.996        0.680        0.938        0.926   obj>controls
+  L8             0.995        0.675        0.945        0.933   obj>controls
+  L9             0.994        0.678        0.955        0.927   obj>controls  routed
+  L10            0.990        0.668        0.960        0.940   obj>controls  routed
+  L11            0.987        0.651        0.957        0.956   obj>controls
+  L12            0.988        0.633        0.946        0.938   obj>controls
+  L13            0.988        0.639        0.980        0.913   obj>controls  routed
+  L14            0.991        0.611        0.977        0.900   obj>controls  routed
+  L15            0.990        0.635        0.983        0.919   obj>controls  routed
+  L16            0.985        0.669        0.987        0.909   obj>controls  routed
+  L17            0.985        0.656        0.989        0.913   obj>controls  routed
+  L18            0.984        0.663        0.997        0.924   obj>controls  routed
+  L19            0.989        0.670        1.000        0.931   obj>controls  routed
+  L20            0.996        0.655        1.000        0.938   obj>controls  routed
+  L21            0.996        0.683        1.000        0.924   obj>controls  routed
+  L22            0.995        0.702        0.996        0.951   obj>controls  routed
+  L23            0.996        0.698        1.000        0.953   obj>controls  routed
+  L24            0.999        0.705        1.000        0.931   obj>controls  routed
+  L25            0.992        0.702        1.000        0.923   obj>controls  routed
+  L26            0.996        0.717        1.000        0.937   obj>controls  routed
+  L27            0.999        0.722        1.000        0.964   obj>controls  routed
+  L28            0.999        0.721        1.000        0.958   obj>controls  routed
+  peak `obj` AUROC 0.999 at layer 24
+
+==============================================================================
+POWER NOTE (read before believing any cell above)
+==============================================================================
+  The whole RePOPE-clean pool contains only 153 wrong positives and 42 wrong negatives,
+  so the failure cohort cannot exceed ~195 items no matter how long this runs. That is the
+  ceiling POPE imposes, not a sampling choice. Every failure-cohort row is therefore reported
+  against a permutation null rather than 0.500, and a null at or above ~0.6 means the cohort is
+  too small to support ANY claim at that layer -- say so rather than reading the point estimate.
+
+==============================================================================
+READING THE RESULT (pre-registered interpretations)
+==============================================================================
+  obj high across depth, last flat at last_blank
+      -> the target is encoded at its own visual tokens and NEVER ROUTED to the answer position.
+         That is a mechanism for C2, not a restatement of it.
+  obj high early then collapsing at some layer band
+      -> the signal is OVERWRITTEN; name the band, and that band is the paper's figure.
+  obj and last BOTH above their controls while the answer is wrong
+      -> the readout HAS the information and does not use it. C2's current framing
+         ("irreversible") would then be wrong and must be rewritten.
+  ⚠️ WHAT THE `obj` CURVE DOES *NOT* SHOW -- read before quoting it.
+      For positives `obj` pools the GT bbox tokens; for negatives it pools a RANDOM region (the
+      object is absent, so there is no box). So an `obj` probe partly separates "patch embeddings
+      of a real object" from "patch embeddings of a random patch of scene" -- a generic
+      object-vs-background distinction available in the raw visual embeddings, NOT evidence that
+      the model encodes whether the QUERIED category is present. The L0 (embedding-layer) value
+      being ~0.96 is a symptom of exactly this: no transformer block has run yet.
+      The query-conditional question is Phase 15's (queried vs size-matched other category), and
+      the answer-relevant question here is the `last` vs `last_blank` curve, not `obj`.
+
+  obj never beats rand on the wrong-answer cohort
+      -> Phase 14's "it is encoded" does not hold where it matters, and the capacity-floor
+         reading returns. This would contradict Phase 14 and needs reconciling, not burying.

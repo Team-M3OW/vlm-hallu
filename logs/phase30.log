@@ -1,0 +1,13 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 16749.18it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading Qwen3-VL-2B (fp16, eager attention -- needed for output_attentions)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:02<30:19,  2.92s/it]Loading weights: 100%|██████████| 625/625 [00:02<00:00, 213.85it/s]
+resuming: 0
+  [25] 1.35 it/s eta=2.0min
+  [50] 1.44 it/s eta=1.6min
+  [75] 1.44 it/s eta=1.3min
+  [100] 1.42 it/s eta=1.1min
+  [125] 1.42 it/s eta=0.8min
+  [150] 1.43 it/s eta=0.5min
+  [175] 1.45 it/s eta=0.2min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase30_proposal_quality.jsonl

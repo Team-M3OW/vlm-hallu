@@ -1,0 +1,50 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+BROAD positive sample (all positives, not area-restricted): n=500
+BROAD negative sample: n=500
+Resuming: 6 already done
+Loading item images for 994 targets...
+  resolved 994/994
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   3%|▎         | 16/625 [00:00<00:03, 156.62it/s]Loading weights:  14%|█▍        | 89/625 [00:00<00:01, 486.73it/s]Loading weights:  25%|██▌       | 158/625 [00:00<00:00, 576.63it/s]Loading weights:  37%|███▋      | 231/625 [00:00<00:00, 626.73it/s]Loading weights:  48%|████▊     | 301/625 [00:00<00:00, 651.69it/s]Loading weights:  96%|█████████▌| 600/625 [00:00<00:00, 1426.55it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 987.13it/s] 
+The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+yes_ids=[7414, 9454, 9693, 9834] no_ids=[902, 2152, 2308, 2753] box_ids=[73594] abstain_ids=[3862]
+[25/994] 1.62 it/s  eta=10.0min
+[50/994] 1.54 it/s  eta=10.2min
+[75/994] 1.57 it/s  eta=9.8min
+[100/994] 1.55 it/s  eta=9.6min
+[125/994] 1.54 it/s  eta=9.4min
+[150/994] 1.56 it/s  eta=9.0min
+[175/994] 1.55 it/s  eta=8.8min
+[200/994] 1.55 it/s  eta=8.5min
+[225/994] 1.54 it/s  eta=8.3min
+[250/994] 1.54 it/s  eta=8.1min
+[275/994] 1.43 it/s  eta=8.4min
+[300/994] 1.34 it/s  eta=8.6min
+[325/994] 1.35 it/s  eta=8.3min
+[350/994] 1.36 it/s  eta=7.9min
+[375/994] 1.36 it/s  eta=7.6min
+[400/994] 1.37 it/s  eta=7.2min
+[425/994] 1.38 it/s  eta=6.9min
+[450/994] 1.40 it/s  eta=6.5min
+[475/994] 1.40 it/s  eta=6.2min
+[500/994] 1.41 it/s  eta=5.8min
+[525/994] 1.45 it/s  eta=5.4min
+[550/994] 1.48 it/s  eta=5.0min
+[575/994] 1.50 it/s  eta=4.6min
+[600/994] 1.52 it/s  eta=4.3min
+[625/994] 1.55 it/s  eta=4.0min
+[650/994] 1.57 it/s  eta=3.6min
+[675/994] 1.59 it/s  eta=3.3min
+[700/994] 1.61 it/s  eta=3.0min
+[725/994] 1.63 it/s  eta=2.7min
+[750/994] 1.65 it/s  eta=2.5min
+[775/994] 1.68 it/s  eta=2.2min
+[800/994] 1.69 it/s  eta=1.9min
+[825/994] 1.71 it/s  eta=1.6min
+[850/994] 1.74 it/s  eta=1.4min
+[875/994] 1.74 it/s  eta=1.1min
+[900/994] 1.75 it/s  eta=0.9min
+[925/994] 1.76 it/s  eta=0.7min
+[950/994] 1.78 it/s  eta=0.4min
+[975/994] 1.79 it/s  eta=0.2min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase8_grounding_detector_results.jsonl

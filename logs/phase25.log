@@ -1,0 +1,28 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 13813.78it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+V*Bench: 191 items
+Loading LLaVA-NeXT-vicuna-7b (fp16)...
+Fetching 3 files:   0%|          | 0/3 [00:00<?, ?it/s]Fetching 3 files: 100%|██████████| 3/3 [00:00<00:00, 2219.21it/s]
+Loading weights:   0%|          | 0/687 [00:00<?, ?it/s]Loading weights:   1%|          | 5/687 [00:00<00:20, 33.59it/s]Loading weights:   1%|▏         | 9/687 [00:00<00:22, 30.12it/s]Loading weights:   2%|▏         | 14/687 [00:00<00:18, 35.50it/s]Loading weights:   3%|▎         | 21/687 [00:00<00:14, 44.79it/s]Loading weights:   4%|▍         | 26/687 [00:00<00:14, 44.23it/s]Loading weights:   5%|▍         | 31/687 [00:00<00:17, 37.63it/s]Loading weights:   6%|▋         | 43/687 [00:00<00:11, 58.11it/s]Loading weights:   8%|▊         | 52/687 [00:01<00:09, 65.05it/s]Loading weights:   9%|▊         | 59/687 [00:01<00:10, 61.05it/s]Loading weights:  10%|▉         | 66/687 [00:01<00:12, 48.35it/s]Loading weights:  10%|█         | 72/687 [00:01<00:18, 34.16it/s]Loading weights:  11%|█▏        | 78/687 [00:01<00:16, 37.60it/s]Loading weights:  13%|█▎        | 86/687 [00:01<00:14, 42.67it/s]Loading weights:  13%|█▎        | 91/687 [00:02<00:14, 41.21it/s]Loading weights:  14%|█▍        | 96/687 [00:02<00:14, 41.74it/s]Loading weights:  16%|█▌        | 108/687 [00:02<00:09, 59.07it/s]Loading weights:  17%|█▋        | 115/687 [00:02<00:10, 52.69it/s]Loading weights:  18%|█▊        | 122/687 [00:02<00:10, 53.50it/s]Loading weights:  19%|█▉        | 131/687 [00:02<00:09, 59.39it/s]Loading weights:  20%|██        | 138/687 [00:02<00:09, 59.71it/s]Loading weights:  22%|██▏       | 149/687 [00:03<00:09, 57.24it/s]Loading weights:  24%|██▍       | 167/687 [00:03<00:06, 84.06it/s]Loading weights:  26%|██▌       | 180/687 [00:03<00:05, 92.40it/s]Loading weights:  28%|██▊       | 191/687 [00:03<00:05, 92.10it/s]Loading weights:  30%|██▉       | 203/687 [00:03<00:05, 95.86it/s]Loading weights:  31%|███       | 214/687 [00:03<00:04, 95.56it/s]Loading weights:  33%|███▎      | 224/687 [00:03<00:06, 75.35it/s]Loading weights:  34%|███▍      | 233/687 [00:03<00:06, 67.66it/s]Loading weights:  35%|███▌      | 241/687 [00:04<00:07, 57.92it/s]Loading weights:  36%|███▋      | 250/687 [00:04<00:07, 55.50it/s]Loading weights:  37%|███▋      | 257/687 [00:04<00:07, 56.82it/s]Loading weights:  38%|███▊      | 264/687 [00:04<00:07, 58.22it/s]Loading weights:  40%|███▉      | 273/687 [00:04<00:06, 64.06it/s]Loading weights:  42%|████▏     | 286/687 [00:04<00:05, 79.63it/s]Loading weights:  59%|█████▉    | 406/687 [00:04<00:00, 368.28it/s]Loading weights:  97%|█████████▋| 665/687 [00:05<00:00, 965.90it/s]Loading weights: 100%|██████████| 687/687 [00:05<00:00, 137.09it/s]
+The image processor of type `LlavaNextImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. 
+  budget per item = that item's NATIVE AnyRes realization (no global budget axis)
+[10] 0.10 it/s eta=31.2min
+[20] 0.10 it/s eta=29.8min
+[30] 0.09 it/s eta=28.3min
+[40] 0.10 it/s eta=26.4min
+[50] 0.10 it/s eta=24.6min
+[60] 0.10 it/s eta=22.8min
+[70] 0.10 it/s eta=21.2min
+[80] 0.09 it/s eta=19.6min
+[90] 0.09 it/s eta=17.9min
+[100] 0.09 it/s eta=16.1min
+[110] 0.09 it/s eta=14.4min
+[120] 0.09 it/s eta=12.6min
+[130] 0.09 it/s eta=10.8min
+[140] 0.09 it/s eta=9.0min
+[150] 0.09 it/s eta=7.2min
+[160] 0.09 it/s eta=5.5min
+[170] 0.09 it/s eta=3.7min
+[180] 0.09 it/s eta=2.0min
+[190] 0.09 it/s eta=0.2min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase25_llavanext_results.jsonl

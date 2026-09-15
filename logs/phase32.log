@@ -1,0 +1,15 @@
+Fetching 478 files:   0%|          | 0/478 [00:00<?, ?it/s]Fetching 478 files: 100%|██████████| 478/478 [00:00<00:00, 11360.30it/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<03:38,  2.85it/s]Loading weights:  11%|█         | 67/625 [00:00<00:02, 190.94it/s]Loading weights:  18%|█▊        | 114/625 [00:00<00:01, 269.21it/s]Loading weights:  25%|██▍       | 156/625 [00:00<00:01, 301.99it/s]Loading weights:  32%|███▏      | 199/625 [00:00<00:01, 330.82it/s]Loading weights:  41%|████      | 254/625 [00:00<00:00, 381.58it/s]Loading weights:  49%|████▉     | 306/625 [00:00<00:00, 412.79it/s]Loading weights:  84%|████████▍ | 526/625 [00:01<00:00, 918.31it/s]Loading weights: 100%|██████████| 625/625 [00:01<00:00, 528.64it/s]
+resuming: 0
+  [20] 0.09 it/s eta=30.7min
+  [40] 0.10 it/s eta=24.7min
+  [60] 0.11 it/s eta=20.5min
+  [80] 0.11 it/s eta=17.2min
+  [100] 0.11 it/s eta=14.0min
+  [120] 0.11 it/s eta=10.8min
+  [140] 0.11 it/s eta=7.7min
+  [160] 0.11 it/s eta=4.6min
+  [180] 0.11 it/s eta=1.6min
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase32_conditional.jsonl

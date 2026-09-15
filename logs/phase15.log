@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading items...
+  RePOPE-clean positives: 900
+Loading Qwen3-VL-2B (fp16)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:25,  7.29it/s]Loading weights:  14%|█▍        | 90/625 [00:00<00:01, 455.81it/s]Loading weights:  25%|██▌       | 157/625 [00:00<00:00, 545.49it/s]Loading weights:  37%|███▋      | 229/625 [00:00<00:00, 608.09it/s]Loading weights:  48%|████▊     | 300/625 [00:00<00:00, 641.71it/s]Loading weights:  94%|█████████▍| 590/625 [00:00<00:00, 1379.38it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 918.13it/s] 
+[100/900] 22.64 it/s eta=0.6min
+[200/900] 23.93 it/s eta=0.5min
+[300/900] 23.76 it/s eta=0.4min
+[400/900] 23.54 it/s eta=0.4min
+[500/900] 23.51 it/s eta=0.3min
+[600/900] 23.32 it/s eta=0.2min
+[700/900] 23.05 it/s eta=0.1min
+[800/900] 23.15 it/s eta=0.1min
+Done. 893 paired items. blocks per layer = [queried, other]

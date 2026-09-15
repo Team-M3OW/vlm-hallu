@@ -1,0 +1,14 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+confident_denial cohort: 141
+Loading items...
+  resolved 141/141
+Loading Qwen3-VL-2B (fp16, eager attention, PATCHED forward installed)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:05,  9.51it/s]Loading weights:  13%|█▎        | 82/625 [00:00<00:01, 467.09it/s]Loading weights:  25%|██▌       | 157/625 [00:00<00:00, 589.95it/s]Loading weights:  37%|███▋      | 229/625 [00:00<00:00, 638.84it/s]Loading weights:  48%|████▊     | 298/625 [00:00<00:00, 652.09it/s]Loading weights:  92%|█████████▏| 576/625 [00:00<00:00, 1365.23it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 955.22it/s] 
+[20] rate=3.53/s
+[40] rate=3.54/s
+[60] rate=3.42/s
+[80] rate=3.40/s
+[100] rate=3.44/s
+[120] rate=3.43/s
+[140] rate=3.35/s
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase6e_attention_patch_results.jsonl

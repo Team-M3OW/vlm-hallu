@@ -1,0 +1,365 @@
+# Paper flow (v7) — coverage, not count: what a reallocated visual token budget must hit
+
+> **What changed from v6.** v6's mechanism (§3), localizer (§4) and method (§5) were all measured on
+> a single model, which was the paper's main scope limit. Three runs removed it: the sink is now
+> **four architectures** (§4.1), the coverage mechanism and the method are **two architectures**
+> (§3.5, §5.4), and a **multi-window intervention** (§3.4d) supplies the interventional evidence v6
+> lacked. One dtype bug that masqueraded as a clean negative is documented in §8.
+
+---
+
+## The one-sentence claim
+
+> At a **matched realized token budget**, *where* a VLM spends visual tokens dominates *how many* —
+> and the sign of the effect is predicted by one measurable quantity, **the fraction of the
+> question's evidence set that the reallocated window covers**. Below ~25% coverage reallocation
+> *costs* 9–16pp; at full coverage it *gains* 37–42pp. This holds on two architectures; the
+> serialization artifact that makes the proposer miss holds on four, as does the placement effect. The practical method is
+> therefore not a better proposer but a **coverage detector** — a two-pass confidence comparison
+> detects coverage at AUROC 0.835–0.885 and recovers 71–88% of what a perfect detector would give.
+
+Three benchmarks, four architectures, every contrast budget-gated at **measured** token counts.
+
+---
+
+## §1 — Problem: nobody holds realized tokens fixed
+
+Token **pruning** holds LLM-side tokens fixed and drops them; LLMind/Gizdov hold **pixels**; ViRGo
+holds **seconds**; crop-and-zoom (V\*/SEAL, Zoom Eye, Chain-of-Spot, Visual CoT, DualFocus) hold
+**nothing** and simply spend more. None isolates *placement at a fixed cost*.
+
+**Instrument.** Arms are calibrated by iterating on the processor's own `image_grid_thw` until
+realized counts match; counts are **measured, never computed** (an analytic count once silently
+faked an entire phase). A **budget gate** voids any contrast whose arms spread >10%.
+
+**Dynamic range is architectural** (floor→ceiling, measured): Qwen2-VL 4→7776 (1944×), Qwen3-VL
+64→7957 (124×), LLaVA-OneVision 1261→7329 (5.8×), LLaVA-NeXT 1416→2144 (**1.5×**). On LLaVA-NeXT
+there is effectively **no axis to move along**; we report "NO AXIS", not a bound.
+
+---
+
+## §2 — The finding: the exchange rate
+
+**V\*Bench**, matched budget, 4-way MCQ (chance 25%):
+
+| model | oracle crop @B₀ | random crop @B₀ | **placement effect** | uniform ceiling | exchange rate |
+|---|---|---|---|---|---|
+| Qwen3-VL-2B | 97.4% @300 | — | +40.0pp (attn−rand) | — | **≥26×** |
+| Qwen2-VL-7B | 93.2% @300 | 34.0% | **+59.2pp** | 75.4% @7776 | **≥25.9×** |
+| LLaVA-OneVision-7B | 86.9% @1323 | 37.7% | **+49.2pp** | 69.6% @5157 | **≥3.9×** |
+| LLaVA-NeXT-7B | 80.6% @1176 | 38.2% | **+42.4pp** | 38.2% @1464 | ≥1.2× (**no axis**) |
+
+**No uniform rung reaches the crop arm on any model**, so every exchange rate is a lower bound set
+by the model's own token ceiling, not an estimate. Placement beats random placement on **all four**.
+LLaVA-NeXT's 1.2× reflects its 1.5× dynamic range — the axis does not exist there (§1).
+
+**RePOPE-clean** (600 positives stratified on target size + 200 negatives; yes/no, **chance 50%, not
+comparable to MCQ numbers**; gate spread 1.7%):
+
+| merged tokens on target | n | uniform | allocation | Δ | 95% CI |
+|---|---|---|---|---|---|
+| <0.5 | 120 | 57.5% | 74.2% | **+16.7** | [+7.5,+25.8] |
+| 0.5–2 | 120 | 89.2% | 95.8% | +6.7 | [+0.8,+12.5] |
+| 2–8 | 120 | 98.3% | 100.0% | +1.7 | ceiling |
+| 8–32 | 120 | 97.5% | 98.3% | +0.8 | ceiling |
+| >32 | 120 | 99.2% | 98.3% | −0.8 | ceiling |
+
+Monotone decay over a **400× size range**; the **false-positive rate is unchanged (7.5%→7.5%)**, so
+the gain is not yes-bias. *Stated honestly:* the negative half is **not testable here** — uniform
+saturates at 97.5–99.2% on every resolvable stratum. Reported as uninformative, never as support.
+
+---
+
+## §3 — Why: coverage of the evidence set ★
+
+### §3.1 Two failed predictors, retracted in the open
+
+**Target size.** HR-Bench 4k at B₀=300 gives ~233 px per merged token on a 4032² image — *deeply*
+sub-token, so the size account predicts a large win. Allocation **lost by 8.8pp**.
+
+**Region count.** The `oracle` arm — a crop to the GT box, a *perfect* single-region proposal —
+**wins** on relative_position (+19.7pp [+5.3,+34.2]). Two regions are not intrinsically un-croppable.
+
+### §3.2 What the oracle arm reveals
+
+The GT box for a relational question is the **union** of the objects: median area 0.0048 vs 0.0006
+(**7.9×**), aspect 2.09 vs 1.68. The oracle keeps the whole evidence set; a crop centred on one
+attention peak does not (relative_position coverage 22.4%, direct_attributes 52.6%). Size and region
+count are not rivals — they are two **causes of the same quantity**.
+
+### §3.3 The dose–response (categories pooled, no size or region term)
+
+| coverage | n | uniform | attn@0.15 | Δ | 95% CI |
+|---|---|---|---|---|---|
+| **0% (missed)** | 96 | 52.1% | 36.5% | **−15.6** | [−26.0,−5.2] |
+| 0–25% | 11 | 63.6% | 36.4% | −27.3 | [−63.6,+9.1] |
+| 25–75% | 12 | 75.0% | 100.0% | +25.0 | [+0.0,+50.0] |
+| 75–100% | 10 | 60.0% | 70.0% | +10.0 | [−30.0,+50.0] |
+| **100%** | 62 | 58.1% | 95.2% | **+37.1** | [+24.2,+50.0] |
+
+Monotone, **crossing zero at ~25% coverage**, no category label used. **Half of all items have zero
+coverage** — the headline +12.0pp is a large win on covered items netted against a real loss on
+missed ones. *Limit:* the categories agree in the low bin (−19.2 vs −14.5) as a mediator requires,
+but not in the high bin (+41.3 vs +4.8, n=21). Coverage is dominant, **not the whole story**.
+
+### §3.4 How far this goes toward causation
+
+**(a) Mediation with baseline difficulty held fixed — strong, but observational.** Stratifying on
+`uniform` correctness removes *baseline difficulty*; it does not remove "the model represents this
+object well."
+
+| uniform was | window | n | attn@0.15 accuracy |
+|---|---|---|---|
+| WRONG | missed | 46 | **13.0%** [4.3,23.9] — *below* 25% chance |
+| WRONG | covered | 37 | **83.8%** [70.3,94.6] |
+| CORRECT | missed | 50 | 58.0% — destroys 42% of what worked |
+| CORRECT | covered | 58 | 87.9% [79.3,94.8] |
+
+A **70.8pp** gap inside one difficulty stratum.
+
+**(b) Window size — a genuine intervention, and NULL.** Δ = +4.7/+6.3/+5.8/+2.6 at
+W=0.15/0.25/0.35/0.5 (coverage 40.5→65.1%), but **every CI crosses zero** and no paired
+peak-vs-neighbour contrast separates. An earlier draft read these as an interior optimum;
+**that claim is withdrawn.**
+
+**(c) Exogenous coverage from replayed random placement — INCONCLUSIVE.** Centres are reconstructible
+(`random.Random(32)`, two draws/item, every skip before the draw), pre-registered one-sided. Null,
+for a structural reason: only **11/191** random windows overlap the box at all (window 2.25% of the
+image, median box 0.06%). Not counted either way.
+
+**(d) ★ Multi-window — the intervention that works.** Five arms at matched *total* budget. The
+decisive control is `two_same`, which **duplicates the first window**: against it, `two_diff` holds
+the image count (2), total budget (300), per-image resolution (150) and the two-image prompt format
+constant, so **only the second window's location varies**.
+
+| subgroup | n | two_diff − two_same | 95% CI |
+|---|---|---|---|
+| 2nd window **added coverage** | 18 (9%) | **+38.9pp** | [+11.1,+66.7] |
+| 2nd window added nothing | 173 (91%) | −4.0pp | [−8.7,+0.0] |
+| **rescued from zero coverage** | 14 (7%) | **+50.0pp** | [+14.3,+78.6] |
+
+Subgroup membership is fixed by (peak1, peak2, box) *before* the model answers, so this is
+stratification on the intervention's **dose**, not post-outcome selection. Placement moved with
+resolution, format and budget fixed; accuracy moved **only** where coverage moved.
+
+**Status.** The intervention confirms the mechanism **where the dose is nonzero** — a dose-response
+with a null at zero dose — while the **population-level effect is nil** (pooled two_diff − two_same
+= +0.0pp [−5.2,+5.2], §5.5). Mediation (a) and intervention (d) together make coverage substantially
+more than correlational; (b) and (c) add nothing. We do not claim a population-level causal effect.
+
+### §3.5 The mechanism is not model-specific
+
+Qwen2-VL-7B, nothing refitted: coverage **missed −9.4pp** [−17.9,−0.9], **full +41.8pp**
+[+29.1,+54.5] (Qwen3-VL: −15.6 / +37.1). Same sign flip, same crossing, on a model whose profile
+differs (uniform 52.9% vs 56.5%, oracle 91.6% vs 97.4%).
+
+---
+
+## §4 — Mechanistic interpretability: why the proposer misses ★★
+
+### §4.1 The sink is a raster-serialization artifact — four architectures
+
+The sink is not at image corners. It is at the **row boundary of the serialization**. Enrichment =
+mass share / area share (1.0× = fair share); relative layer block [0.55L, 0.95L]; n=24 images/model.
+
+**Implicit row boundary (flattened grid, no separator token):**
+
+| model | last column | first column | top row | bottom row |
+|---|---|---|---|---|
+| Qwen3-VL-2B | **3.4×** [3.0,3.8] | 2.0× | 0.8× | 0.8× |
+| Qwen2-VL-7B | **4.5×** [4.1,4.8] | 0.9× | 1.3× | 0.6× |
+
+**Explicit row boundary (a learned `image_newline` spliced in at each row end):**
+
+| model | **newline separator** | last col (pre-sep) | first col | top row | **bottom row** |
+|---|---|---|---|---|---|
+| LLaVA-OneVision-7B | **2.0×** [1.9,2.2] | 1.3× | 1.0× | 0.7× | **3.0×** [2.7,3.4] |
+| LLaVA-NeXT-7B | **2.3×** [1.9,2.9] | 1.2× | 1.1× | 0.7× | **2.1×** [1.7,2.4] |
+
+Scored on the **same five regions** as the grid models. An earlier version of this table used a
+single `OTHER` bucket holding 95% of positions, which only showed "the separator beats the average
+image token" — weaker than the Qwen rows' claim. Rows are segmented by keeping **modal-length**
+segments only: these models prepend a base image carrying no separators, and reading its whole run
+as "row 0" once put 59.8% of positions into TOP ROW and produced a spurious bottom-row result.
+
+**This is the discriminating result.** A newline embedding is not a corner, not a pixel, and not part
+of the image — a 2-D account predicts nothing special there. A serialization account predicts the
+sink moves **onto the explicit marker**. It does, in both LLaVA models, CIs excluding 1.0.
+
+Supporting tests on Qwen3-VL: **transpose** (14×21 vs 21×14, identical n=294) — same positions in
+(row,col) space, only 4/8 shared absolute indices; **interior replay** — modal sink indices replayed
+where they land in the interior re-fire at **1.1% vs 3.3% chance**, *below* chance; **onset** —
+corner/column mass is already **39.9% at L0**.
+
+> **Universal claim:** across four VLMs from two families, two vision stacks and two tokenization
+> schemes, attention mass concentrates on the **trailing row boundary of the raster serialization** —
+> the last column where that boundary is implicit, the learned `image_newline` embedding where it is
+> explicit — at 2.0–4.5× its fair share, every CI excluding 1.0, while the **top** row stays ordinary
+> (0.7–1.3×). The corner framing is wrong in all four: a newline embedding is not a corner, not a
+> pixel, and not image content. A second, **family-specific** sink sits on the final image row in the
+> LLaVA models only (3.0×, 2.1×) and in neither Qwen model (0.6×, 0.8×).
+
+*Honest limits:* "rows carry no excess mass" is **retracted as a universal** — it holds for top rows
+everywhere and for bottom rows only in the Qwen family. The **first**-column enrichment likewise does
+not replicate (2.0× Qwen3-VL vs 0.9–1.1× elsewhere); only the **trailing** boundary is universal.
+Magnitudes vary 2.0–4.5×; n=24 per model at reduced resolution. A plausible but **untested** account
+of the bottom-row divergence: LLaVA puts the base image first and tiles after, so the final tile row
+is the image content nearest the text in a causal LM.
+
+### §4.2 What follows for the mask — and the part that did not work
+
+Scored against **area-matched random twins** (mandatory: `gt_pct` is a rank, so deleting cells
+improves it mechanically):
+
+| mask | deleted | argmax-in-GT | random twin | true effect | pp per % deleted |
+|---|---|---|---|---|---|
+| ring (deployed) | 22.5% | 15.7% | 4.5% | +11.2pp | 0.50 |
+| **columns only** | **9.9%** | 14.7% | 4.9% | **+9.8pp** | **0.99** |
+| rows only | 13.9% | 8.9% | 4.8% | +4.1pp | 0.29 |
+
+Columns give **88% of the effect at 44% of the cost**, 3.4× more efficient per cell than rows — as
+the mechanism predicts. **But column-only does not beat the ring mask outright** (gt_pct Δ +0.023
+[+0.006,+0.037] favouring the ring). Mechanism confirmed; **method improvement not**.
+
+### §4.3 The localizer is not the bottleneck
+
+Selection-free block mean L16–26 with LOO background: gt_pct **0.034** vs exact chance 0.500,
+argmax-in-GT **17.3%** (157× chance). The layer curve is **non-monotone** (L0–15: 0.153–0.398;
+L16–26: 0.027–0.119; L27: 0.408) — a *regime*, not "later is better".
+
+**The relative block is validated, not assumed.** [0.55L, 0.95L] was reverse-engineered from this
+regime, and a non-monotone curve is exactly what should not be rescaled across architectures on
+faith. Sweeping every layer of Qwen2-VL-7B on `gt_pct` (n=120): **8/8 of its best layers fall inside
+the transferred block**, median gt_pct **0.041 inside vs 0.390 outside**, best single layer L19 at
+0.010 / 16.7% argmax-in-GT, and the same regime shape (collapse at L14, rise again at L27). So §5.4's
+numbers stand **as measured**, not as a lower bound under a borrowed hyper-parameter.
+
+It beats random placement everywhere tested: Qwen3-VL +40.0pp; **Qwen2-VL +19.9pp** [+11.5,+28.3];
+HR-Bench single +20.5pp and cross +6.8pp. Mean coverage 34.8% vs 2.3% random on Qwen2-VL.
+**Proposal quality is not the bottleneck; coverage is.**
+
+---
+
+## §5 — Method: the gate is a coverage detector ★
+
+### §5.1 The fixed policy fails (negative, kept)
+Always-crop at W=0.15: 60.2%, CI [−4.2,+11.5] includes zero, fails the 66.0% bar, capture 10.0%.
+
+### §5.2 The conditional allocator
+Two passes at the same budget; answer from whichever is more confident, with a relational-keyword
+skip. **68.6%, +12.0pp CI [+6.8,+17.3]**, clearing the 66.0% compute-matched bar.
+
+### §5.3 Why it works — and why the learned versions lost
+
+| signal | AUROC, covered vs missed |
+|---|---|
+| **conf(attn crop)** | **0.835** Qwen3-VL · **0.885** Qwen2-VL |
+| conf(uniform) [control] | 0.675 · 0.601 |
+| conf(attn) − conf(uniform) | 0.579 |
+
+It routes on it: takes the crop **88.4%** when covered vs **58.3%** when missed. Each arm is scored
+against **its own** ceiling — same rules, routing on *true* coverage. (An earlier draft divided the
+TEXT+CONF arm by the conf-only ceiling and got a spurious 83%; that mismatched pairing exceeds 90%
+and would have **inverted** the conclusion. The invariant suite locks it out.)
+
+| arm | acc | vs uniform | own ceiling | captured |
+|---|---|---|---|---|
+| conf-only gate | 67.0% | +10.5 | +12.6 | 83% |
+| **TEXT+CONF (headlined)** | **68.6%** | **+12.0** | **+13.6** | **88%** |
+| per-item best (*unreachable*) | 75.9% | +19.4 | — | — |
+
+**88% of what a perfect coverage detector would deliver** — still below 90%, so the residual headroom
+is **detection, not allocation**. This also explains the §4Y negatives: `conf_thresh` (59.7%) and
+`learned_LR` (57.1%) lost because a threshold on absolute confidence, or a probe on attention
+features, is a *worse coverage detector* than a comparison that reads the crop's own downstream
+effect. **Rules beat learned gates because the rule observes the intervention.**
+
+### §5.4 The method is not model-specific
+Qwen2-VL-7B, unmodified gate: **+7.9pp** [+2.1,+14.1], capturing **71%** of its coverage ceiling.
+
+### §5.5 Multi-window is a mechanism result, not a method
+Pooled `two_diff − two_same` = **+0.0pp** [−5.2,+5.2]. Mean coverage rises only 40.5%→45.4% because
+the second peak adds coverage on just 9% of items, and a second window placed where it adds nothing
+**costs 4.0pp** — a distractor crop. **The second window must be gated on predicted coverage gain,
+exactly as the first is.** Same detection-not-allocation conclusion, one level up.
+
+---
+
+## §6 — Transfer, and the boundary restated
+
+HR-Bench 4k (800 rows / 200 instances, 4032², CircularEval, image-hash-keyed after a silent
+wrong-image bug hit 26.5% of rows). conf_route **+3.6pp per-row, +8.0pp CircularEval**; the text rule
+**−7.5pp**. By category: single −1.8pp (n.s.), **cross −15.8pp** [−21.5,−10.0]. `rand` control:
+attn − rand = **+13.6pp** [+10.0,+17.2] — **the localizer transfers.**
+
+Under §3 this is one story: the keyword rule is a proxy for *dispersion of the evidence set*, good
+where relational phrasing tracks dispersion (V\*Bench, 99% concordance) and useless where it does not
+(HR-Bench, 53.5%). A **detector** failure — which §5.3 already names as the open problem. This also
+**dissolves the §6.2 threat** that the rule was the V\*Bench annotation in disguise: there, the
+annotation *is* a dispersion label.
+
+> **Boundary condition.** Reallocation pays in proportion to how much of the question's **evidence
+> set** the reallocated window covers. Coverage predicts the **sign** and most of the **magnitude**;
+> a residual question-type effect remains at high coverage. Target size and region count are two
+> causes of coverage, not rivals. Below ~25% coverage, reallocation is actively harmful.
+
+---
+
+## §7 — What this bounds
+
+- **Placement effect: four architectures** (+40.0 to +59.2pp over random placement).
+- **Exchange rate: three architectures** — Qwen2-VL ≥25.9×, Qwen3-VL ≥26×, OneVision ≥3.9×; each a
+  lower bound set by the model's own token ceiling, since no uniform rung reaches the crop arm.
+- **Mechanism (coverage) + method (the gate): two architectures** (Qwen3-VL-2B, Qwen2-VL-7B), with
+  the transferred layer block empirically validated on the second (8/8 best layers inside it).
+- **Serialization sink: four architectures**, two families, two vision stacks, two tokenization
+  schemes — but only the **trailing** boundary generalises; the bottom-row sink is LLaVA-only.
+- **No axis** on LLaVA-NeXT (1.5× range) — reported as such, not as a bound.
+- 71% of V\*Bench targets are sub-token at B₀=300; 27.5% of RePOPE; **0.0% of CUB**, which therefore
+  does not qualify as a test case and is not used as one.
+
+---
+
+## §8 — Limitations and the negatives we keep
+
+- **§4Z `obj` probe AUROC 1.000 RETRACTED** — ROI-selection artifact (C1 flat at 0.964–0.971,
+  including **0.967 at L0**; ROI-matched residual 0.742 vs null 0.600).
+- **§4R region packing structurally untestable**; the 81% dead-space measurement (n=54) is kept.
+- **§4S min/max bbox read-out DEAD** (median area 1.000, every layer).
+- **v5 size boundary** and **interim region-count boundary** both RETRACTED, superseded by §3.
+- **Interior-optimum claim RETRACTED** (§3.4b); **exogenous instrument INCONCLUSIVE** (§3.4c).
+- **A dtype bug that looked like a finding.** Qwen2-VL-7B is a bf16 checkpoint; loaded in fp16 it
+  produced **all-NaN logits**, argmax fell through to index 0, and since 71/191 labels are "A" every
+  arm scored an identical **37.2%** with CI **[+0.0,+0.0]** — which the analyzer reported as "the
+  localizer does not transfer." Runners now assert `torch.isfinite` on logits and attention before
+  logging, and a test encodes the signature (all arms bit-identical *and* zero-width CIs).
+- Coverage uses GT boxes: **explanatory only**, no method reads a box, no hyper-parameter fitted on it.
+- Coverage is measured on **V\*Bench only** — HR-Bench ships no boxes, RePOPE was never joined to
+  window geometry.
+- n=24 images/model for the sink; **first-column** enrichment does not replicate across models, and
+  **"rows carry no excess mass" is retracted as a universal** — true of top rows everywhere, but the
+  bottom row is enriched 2.1–3.0× in the LLaVA family and 0.6–0.8× in Qwen.
+- **A segmentation bug in our own analysis.** Reading every inter-separator run as a row swallowed
+  LLaVA's separator-free base image as "row 0" (59.8% of positions in a bucket capped at ~5%) and
+  manufactured a bottom-row result. Fixed by keeping modal-length segments only; a test now asserts
+  a row cannot exceed its fair share of area.
+
+---
+
+## §9 — What remains
+
+The open problem is now sharply stated and is **detection, not allocation**, at two levels: which
+items to reallocate for (the gate, at 71–88% of its ceiling) and **where to put a second window**
+(ungated, it pays +38.9pp on 9% of items and −4.0pp on the rest, netting zero). A coverage predictor
+that runs *before* the crop — rather than reading confidence after it — would capture the remaining
+headroom at both levels. §3.4(d) shows the payoff is real when the dose is nonzero; the missing piece
+is knowing in advance when it will be.
+
+---
+
+## §10 — Related work
+
+Positioned on the **resource axis**: pruning holds LLM-side tokens fixed; LLMind/Gizdov hold pixels;
+ViRGo holds seconds; crop/zoom hold nothing. **This work holds realized tokens fixed and moves
+them** — and, unlike all of the above, reports the regime where doing so is *harmful* and gives the
+measurable quantity that predicts which regime you are in.

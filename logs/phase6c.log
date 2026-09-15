@@ -1,0 +1,20 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+targets with a valid present-other category: 271
+Loading items...
+  resolved 271/271
+Loading Qwen3-VL-2B (fp16, eager attention)...
+Loading weights:   0%|          | 0/625 [00:00<?, ?it/s]Loading weights:   0%|          | 1/625 [00:00<01:39,  6.30it/s]Loading weights:  18%|█▊        | 111/625 [00:00<00:00, 523.03it/s]Loading weights:  29%|██▉       | 180/625 [00:00<00:00, 586.53it/s]Loading weights:  41%|████      | 254/625 [00:00<00:00, 637.48it/s]Loading weights:  63%|██████▎   | 396/625 [00:00<00:00, 902.63it/s]Loading weights: 100%|██████████| 625/625 [00:00<00:00, 953.38it/s]
+[20] rate=7.65/s
+[40] rate=8.61/s
+[60] rate=8.72/s
+[80] rate=8.80/s
+[100] rate=8.95/s
+[120] rate=8.60/s
+[140] rate=8.49/s
+[160] rate=8.55/s
+[180] rate=8.79/s
+[200] rate=8.96/s
+[220] rate=9.15/s
+[240] rate=9.20/s
+[260] rate=9.31/s
+Done. Wrote /home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase6c_present_other_results.jsonl

@@ -1,0 +1,66 @@
+n=1113  feat dim 237568  hidden 2048  layers 29
+  positives 612  negatives 501  wrong 195
+
+==========================================================================
+C1  REGION-TYPE PROBE: obj vs rand, POSITIVE items only
+    same image, same forward pass; only GT-region vs random-region differs.
+    If this is ~1.0 the headline AUROC needs no object representation at all.
+==========================================================================
+  layer     AUROC(obj vs rand)
+  L0                     0.967
+  L4                     0.968
+  L8                     0.971
+  L12                    0.964
+  L16                    0.966
+  L20                    0.965
+  L24                    0.967
+  L26                    0.970
+  L28                    0.969
+  peak 0.971 at L8
+
+==========================================================================
+C2  RANDOM-ROI PRESENCE: same presence task, but `rand` block for BOTH classes
+    ROI distribution now identical across classes -> ROI-type shortcut removed.
+==========================================================================
+
+  ALL ITEMS  (n=1113, pos=612)   perm null 0.532
+  layer     obj (GT vs RANDOM roi)   rand (random vs random)
+  L0                         0.964                     0.558
+  L8                         0.971                     0.568
+  L16                        0.970                     0.588
+  L20                        0.970                     0.599
+  L24                        0.974                     0.593
+  L28                        0.976                     0.594
+  peak: obj 0.976   rand 0.599   null 0.532
+  -> ROI-type-free presence signal = rand peak vs null: 0.599 vs 0.532 (SURVIVES)
+
+  WRONG (the C2 cohort)  (n=195, pos=153)   perm null 0.600
+  layer     obj (GT vs RANDOM roi)   rand (random vs random)
+  L0                         0.986                     0.742
+  L8                         0.979                     0.608
+  L16                        0.969                     0.623
+  L20                        0.983                     0.624
+  L24                        0.994                     0.683
+  L28                        0.981                     0.703
+  peak: obj 0.994   rand 0.742   null 0.600
+  -> ROI-type-free presence signal = rand peak vs null: 0.742 vs 0.600 (SURVIVES)
+
+==========================================================================
+C3  GEOMETRY-ONLY BASELINE: predict presence from ROI geometry, NO hidden states
+==========================================================================
+  ALL ITEMS                geometry-only AUROC 0.629   (n=1113)
+  WRONG                    geometry-only AUROC 0.408   (n=195)
+
+  If geometry alone is well above chance, the ROI-type shortcut is available
+  BEFORE the model runs, and the `obj` probe can exploit it trivially.
+
+==========================================================================
+HOW TO READ THIS
+==========================================================================
+  C1 high  AND  C2 `rand` at null  ->  the Phase 24 `obj` result is an ROI-SELECTION
+       ARTIFACT. §4's "encoded even when the model is wrong" does not stand as written, and the
+       1.000 AUROC is region-type decoding. The fix is a presence probe whose ROI does not depend
+       on the label -- which POPE cannot supply directly, since absent objects have no box.
+  C1 high  BUT  C2 `rand` clearly above null  ->  the shortcut EXISTS but is not the whole story;
+       report the ROI-matched number as the real effect size and retract the 1.000.
+  C1 near chance  ->  suspicion refuted; the original reading stands.
