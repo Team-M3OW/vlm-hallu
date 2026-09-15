@@ -1,0 +1,14 @@
+# Teammate's paper — under double-blind review. Do not publish.
+main.pdf
+*.pdf
+
+# Experiment artifacts: large, regenerable from scripts/, and some exceed GitHub's 100MB limit
+data/
+*.npz
+*.jsonl
+*.joblib
+
+# Local scratch
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
