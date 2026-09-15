@@ -1,4 +1,21 @@
 """
+Phase 81b: was phase 81's negative a PROMPTING artifact?
+
+Phase 81 found multi-crop -3.1pp WORSE than single-crop, against a predicted +5.5pp. That directly
+contradicts phase 58, which measured +7.9pp for multi-crop at equal cost. The clearest difference
+between the two setups is the connector text between images:
+
+    phase 58:  "Here is another zoomed-in crop from the same image."
+    phase 81:  "\n"
+
+i.e. phase 81 handed the model four images with NO indication of what they were. Before recording a
+negative that contradicts an in-project positive, test the one thing that differs.
+
+If the connector recovers the gain, phase 81's negative was an artifact of my prompt and the
+rank-only idea is still live. If it does not, the negative stands and phase 58's result needs its
+own re-examination.
+"""
+_OLD = """
 Phase 81: RANK-ONLY ALLOCATION. The method the negatives point to.
 
 THE PRINCIPLE, EARNED FROM FOUR FAILURES
@@ -62,9 +79,9 @@ from transformers import AutoProcessor, AutoModelForImageTextToText
 MODEL_ID = "Qwen/Qwen3-VL-2B-Instruct"
 MAPS = "/home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase30c_attn_maps_all.jsonl"
 SCORES = "/home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase81_head_scores.json"
-OUT = "/home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase81_rank_only.jsonl"
+OUT = "/home/kavinder/ARNABI_ARSH/vlm-hallu/data/phase81b_rank_only_conn.jsonl"
 B0, W, K, MIN_SEP = 300, 0.15, 4, 0.20
-CONN = "\n"
+CONN = "Here is another zoomed-in crop from the same image."
 Image.MAX_IMAGE_PIXELS = None
 
 

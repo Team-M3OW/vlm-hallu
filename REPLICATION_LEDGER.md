@@ -30,6 +30,8 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 |---|---|
 | **"The final layer is anti-correlated with the target"** | Q3 0.529, **Q2 0.416 (better than chance)**. Cut. |
 | **"Signed contrast is the mechanism"** | On Q2 the learned combination = best single layer **exactly** (43.5% = 43.5%). Cut as a general claim; retained only as a Q3 observation if §2.3 survives review. |
+| **"Signed contrast helps outside Qwen3-VL crop placement"** | **Second independent failure.** §14K: on Q2 the learned combination = best single layer exactly. §14L: on token pruning, linear vs plain block-mean is +2.6/−1.0/+1.0, all null. **Finished as a general claim.** |
+| **"Rank-only multi-crop beats single-crop"** | Predicted +5.5pp from the coverage exchange rate; measured **−3.1pp**. The coverage model has no term for distractor cost. ⚠ prompting confound under test (phase 81b). |
 | **"No single layer is a good localiser"** | False on Q2 — L21 alone beats the block mean by 8.4pp and all 5 folds pick it. Cut. |
 | **"DCR beats the compute-matched budget baseline"** | **Never survived on EITHER model.** Q3 +4.7pp [−3.7,+13.1], Q2 +3.1pp [−5.2,+11.0]. Only a V\*Bench single-region stratum ever cleared zero. **Remove from METHOD.md.** |
 | **"DCR beats the argmax proposer it replaces"** | Q3 **+8.4pp [+2.6,+14.7]** ✔, Q2 **+4.7pp [−1.0,+11.0]** ✗. Direction consistent, magnitude halved, significance lost. Demoted to provisional; cannot be claimed pooled. |
@@ -49,6 +51,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **Seven internal interventions null (§10, §14H)** | Q3 | The *pattern* is single-model. At minimum the decisive arms (attention amplification, contrastive decoding) need Q2. |
 | **Coverage as mediator / sign of the allocation effect (§6D)** | Q3, Q2 (partial) | Q2 replication was −9.4 / +41.8pp; confirm it covers the same strata. |
 | **Learned-sizer headroom +11.0pp (phase 78)** | Q3 | Future work; must not be claimed as general. |
+| **★ Pruning at layer 2 is worse than random; late read-out loses nothing at 10% keep (§14L)** | Q3 | **phase 83 running on Q2.** Sharp prediction: Q2's early layers are worse (gt_pct 0.620 vs 0.456), so the penalty should be **LARGER**. A smaller penalty refutes the mechanism. **This is now the paper's strongest result — its replication matters most.** |
 
 ---
 

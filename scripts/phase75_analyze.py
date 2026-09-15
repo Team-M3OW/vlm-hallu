@@ -100,10 +100,25 @@ def main():
         lo, hi = boot(a, b)
         print(f"  keep {100*kf:3.0f}%:  {100*(st.mean(a)-st.mean(b)):+6.1f}pp  CI[{lo:+.1f},{hi:+.1f}]")
 
+    # step 4 must gate the verdict: if `linear` only ties `blockmean`, the gain is about WHICH
+    # layers are read, not about the learned signed combination, and saying "our method transfers"
+    # would be an overstatement of exactly the kind SS14K already punished.
+    signed_adds = 0
+    for kf in KEEP:
+        a = [hit(r, f"linear@{kf}") for r in R]
+        b = [hit(r, f"blockmean@{kf}") for r in R]
+        lo, _ = boot(a, b)
+        signed_adds += lo > 0
     print("\n" + "=" * 70)
-    if wins >= 2:
-        print("=> TRANSFERS. The read-out finding improves an unrelated, established task.")
-        print("   This is the result that lifts the paper out of its own problem.")
+    if wins >= 2 and signed_adds >= 1:
+        print("=> TRANSFERS, INCLUDING THE SIGNED COMBINATION. The full read-out finding improves")
+        print("   an unrelated established task.")
+    elif wins >= 2:
+        print("=> THE LAYER CHOICE TRANSFERS; THE SIGNED COMBINATION DOES NOT.")
+        print("   A multi-layer read-out beats the single-layer baseline decisively, but a plain")
+        print("   block MEAN matches the learned signed version. The claim is about WHICH LAYERS")
+        print("   are read, not about learning weights over them -- and the recommendation is a")
+        print("   one-line change requiring no training.")
     elif wins == 1:
         print("=> PARTIAL. One operating point only; report as suggestive, not as a claim.")
     else:

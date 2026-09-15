@@ -4096,3 +4096,61 @@ form a clean grid, and the extractor skips rather than guesses. Phase 41 already
 matching the model's own `image_newline` parameter against the merged embeddings; porting that is
 the path to a third architecture and a two-family claim.
 
+
+## §14L  ★★★ THE FINDING LEAVES OUR PROBLEM: pruning at the wrong depth costs 22pp (Phase 75)
+
+The first result that lives entirely outside this paper's own task. Different problem (visual-token
+pruning, not crop placement), different metric, an established published baseline, and a large active
+literature. V\*Bench, n=191, Qwen3-VL-2B. Every arm prunes the **same number of tokens**, so cost is
+matched by construction; pruning is a large negative attention bias on the dropped columns from
+layer K onward, which is functionally what FastV does.
+
+| keep | random | **layer-2 (FastV default)** | block-mean L16–26 | learned signed |
+|---|---|---|---|---|
+| **10%** | 38.2% | **34.6%** | **56.0%** | **58.6%** |
+| 25% | 41.4% | 40.3% | 58.1% | 57.1% |
+| 50% | 47.1% | 52.9% | 55.5% | 56.5% |
+
+**No pruning: 56.5%.**
+
+### ★ Two headline numbers
+
+**1. 90% of visual tokens are deletable at zero cost — if you rank by late layers.**
+block-mean **−0.5pp [−5.8,+4.7]**, learned **+2.1pp [−2.6,+6.8]** against no pruning at all.
+
+**2. Ranking at layer 2 costs 22 points and is worse than random.**
+layer-2 vs no-pruning: **−22.0pp [−29.8,−14.7]**. vs random selection: **−3.7pp** — *below chance
+selection*. Margin of a late read-out over it: **+24.1pp [+16.2,+31.9]** at 10% keep,
+**+16.8pp [+8.9,+24.6]** at 25%.
+
+### ✗ And the signed combination contributes nothing here
+
+linear vs block-mean: **+2.6 / −1.0 / +1.0pp, all CIs spanning zero.** A plain average of layers
+16–26 matches the learned head. **The claim is about WHICH LAYERS are read, not about learning
+weights over them** — and the recommendation is a one-line change requiring no training.
+
+> ⚠ This is the **second independent failure** of signed contrast outside Qwen3-VL crop placement
+> (§14K was the first). Under the replication standard it is finished as a general claim.
+
+### The mechanism, and why it unifies three sections
+
+§14G: the vision tower carries **no** localisation signal (at or below the 2.3% chance rate) because
+it never sees the question. §14I: the answer forms **abruptly at L21**. §14L: pruning by layer-2
+attention is worse than random.
+
+> **Question-conditioned localisation is constructed late in the language model, and every decision
+> the field makes earlier than that is made blind.** FastV prunes at layer 2. The vision encoder has
+> nothing. Our own crop proposer averaged a fixed block without checking it was the right one. Three
+> independent tasks, one cause.
+
+### Scope and honesty
+
+- **Reimplementation, not released code.** `layerK` ranks by attention at FastV's default K=2 on a
+  common backbone; the original method is not run from its own checkpoint.
+- **⏳ ONE MODEL.** Under the standard adopted 2026-09-16 this is **provisional** until it replicates
+  on Qwen2-VL. Given §14K's finding that Qwen2-VL's early layers sit at gt_pct **0.620** — far worse
+  than Qwen3's 0.456 — the prediction is that the effect is *larger* there, which is a sharp,
+  falsifiable test.
+- At keep=50% the margin over layer-2 is **+3.7pp n.s.** — the effect is specific to aggressive
+  pruning, which is where the literature operates.
+

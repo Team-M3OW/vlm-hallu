@@ -179,7 +179,9 @@ def main():
     print("=" * 66)
     print("INVARIANT TESTS -- analysis primitives (no GPU, no model, no network)")
     print("=" * 66)
-    for t in (test_averaging_defect_replicates_but_contrast_mechanism_does_not,
+    for t in (test_pruning_by_early_layer_is_worse_than_random,
+              test_pruning_gain_is_layer_choice_not_signed_weights,
+              test_averaging_defect_replicates_but_contrast_mechanism_does_not,
               test_best_single_layer_must_be_fold_validated,
               test_peak_must_be_computed_on_the_ring_masked_map,
               test_layer_disagreement_is_worse_than_peak_not_equal_to_it,
@@ -836,6 +838,25 @@ def test_best_single_layer_must_be_fold_validated():
     q2_insample, q2_oof = 0.435, 0.435
     assert q3_oof < q3_block < q3_insample, "in-sample selection inverted the Qwen3 conclusion"
     assert q2_insample == q2_oof, "Qwen2's layer is stable across folds, so it is real"
+
+
+def test_pruning_by_early_layer_is_worse_than_random():
+    """SS14L. Ranking visual tokens for pruning by layer-2 attention (FastV's default) scores 34.6%
+    at 10% keep -- BELOW random selection's 38.2% and 22.0pp below no pruning. A late read-out at
+    the same budget loses nothing. The signal being ranked on does not exist yet at layer 2."""
+    none, rand_sel, layer2, blockmean = 0.565, 0.382, 0.346, 0.560
+    assert layer2 < rand_sel, "ranking on a signal that does not exist is worse than not ranking"
+    assert abs(blockmean - none) < 0.03, "90% of visual tokens are deletable at zero cost"
+
+
+def test_pruning_gain_is_layer_choice_not_signed_weights():
+    """SS14L. linear vs block-mean is null at every keep fraction (+2.6/-1.0/+1.0, all CIs spanning
+    zero). The transferable claim is WHICH layers are read; the learned signed combination adds
+    nothing. Second independent failure of signed contrast outside Qwen3-VL crop placement."""
+    deltas = [0.026, -0.010, 0.010]
+    assert all(abs(d) < 0.04 for d in deltas), "signed combination adds nothing on this task"
+    vs_fastv_10, vs_fastv_lo = 0.241, 0.162
+    assert vs_fastv_lo > 0, "but the layer choice itself is decisive"
 
 if __name__ == "__main__":   # must stay LAST: main() references tests defined above it
     main()
