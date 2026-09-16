@@ -290,6 +290,7 @@ tags every claim by how many models support it.
 \ref{app:multicrop}~A falsified prediction \;\textbullet\;
 \ref{app:seven}~Seven internal interventions \;\textbullet\;
 \ref{app:vision}~The vision tower carries no signal \;\textbullet\;
+\ref{app:positives}~Further positive results \;\textbullet\;
 \ref{app:corr}~Corrections \;\textbullet\;
 \ref{app:repro}~Reproducibility
 
@@ -444,6 +445,32 @@ LLaVA-NeXT-7B & \bad{9.9\%} & 12.6\% & \gd{18.8\%} & 16.8\% \\
 \end{center}
 \end{table}
 
+\begin{figure}[h]
+\begin{center}\includegraphics[width=\textwidth]{figs/fig_gtpct_curves.pdf}\end{center}
+\caption{Per-layer localisation quality against relative depth, all four architectures. $0.500$ is
+chance \emph{by construction}; the axis is inverted so up is better. Every model has layers
+\emph{above} chance, but where they sit differs: Qwen2-VL's first two-thirds are anti-correlated
+while Qwen3-VL's problem is its last layer. This is why no fixed layer index generalises and why
+averaging the whole stack is catastrophic.}
+\label{fig:gtpct}
+\end{figure}
+
+\begin{figure}[p]
+\begin{center}\includegraphics[width=\textwidth]{figs/fig_depth_grid.pdf}\end{center}
+\caption{\textbf{Every layer, three items, one forward pass each.} Attention over image positions at
+each of the 28 layers of Qwen3-VL-2B. Yellow box: the queried object. $\times$: that layer's
+ring-masked argmax, \gd{green} if a $W{=}0.15$ window there would cover the evidence (the criterion
+used throughout the paper) and \bad{red} otherwise. Layers 16--26 --- the deployed read-out block ---
+are labelled in bold. All three items are ones where the block-mean read-out \emph{fails}, and the
+per-layer view shows why that failure is not a shortage of signal: individual layers do land on the
+evidence (rows 1 and 3 cover at five layers each), but those layers are \textbf{L0, 4, 5, 9, 17} and
+\textbf{L2, 3, 5, 6, 9} --- scattered, and mostly \emph{outside} the block being averaged. Row 2
+covers at no layer, which is the genuinely unrecoverable case. Averaging a fixed contiguous block
+cannot exploit signal distributed like this, and no fixed block would: the covering layers differ
+per item.}
+\label{fig:depthgrid}
+\end{figure}
+
 On Qwen3-VL no single layer is stable across folds (in-sample $41.9\%$ collapses to $36.1\%$
 out-of-fold, \emph{below} the block mean it appeared to beat). On Qwen2-VL all five folds
 independently choose L21, so that model's single-layer result is real. This is why we make
@@ -472,6 +499,17 @@ Qwen2-VL-7B & $0.25$ tok & \bad{36.6\%} $[25,48]$ & 63.6\% $[50,77]$ & 95.8\% & 
 \end{tabular}
 \end{center}
 \end{table}
+
+\begin{figure}[h]
+\begin{center}\includegraphics[width=\textwidth]{figs/fig_coverage_cliff.pdf}\end{center}
+\caption{\textbf{Left:} coverage of the evidence set decides the \emph{sign} of the allocation
+effect, not merely its size --- a window that misses costs $-15.6\pp$ and one that fully covers gains
+$+37.1\pp$, crossing zero near $25\%$ coverage. \textbf{Right:} the encoding cliff on two
+architectures, with the oracle crop flat across it. Below the threshold the uniform arm falls
+\emph{below the $25\%$ chance level} while the oracle stays near ceiling, which is what makes this a
+statement about encoding rather than difficulty.}
+\label{fig:covcliff}
+\end{figure}
 
 The same threshold on both, with disjoint confidence intervals on each, across a different model
 generation, a different vision stack and $3.5\times$ the parameters. On the cleanest subset
@@ -508,6 +546,14 @@ LLaVA-NeXT-7B & \texttt{image\_newline} & \gd{$2.0$--$2.3\times$} & --- & --- \\
 \end{tabular}
 \end{center}
 \end{table}
+
+\begin{figure}[h]
+\begin{center}\includegraphics[width=0.92\textwidth]{figs/fig_sink.pdf}\end{center}
+\caption{Trailing-boundary enrichment on four architectures. Where the row boundary is implicit the
+sink sits on the last column; where a learned \texttt{image\_newline} makes it explicit, it sits on
+the separator token itself. Every interval excludes a fair share.}
+\label{fig:sink}
+\end{figure}
 
 This is the discriminating measurement between two accounts. A 2-D or corner account predicts
 nothing special for a newline embedding: it is not a corner, not a pixel, and not part of the image.
@@ -773,6 +819,91 @@ Two consequences. Single-pass foveation steered by vision salience is dead at st
 learned reweighting reproduces the \emph{same} weight shape here (12 positive / 12 negative, final
 layer $-0.382$) while buying nothing, which shows that depth contrast \textbf{amplifies signal that
 is present; it does not create it}.
+
+
+\section{Positive results not required by the main argument}\label{app:positives}
+
+These are measured, survive their own controls, and are reported for completeness even though the
+paper's argument does not depend on them.
+
+\subsection{The exchange rate that motivates allocation at all}
+At an identical $300$-token budget, placing the tokens on the evidence reaches \gd{$92.7\%$} against
+uniform's $56.5\%$, and \textbf{no uniform rung catches it even at $7957$ tokens} ($84.8\%$). The
+exchange rate is therefore at least $\mathbf{26\times}$ in tokens, and it is a lower bound set by the
+model's own ceiling rather than by our sweep. This is what makes \emph{where} worth studying; the
+rest of the paper is about why that potential is so hard to realise.
+
+\subsection{Coverage is the mediator, and it decides the sign}
+Stratifying by how much of the evidence set the reallocated window covers:
+
+\begin{table}[h]
+\caption{Allocation effect by coverage, V*Bench. Difficulty is held fixed within stratum.}
+\begin{center}\small
+\begin{tabular}{lcccc}
+\toprule
+\bf COVERAGE & \bf $n$ & \bf NO CROP & \bf CROP & \bf $\Delta$ \\
+\midrule
+$0\%$ (missed entirely) & 96 & 52.1\% & 36.5\% & \bad{$-15.6\pp$} $[-26.0,-5.2]$ \\
+$100\%$ (full) & 62 & 58.1\% & 95.2\% & \gd{$+37.1\pp$} $[+24.2,+50.0]$ \\
+\bottomrule
+\end{tabular}\end{center}
+\end{table}
+
+The sign flips near $25\%$ coverage, and \textbf{half of all windows miss}. Within the
+wrong-at-uniform stratum the gap reaches $70.8\pp$: covered items score $83.8\%$ and missed items
+$13.0\%$, \emph{below chance}. It replicates on Qwen2-VL ($-9.4/+41.8\pp$). This is the quantity
+Section~\ref{sec:mech}'s causal control is built on.
+
+\subsection{Where the method pays: below the cliff, not above it}
+Splitting the learned read-out's gain by \texttt{tokens-on-target}:
+
+\begin{table}[h]
+\caption{The method is a fix for sub-token evidence, and the cliff predicts its own operating regime.}
+\begin{center}\small
+\begin{tabular}{lcccc}
+\toprule
+\bf STRATUM & \bf $n$ & \bf LEARNED & \bf STANDARD & \bf $\Delta$ \\
+\midrule
+below the cliff ($<0.15$) & 58 & 67.2\% & 53.4\% & \gd{$+13.8\pp$} $[+1.7,+25.9]$ \\
+cliff zone ($0.15$--$0.25$) & 25 & 64.0\% & 48.0\% & \gd{$+16.0\pp$} $[+4.0,+32.0]$ \\
+above the cliff ($\geq 0.25$) & 108 & 70.4\% & 66.7\% & $+3.7\pp$ $[-3.7,+11.1]$ \\
+\bottomrule
+\end{tabular}\end{center}
+\end{table}
+
+Above the cliff the target is already resolved and placement barely matters; below it the crop is the
+only operation that resolves the target. This also \emph{refutes} a tempting explanation for the
+weaker $4$K transfer --- ``below the cliff there is nothing to re-rank'' is false by its own sign.
+
+\subsection{A free reliability signal}
+The peak value of the ring-masked block-mean map --- a number the read-out already computes on its
+way to an argmax --- predicts whether the proposal will cover the evidence at
+\textbf{AUROC $0.788$} (any overlap) and $0.839$ (at least half), at \emph{no additional cost}. A
+two-pass confidence signal reaches $0.835$ but requires cropping first, which is the expense. Gating
+on the free signal improves a competitor as well as our own arm: Zoom Eye recovers $+5.7\pp$ at $4$K
+on $53\%$ fewer tokens.
+
+\subsection{Multiple windows in a single pass}
+Packing several separated windows into one forward pass at the same total token budget beats a single
+window by \gd{$+7.9\pp$} $[+1.0,+14.7]$ on V*Bench at $601$ vs $590$ tokens, and replicates at
+$+8.0\pp$ on HR-Bench 4k --- $2.7\times$ the image scale. \textbf{This is not the same as
+Appendix~\ref{app:multicrop}'s failure}: there the budget was split $k$ ways at a fixed window size
+chosen for single-crop use, which pushed covered targets back under the cliff. The distinction is
+that multiple windows help when the per-window budget stays above the encoding threshold and hurt
+when it does not, which is the cliff making a quantitative prediction about a method.
+
+\subsection{Read-out choices validated rather than assumed}
+The deployed last-token read-out is the \textbf{best of seven} candidate query positions; attention
+from the noun that \emph{names} the target is near chance ($\texttt{gt\_pct}\,0.367$), so
+localisation here is not lexical lookup. The relative layer block transfers: on Qwen2-VL, $8/8$ of
+the individually-best layers fall \emph{inside} the block transferred from Qwen3-VL, with
+$\texttt{gt\_pct}\,0.041$ inside versus $0.390$ outside.
+
+\subsection{The sink is not a register token}
+Two controls rule out the obvious alternative. Transposing the image moves the enrichment with the
+\emph{serialisation} order rather than with image content, and an interior-replay control places
+$1.1\%$ of mass where chance predicts $3.3\%$ --- i.e.\ \emph{below} chance. The sink is present at
+layer $0$, before any language-model processing.
 
 \section{Corrections made during this work}\label{app:corr}
 
