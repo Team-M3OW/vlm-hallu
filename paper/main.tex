@@ -96,6 +96,30 @@ realised grid, never computed; any arm drifting more than $10\%$ from its target
 Every learned component is fitted \textbf{out-of-fold with folds grouped by item}.
 Appendix~\ref{app:proto} gives the full protocol.
 
+\section{Related work}\label{sec:related}
+
+\textbf{Token pruning.} FastV \citep{chen2024fastv} discards visual tokens judged unimportant by
+attention received at an early layer; its default reads layer 2. Our Section~\ref{sec:prune} is a
+direct measurement of what that depth choice costs.
+
+\textbf{Crop-and-re-encode.} V* \citep{wu2024vstar} and its successors select a region from model
+attention and re-encode it. These methods are scored here against what the same realised token
+budget buys as one uniform image, a comparison the literature does not report
+(Appendix~\ref{app:priorart}).
+
+\textbf{Layer-contrastive decoding.} DoLa \citep{chuang2024dola} and visual contrastive decoding
+\citep{leng2024vcd} exploit differences between layers or inputs at decoding time. We test both
+families and find them null here (Appendix~\ref{app:seven}); the reason, we argue, is that no
+decoding-time operation can supply information the encoder never wrote.
+
+\textbf{Attention as explanation.} \citet{jain2019attention} argue attention weights are not
+explanations. Our results are compatible but more specific: attention read at the \emph{right} depth
+carries a strong, causally-verifiable localisation signal, while the same attention read at an early
+layer is worse than random. \textbf{Attention sinks} \citep{xiao2024streamingllm} are a known
+phenomenon in language models; Appendix~\ref{app:sink} documents a visual analogue on the
+serialisation boundary across four architectures, and shows it is \emph{not} the cause of the
+read-out failure.
+
 \section{The read-out defect}\label{sec:readout}
 
 The standard way to locate evidence in a VLM is to average attention over a block of layers and take
@@ -252,26 +276,73 @@ tags every claim by how many models support it.
 
 \appendix
 
+\section*{Appendix contents}
+\noindent
+\ref{app:proto}~Experimental protocol \;\textbullet\;
+\ref{app:ledger}~Replication ledger \;\textbullet\;
+\ref{app:layers}~Per-layer structure, four architectures \;\textbullet\;
+\ref{app:cliff}~The encoding cliff \;\textbullet\;
+\ref{app:sink}~The serialisation sink \;\textbullet\;
+\ref{app:head}~The learned read-out: architecture and training \;\textbullet\;
+\ref{app:priorart}~Prior art at matched budget \;\textbullet\;
+\ref{app:transfer}~Zero-shot transfer to HR-Bench 4k \;\textbullet\;
+\ref{app:alloc}~The allocation ledger \;\textbullet\;
+\ref{app:multicrop}~A falsified prediction \;\textbullet\;
+\ref{app:seven}~Seven internal interventions \;\textbullet\;
+\ref{app:vision}~The vision tower carries no signal \;\textbullet\;
+\ref{app:corr}~Corrections \;\textbullet\;
+\ref{app:repro}~Reproducibility
+
 \section{Experimental protocol}\label{app:proto}
 
+\subsection{Benchmarks}
+\textbf{V*Bench} \citep{wu2024vstar}: $191$ four-way multiple-choice questions over high-resolution
+natural images, in two categories --- \texttt{direct\_attributes} ($n{=}115$, one object) and
+\texttt{relative\_position} ($n{=}76$, a relation between objects). Each item ships a ground-truth
+bounding box, which is what makes coverage measurable; median target area fraction is $0.0015$, i.e.\
+the queried object occupies about one part in seven hundred of the image.
+
+\textbf{HR-Bench 4k} \citep{wang2024hrbench}: $800$ rows $=200$ instances $\times\,4$ option
+permutations at $4032^2$, scored by CircularEval (an instance counts only if all four permutations
+are answered correctly). No boxes ship with it, so no coverage or oracle-capture quantity is
+computable there and none is quoted. Instances are keyed by \emph{image hash} as well as question
+text: $159$ unique question strings span $200$ instances, and keying on text alone silently pairs
+$212/800$ rows with the wrong image.
+
+\textbf{Rejected before use.} MMBench was considered and dropped: its images are ${\sim}512$px, so
+there is no allocation headroom, and a null there would have been a benchmark-selection artefact
+rather than a result.
+
+\subsection{Models}
+Qwen3-VL-2B-Instruct (28 text layers, merge 2), Qwen2-VL-7B-Instruct (28, merge 2),
+LLaVA-OneVision-7B (28, \texttt{image\_newline} separators), LLaVA-NeXT-7B (32, separators).
+All frozen; no weights are fine-tuned anywhere in this paper.
+
 \subsection{Budgets are measured, never computed}
-A visual-token budget cannot be set analytically: processors merge patches, pad, and round. Every arm
-is therefore calibrated by iterating on the processor's \emph{own realised grid} until the token count
-is within tolerance, and the realised count is logged with every record. Any contrast whose arms
-differ by more than $10\%$ in median realised tokens is \textbf{voided} rather than reported. In the
-runs reported here all arms land within $0$--$6.7\%$ of target.
+A visual-token budget cannot be set analytically: processors merge patches, pad, and round. Every
+arm is calibrated by iterating on the processor's \emph{own realised grid} --- rescale, re-measure,
+repeat --- until within $6\%$ of target, and the realised count is logged with every record. Any
+contrast whose arms differ by more than $10\%$ in median realised tokens is \textbf{voided} rather
+than reported. In the runs reported here all arms land within $0$--$6.7\%$.
+
+\subsection{Answer read-out}
+Four-way accuracy is taken from the option-letter logits at the final position:
+$p(\text{option}) \propto \exp\,\mathrm{logsumexp}_j\,\ell[\,\mathrm{ids}(\text{option})_j\,]$, over
+both the bare and space-prefixed tokenisations of each letter. No generation, no sampling, so results
+are deterministic given the input.
 
 \subsection{Numerical precision}
 Models load in \texttt{bfloat16}. Loading a bf16 checkpoint in fp16 produces all-NaN logits; because
 \texttt{argmax} over NaN returns index $0$ and the first option is over-represented in the label
-distribution, this reads as a clean, plausible, uniformly negative result. It cost us a spurious
+distribution ($71/191$ on V*Bench), every arm scores an identical $37.2\%$ with zero-width intervals.
+This reads as a clean, plausible, uniformly negative result --- it cost us a spurious
 architecture-specificity finding before it was caught. All scripts now assert \texttt{torch.isfinite}
-on logits and attention before writing any record.
+on logits \emph{and} attention before writing any record.
 
 \subsection{Cross-validation}
 Every learned component uses grouped $k$-fold ($k{=}5$) with folds grouped \emph{by item}, so an
 item's ${\sim}300$ cells never straddle train and test. Layer-selection results are reported
-out-of-fold: in-sample selection of a ``best layer'' is the best of 28 candidates on 191 items and is
+out-of-fold; in-sample selection of a ``best layer'' is the best of 28 candidates on 191 items and is
 badly optimistic (Appendix~\ref{app:corr}).
 
 \subsection{The logit lens}\label{app:lens}
@@ -279,15 +350,15 @@ Intermediate layers are read as $\texttt{lm\_head}(\texttt{norm}(h_i))$; the \te
 taken from \texttt{model.logits} and \emph{never} from $\texttt{norm}(h_{-1})$. HuggingFace has
 already applied the final norm to the last hidden state, so re-applying it gives reconstruction error
 $23.47$ against $0.06$ --- corrupting only that layer, which makes the error invisible in layer-wise
-plots. Both paths are computed and their disagreement is asserted, so a zero gap now signals that the
+plots. Both paths are computed and their disagreement asserted, so a zero gap now signals that the
 \emph{correct} path is not in use.
 
 \subsection{Statistics}
 All intervals are paired bootstrap over items, $10{,}000$ resamples, percentile method. Where a
-prediction is stated before a run it is written into the script's docstring with its rejection rule,
-so a result cannot be reinterpreted after the fact. We report intervals rather than $p$-values
-throughout, and we do not correct for multiplicity: the claims that survive are those that replicate
-on a second architecture, which is a stronger filter than any correction.
+prediction is stated before a run it is written into the script's docstring together with its
+rejection rule, so a result cannot be reinterpreted after the fact. We report intervals rather than
+$p$-values and do not correct for multiplicity: the claims that survive are those that replicate on a
+second architecture, which is a stricter filter than any correction.
 
 \section{Replication ledger}\label{app:ledger}
 
@@ -328,7 +399,7 @@ Seven internal nulls & 1 & provisional \\
 \section{Per-layer structure across architectures}\label{app:layers}
 
 Table~\ref{tab:gtpct} gives mean \texttt{gt\_pct} by depth --- the rank of the ground-truth cell as a
-fraction of all cells, where $0.500$ is chance by construction and lower is better.
+fraction of all cells, where $0.500$ is chance \emph{by construction} and lower is better.
 
 \begin{table}[h]
 \caption{Layer quality by depth. \emph{Which} layers are anti-correlated differs by architecture;
@@ -349,30 +420,256 @@ LLaVA-NeXT-7B & --- & --- & --- & 0.488 \\
 \end{table}
 
 Qwen2-VL's early and mid layers sit \emph{above} chance --- 15 of its 28 layers are worse than
-$0.45$ --- which is why averaging all of them collapses that model to $21.5\%$. Qwen3-VL's problem is
-instead its \emph{final} layer. The general claim is that anti-correlated layers exist and averaging
-them in is what hurts; the specific identity of the bad layers does not transfer, and we reject the
-final-layer claim on that basis (it holds on 1 of 4).
+$0.45$ --- which is why averaging all of them collapses that model to $21.5\%$ (Table~\ref{tab:allavg}).
+Qwen3-VL's problem is instead its \emph{final} layer, at $0.529$. The general claim is that
+anti-correlated layers exist and averaging them in is what hurts; the specific identity of the bad
+layers does not transfer, and we reject the final-layer claim on that basis.
+
+\begin{table}[h]
+\caption{Averaging the whole stack versus the deployed block versus a learned reweighting.}
+\label{tab:allavg}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\bf MODEL & \bf ALL & \bf DEPLOYED & \bf LEARNED & \bf BEST SINGLE \\
+ & \bf LAYERS & \bf BLOCK & & \bf (out-of-fold) \\
+\midrule
+Qwen3-VL-2B & 36.6\% & 39.3\% & \gd{45.5\%} & 36.1\% \\
+Qwen2-VL-7B & \bad{21.5\%} & 35.1\% & \gd{43.5\%} & 43.5\% (L21, all folds) \\
+LLaVA-OneVision-7B & 20.4\% & 25.1\% & 26.2\% & 25.1\% \\
+LLaVA-NeXT-7B & \bad{9.9\%} & 12.6\% & \gd{18.8\%} & 16.8\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+On Qwen3-VL no single layer is stable across folds (in-sample $41.9\%$ collapses to $36.1\%$
+out-of-fold, \emph{below} the block mean it appeared to beat). On Qwen2-VL all five folds
+independently choose L21, so that model's single-layer result is real. This is why we make
+\emph{no} general claim that a single layer suffices.
+
+\section{The encoding cliff}\label{app:cliff}
+
+Define $\textrm{tokens-on-target} = \textrm{area fraction} \times \textrm{total visual tokens}$. This
+is a sufficient statistic in the sense that arms differing in resolution, crop, and placement fall on
+one curve when plotted against it.
+
+\begin{table}[h]
+\caption{The cliff on single-region items, $n{=}115$ per model. The oracle arm is the control that
+makes this a statement about \emph{encoding} rather than difficulty.}
+\begin{center}
+\small
+\begin{tabular}{lccccc}
+\toprule
+& & \multicolumn{2}{c}{\bf UNIFORM} & \multicolumn{2}{c}{\bf ORACLE CROP} \\
+\cmidrule(lr){3-4}\cmidrule(lr){5-6}
+\bf MODEL & \bf CLIFF & below & above & below & above \\
+\midrule
+Qwen3-VL-2B & $0.25$ tok & \bad{32.4\%} $[21,44]$ & 77.3\% $[64,89]$ & 95.8\% & 100.0\% \\
+Qwen2-VL-7B & $0.25$ tok & \bad{36.6\%} $[25,48]$ & 63.6\% $[50,77]$ & 95.8\% & 100.0\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+The same threshold on both, with disjoint confidence intervals on each, across a different model
+generation, a different vision stack and $3.5\times$ the parameters. On the cleanest subset
+(localised, single-region, $n{=}63$) the step is sharper still: $19.0\% \rightarrow 78.6\%$, and
+$19.0\%$ is \emph{below the $25\%$ chance level} of a four-way question.
+
+\textbf{The control carries the claim.} The oracle crop is flat across the split on both models at
+identical values ($95.8\%$ below, $100.0\%$ above). Items below the cliff are not harder: given the
+same $300$-token budget spent on the resolved region, both models answer them essentially perfectly.
+Only the uniform arm steps, and it steps at the same target size in both.
+
+\section{The serialisation sink}\label{app:sink}
+
+Attention over image positions concentrates on the trailing row boundary. Enrichment is mass share
+divided by area share, so $1.0\times$ is a fair share; last-token attention, per-layer
+$L_1$-normalised, averaged over a \emph{relative} block $[0.55L, 0.95L]$ so the measurement is
+architecture-agnostic. $n{=}24$ images per model, bootstrap over images.
+
+\begin{table}[h]
+\caption{Trailing-boundary enrichment. Where the row boundary is implicit the sink sits on the last
+column; where a learned \texttt{image\_newline} makes it explicit, the sink sits \emph{on the
+separator token}.}
+\begin{center}
+\small
+\begin{tabular}{llccc}
+\toprule
+\bf MODEL & \bf BOUNDARY & \bf TRAILING & \bf FIRST COL. & \bf INTERIOR \\
+\midrule
+Qwen3-VL-2B & implicit & \gd{$3.4\times$} $[3.0,3.8]$ & $2.0\times$ & $0.7\times$ \\
+Qwen2-VL-7B & implicit & \gd{$4.5\times$} $[4.1,4.8]$ & $0.9\times$ & $0.7\times$ \\
+LLaVA-OneVision-7B & \texttt{image\_newline} & \gd{$2.0$--$2.3\times$} & --- & --- \\
+LLaVA-NeXT-7B & \texttt{image\_newline} & \gd{$2.0$--$2.3\times$} & --- & --- \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+This is the discriminating measurement between two accounts. A 2-D or corner account predicts
+nothing special for a newline embedding: it is not a corner, not a pixel, and not part of the image.
+A serialisation account predicts the sink should sit \emph{on the explicit marker} wherever one
+exists. It does, in both LLaVA models, with every CI excluding $1.0$. Separator positions are found
+by matching merged input embeddings against the model's own \texttt{image\_newline} parameter, so no
+unpad logic is reimplemented and nothing depends on our arithmetic.
+
+\textbf{What we withdrew.} An earlier form of this claim added ``and rows carry no excess mass.''
+That half does \emph{not} survive a five-region split on the LLaVA models, where the bottom row is
+enriched $2.1$--$3.0\times$. The trailing-boundary half survives; the stronger half is withdrawn.
+
+\textbf{And what it does \emph{not} explain.} The sink is real and it is not the cause of the
+proposer's failure: supplying the learned read-out with explicit last-column and last-row indicators
+is worth $+0.0\pp$, and removing them costs $+0.0\pp$ (Appendix~\ref{app:head}). Suppressing the sink
+at inference is likewise null (Appendix~\ref{app:seven}). We report it as a characterised artefact,
+not as a mechanism.
+
+\section{The learned read-out: architecture and training}\label{app:head}
+
+\textbf{Input.} Per visual-token cell: the cell's $L_1$-normalised attention at each of the $L$
+layers; its within-layer rank at each layer (so ordering is available as well as magnitude); the
+deployed block-mean value and its $3\times3$ neighbourhood mean; and geometry --- row/column
+fraction, distance to centre, distance to nearest border, and explicit last-column, last-row and
+first-column indicators. $65$ features per cell on a 28-layer model.
+
+\textbf{Label.} The fraction of the ground-truth box falling inside a $W{=}0.15$ window centred on
+that cell, with the same edge-clamping the deployed allocator uses, so the label matches what the
+method would actually crop.
+
+\textbf{Model.} Gradient-boosted trees (\texttt{HistGradientBoostingRegressor}, depth 4, 150
+iterations, lr $0.10$). Training rows are negative-subsampled --- every covering cell plus 30 random
+non-covering cells per item --- while \emph{evaluation is always over all cells}.
+
+\textbf{Cost.} The head reads attention that pass~1 already computed and runs a tree ensemble over
+${\sim}300$ cells on CPU. It adds no forward pass.
+
+\begin{table}[h]
+\caption{Feature-group ablation on Qwen3-VL-2B. The depth profile carries the result; the sink
+indicators contribute nothing.}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\toprule
+\bf FEATURE SET & \bf COVERAGE & \bf $\Delta$ \\
+\midrule
+deployed block mean (incumbent) & 39.3\% & --- \\
+deployed map only (value + $3\times3$ + position) & 45.0\% & $+5.8\pp$ \\
+\quad + sink indicators & 44.5\% & $+5.2\pp$ \\
+\quad + \textbf{depth profile} & \gd{51.8\%} & \gd{$+12.6\pp$} \\
+\quad + within-layer ranks (full head) & \gd{52.9\%} & \gd{$+13.6\pp$} \\
+full head \emph{minus} sink indicators & 52.9\% & $+13.6\pp$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\textbf{Two negative controls.} A head given \emph{only} geometry reaches $3.7\%$ and a head trained
+on shuffled labels $2.6\%$ --- both at the ${\sim}2.2\%$ random-cell rate, so the result is not a
+centre prior and the harness does not leak. A training-free blur of the same map \emph{destroys} the
+signal rather than reproducing it ($39.3\% \rightarrow 17.8\%$ at $3\times3$, $0.5\%$ at
+$7\times7$), so the neighbourhood term is learned local contrast, not smoothing.
+
+\textbf{The true ceiling.} On $88.5\%$ of items \emph{some} ring-masked cell would have covered the
+evidence. The head at $52.9\%$ therefore captures $27.6\%$ of the available headroom, not most of it
+--- $35.6\pp$ remains.
+
+\section{Prior art at matched budget}\label{app:priorart}
+
+The comparison this literature does not run: charge every policy for \emph{every image token across
+every pass}, and score it against what the same realised budget buys as one uniform image, measured
+in-run on the same items.
+
+\begin{table}[h]
+\caption{V*Bench, $n{=}191$, Qwen3-VL-2B. ``Bar'' is the uniform sweep interpolated at that arm's own
+realised token spend.}
+\begin{center}
+\small
+\begin{tabular}{lccccc}
+\toprule
+\bf POLICY & \bf PASSES & \bf TOKENS & \bf ACC & \bf BAR & \bf MARGIN \\
+\midrule
+uniform@300 & 1.00 & 296 & 56.5\% & --- & --- \\
+uniform@600 & 1.00 & 598 & 63.9\% & --- & --- \\
+uniform@1200 & 1.00 & 1182 & 71.7\% & --- & --- \\
+grounding crop & 2.00 & 595 & 57.6\% & 63.8\% & \bad{$-6.2\pp$} \\
+Zoom Eye (tree search) & 9.00 & 2664 & 75.9\% & 77.8\% & \bad{$-1.9\pp$} \\
+ours, fixed policy & 2.00 & 591 & 61.3\% & 63.8\% & $-2.5\pp$ \\
+ours, gated & 1.40 & 414 & 62.8\% & 60.0\% & $+2.8\pp$ \\
+\midrule
+oracle (uses GT box) & 1.00 & 301 & 92.7\% & 56.7\% & $+35.9\pp$ \\
+random placement & 1.00 & 296 & 33.5\% & 56.6\% & $-23.0\pp$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+Zoom Eye has the highest raw accuracy in the table and still does not beat one uniform image of its
+own budget. At $4$K the same comparison is significant: $-15.3\pp$ $[-18.6,-11.8]$ at $n{=}800$.
+
+\textbf{Scope.} These are reimplementations on a common backbone, not released checkpoints;
+V*/SEAL's search module is absent. On V*Bench no individual margin is significant at $n{=}191$. The
+defensible statement is that \emph{no policy significantly beats the budget axis at its own spend},
+which includes ours.
+
+\section{Zero-shot transfer to HR-Bench 4k}\label{app:transfer}
+
+The learned read-out trained on V*Bench, applied to HR-Bench 4k with \textbf{nothing refitted} ---
+not the window, not the layer block, not the ring mask, not $B_0$. HR-Bench ships no boxes, so the
+head \emph{cannot} have been fitted there even in principle.
+
+\begin{table}[h]
+\caption{HR-Bench 4k, $n{=}800$ rows / $200$ instances, balanced $400$ \texttt{single} /
+$400$ \texttt{cross}.}
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+\bf ARM & \bf PER-ROW & \bf CIRCULAREVAL \\
+\midrule
+uniform@300 & 52.8\% & 37.5\% \\
+uniform@600 (compute-matched bar) & \gd{59.9\%} & \gd{46.0\%} \\
+standard read-out crop & 42.6\% & 26.5\% \\
+\textbf{learned read-out crop} & \textbf{47.5\%} & \textbf{33.0\%} \\
+random placement & 38.9\% & 20.0\% \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\textbf{The component transfers}: $+4.9\pp$ $[+1.8,+8.1]$ per-row and $+6.5\pp$ on CircularEval over
+the standard read-out, rising to $+8.5\pp$ $[+4.0,+13.0]$ on single-region questions, across a
+different benchmark at $2.7\times$ the resolution with zero refitting.
+\textbf{The allocator does not}: $-12.4\pp$ against the compute-matched bar. At $4$K, spending the
+budget beats allocating it, and a better proposal narrows that gap without closing it.
+
+\textbf{Internal control.} On the $160$ rows where the two read-outs chose the \emph{same} cell the
+arms are the same computation and split $+0.0\pp$ $[+0.0,+0.0]$; on the $640$ where they differ,
+$+6.1\pp$ $[+2.2,+10.0]$. The effect lives only where the proposals diverge.
 
 \section{The allocation ledger: what we could not make work}\label{app:alloc}
 
 Four attempts to \emph{regress a continuous geometric quantity} from model internals, all failed:
 
 \begin{itemize}
-\item \textbf{Token budget from target size.} With a \emph{perfect} ground-truth area oracle, the rule
-$b \geq t^*/\textrm{area}$ loses to flat uniform in 11 of 12 cells, scored against the uniform ladder
-at each controller's own mean spend.
-\item \textbf{Token budget from any free pass-1 signal.} 17 features (attention concentration, entropy,
-spread; logit-lens confidence, margin, cross-layer agreement; image geometry). Out-of-fold
-$\rho = 0.254$, but exact-rung accuracy is $9.4\%$ against a $35.6\%$ majority baseline --- worse than
-a constant. The required-budget distribution is bimodal ($68/191$ items need the smallest budget,
-$37$ need more than the ladder offers) and no free signal makes that call.
+\item \textbf{Token budget from target size.} With a \emph{perfect} ground-truth area oracle, the
+rule $b \geq t^*/\textrm{area}$ loses to flat uniform in 11 of 12 cells, each scored against the
+uniform ladder at that controller's own mean spend. The oracle controller's required spend is nearly
+flat in target size ($3212/2146/2318/1615$ tokens across a $20\times$ range of area fraction), which
+is why size cannot drive it.
+\item \textbf{Token budget from any free pass-1 signal.} $17$ features (attention concentration,
+entropy, spread, peak ratios; logit-lens confidence, margin, cross-layer agreement, settling depth;
+image geometry). Out-of-fold $\rho = 0.254$, but exact-rung accuracy is $9.4\%$ against a $35.6\%$
+majority baseline --- \emph{worse than a constant}, with mean error $1.98$ rungs where a rung is a
+doubling. The required-budget distribution is bimodal ($68/191$ items need the smallest budget, $37$
+need more than the ladder offers) and no free signal makes that call.
 \item \textbf{Window size from target size.} Across four quartiles spanning a $100\times$ range of
 target area, the best window is $0.15$ in \emph{every} quartile. A per-item oracle window is worth
 $+11.0\pp$ after a stability check, so the headroom is real --- but no predictor we tried reaches it.
 \item \textbf{Attention-space reallocation.} Amplifying attention on the \emph{ground-truth} cells
-recovers $16\%$ of what cropping the same region buys. The target is sub-token: there is nothing to
-amplify.
+recovers $16\%$ of what cropping the same region buys ($+5.8\pp$ against the crop's $+36.2\pp$).
+Every practical arm is indistinguishable from a random control. The oracle amplification set is
+\emph{one cell of $294$}: the target is sub-token, so there is nothing to amplify.
 \end{itemize}
 
 \begin{quote}
@@ -381,13 +678,19 @@ that works is a ranking method, and every one that failed asked the model how \e
 \emph{where}.
 \end{quote}
 
+\textbf{A ceiling that was noise.} Per-item-best over a budget ladder reads $90.1\%$ against the
+plateau's $84.8\%$, which looks like $+5.2\pp$ of headroom. It is not: $22.5\%$ of items flip
+correct$\rightarrow$wrong going \emph{up} the ladder, so ``ever correct'' harvests noise on a
+four-way question. Requiring monotone stability collapses the ceiling to \emph{exactly} the plateau.
+We apply the same test to the window-size ceiling above, which survives it.
+
 \section{Rank-only multi-crop: a falsified prediction}\label{app:multicrop}
 
-The ledger above suggests a method that only ranks: take the top-$k$ separated cells, split the budget
-evenly, show all $k$ in one pass --- no size or budget decision anywhere. We priced it before running:
-union coverage of the top-4 \emph{and} above the encoding cliff at $75$ tokens each is $63.4\%$
-against single-crop's $52.9\%$, i.e.\ $+10.5\pp$ of answerable items at identical total budget,
-turning over at $k{=}5$. At the measured coverage exchange rate this predicts $+5.5\pp$.
+The ledger above suggests a method that only ranks: take the top-$k$ separated cells, split the
+budget evenly, show all $k$ in one pass --- no size or budget decision anywhere. We priced it before
+running: union coverage of the top-4 \emph{and} above the encoding cliff at $75$ tokens each is
+$63.4\%$ against single-crop's $52.9\%$, i.e.\ $+10.5\pp$ of answerable items at identical total
+budget, turning over at $k{=}5$. At the measured coverage exchange rate this predicts $+5.5\pp$.
 
 Measured: $\mathbf{-3.1\pp\ci{-9.4}{+3.1}}$. The prediction had the wrong \emph{sign}, so the model
 behind it is wrong, not merely imprecise. The exchange rate was estimated on \emph{single} crops,
@@ -396,10 +699,10 @@ and the account has no term for distractor cost. Ranking still works inside the 
 beats four random crops by $+27.7\pp$ --- but the format costs more than the extra coverage buys.
 
 This contradicted an earlier in-project result of $+7.9\pp$ for multi-crop, so before recording the
-negative we tested the clearest difference between the two setups: the connector text between images.
-Re-running with the descriptive connector gave \emph{identical} accuracy on all three arms, while
-$0/25$ probability vectors matched byte-for-byte --- the prompt changes the output without flipping
-decisions. The deficit is real, not a prompting artifact.
+negative we tested the clearest difference between the two setups: the connector text between
+images. Re-running with the descriptive connector gave \emph{identical} accuracy on all three arms
+while $0/25$ probability vectors matched byte-for-byte --- the prompt changes the output without
+flipping decisions. The deficit is real, not a prompting artefact.
 
 \section{Seven internal interventions}\label{app:seven}
 
@@ -411,26 +714,65 @@ is indistinguishable from biasing away random or interior image tokens ($-0.5\pp
 operation on \emph{prompt} tokens costs $-17.3\pp$ --- so the machinery bites, and image-token
 attention is simply not scarce in the direction of removal.
 \item \textbf{Attention amplification on the target.} Ground-truth-targeted amplification gains
-$+5.8\pp$, $16\%$ of what cropping the same region buys. Every practical arm is indistinguishable
-from a random control.
+$+5.8\pp$ $[+1,+10]$ at its best bias strength, $16\%$ of what cropping the same region buys. Every
+practical arm (top-1, top-5, top-15, deployed window) is indistinguishable from a random control, and
+at the strongest bias \emph{all} arms collapse by $9$--$14\pp$ including the control.
 \item \textbf{Residual-stream steering.} A shared direction exists (cosine $0.53$--$0.75$) and an
 item's own displacement is $47\%$ reachable at L20, but the transferable vector gives $+0.0\pp$.
 \item \textbf{Layer read-out selection for the answer.} No layer under uniform encoding exceeds
 $52.9\%$ against the oracle crop's $92.6\%$.
-\item \textbf{DoLa / DeCo.} Null against a correctly-computed baseline. (Against the
-double-normalised baseline of Appendix~\ref{app:corr} they appeared favourable, which is how the bug
-was found.)
+\item \textbf{DoLa / DeCo.} Null against a correctly-computed baseline. Against the
+double-normalised baseline of Appendix~\ref{app:corr} they appeared \emph{favourable}, which is how
+that bug was found.
 \item \textbf{Component ablation.} Null.
 \item \textbf{Contrastive decoding steered to the ground-truth region.} The decisive one, because it
 aims perfectly. Masking the evidence region shifts logits $3.32\times$ more than masking a random
 region and costs $10.5\pp$ of accuracy --- the region is unambiguously load-bearing --- and yet
-contrast on it reaches a \emph{ceiling} of $+2.6\pp\ci{-0.5}{+5.8}$, and $-5.5\pp$ against its own
-compute-matched bar.
+contrast on it reaches a \emph{ceiling} of $+2.6\pp$ $[-0.5,+5.8]$, and $-5.5\pp$ against its own
+compute-matched bar. The gain is larger where the window covers ($+3.0\pp$) than where it misses
+($+1.1\pp$), so the effect is evidence-linked; it is simply far too small to matter.
 \end{enumerate}
 
 The seventh retires the family. The previous six could each be dismissed as steering to the wrong
 place; this one steered to the ground truth, verified the place was causally live, and still could
 not convert it.
+
+\section{The vision tower carries no localisation signal}\label{app:vision}
+
+If the vision encoder's own attention localised the target, resolution could be allocated at encode
+time for two vision encodes and \emph{one} language-model forward, instead of the two forwards that
+crop-and-re-encode pays. We tested it. Qwen3-VL-2B's tower is 24 blocks, 16 heads, patch 16, merge 2;
+per-patch salience is attention received, averaged over heads and queries, pooled to the merged grid
+the language model sees.
+
+\begin{table}[h]
+\caption{Vision-tower localisation, $n{=}191$, same ring mask and coverage definition as the
+language-model read-out.}
+\begin{center}
+\begin{tabular}{lc}
+\toprule
+\bf PROPOSER & \bf COVERAGE \\
+\midrule
+random ring-masked cell (chance, 200 draws/item) & 2.3\% \\
+best single \emph{vision} layer & \bad{1.6\%} \\
+learned signed combination over 24 vision layers (OOF) & \bad{1.0\%} \\
+mean of all 24 vision layers & \bad{0.5\%} \\
+\midrule
+language-model read-out (deployed) & \gd{39.3\%} \\
+language-model read-out (learned) & \gd{45.5\%} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+\textbf{Every vision-tower arm is at or below chance.} Not weak --- absent. The vision encoder never
+sees the question, so there is no question-independent salience that suffices when the target is
+small and the question selects among several plausible objects.
+
+Two consequences. Single-pass foveation steered by vision salience is dead at step one. And the
+learned reweighting reproduces the \emph{same} weight shape here (12 positive / 12 negative, final
+layer $-0.382$) while buying nothing, which shows that depth contrast \textbf{amplifies signal that
+is present; it does not create it}.
 
 \section{Corrections made during this work}\label{app:corr}
 
@@ -439,15 +781,15 @@ the part worth reusing.
 
 \begin{itemize}
 \item \textbf{A double-normalised logit lens} (Appendix~\ref{app:lens}) manufactured a ``$+5.1\pp$
-free read-out gain'', an evidence-dependent late-layer bias, and a favourable comparison against
-DoLa. \emph{Caught} because a second code path computed the same quantity and disagreed --- $100\%$
-agreement at L24, $82.2\%$ at the final layer.
+free read-out gain'', an evidence-dependent late-layer bias, a letter-concentration finding, and a
+favourable comparison against DoLa. \emph{Caught} because a second code path computed the same
+quantity and disagreed --- $100\%$ agreement at L24, $82.2\%$ at the final layer.
 \item \textbf{A transfer result called negative from a prefix.} HR-Bench is ordered by category; the
 first $244$ rows were $65\%$ relational, the stratum where our method does nothing. The balanced
 $n{=}800$ result reversed the sign ($+0.0 \rightarrow +4.9\pp$, CI clear of zero).
-\item \textbf{Two mechanisms proposed for a failure that did not exist.} Both were refuted by our own
-data --- ``the map is flat at 4K'' (peak concentration $0.0228$ vs $0.0269$, only $1.18\times$ apart)
-and ``below the cliff there is nothing to re-rank'' (the gain is \emph{largest} below the cliff).
+\item \textbf{Two mechanisms proposed for a failure that did not exist.} Both refuted by our own data
+--- ``the map is flat at 4K'' (peak concentration $0.0228$ vs $0.0269$, only $1.18\times$ apart) and
+``below the cliff there is nothing to re-rank'' (the gain is \emph{largest} below the cliff).
 \item \textbf{A capture fraction against a restricted ceiling.} Quoted as $65\%$ of an
 oracle-among-top-5 gap; against the true ceiling (does \emph{any} cell cover: $88.5\%$) it is
 $27.6\%$. The loose version also implied the method was near its limit when $35.6\pp$ of headroom
@@ -460,9 +802,34 @@ worse.
 \item \textbf{A pre-registered mechanism prediction that failed} (Section~\ref{sec:prune}): the
 layer-2 pruning penalty should have been larger on the model whose early layers rank the target
 worse. It is smaller. The claim replicates; the causal story does not, and we report them separately.
+\item \textbf{A significance test computed on mismatched items} inflated a pooled margin from
+$+3.9\pp$ $[-0.3,+8.2]$ to a spurious ``$+5.2\pp$ $[+1.1,+9.4]$, significant'' by taking the bar from
+all items while scoring an easier subset.
+\item \textbf{A row-segmentation error} treated LLaVA's separator-free base image as ``row 0'',
+placing $59.8\%$ of positions in a bucket capped at ${\sim}5\%$ and manufacturing a spurious
+$3.0\times$ result.
+\item \textbf{An objective that was maximised by doing nothing:} selecting a gate threshold by
+``accuracy per pass'' drives the gate to never fire ($0.565/1.00$ beats $0.670/2.00$). Replaced by a
+target firing rate with the whole cost--accuracy curve reported.
 \end{itemize}
 
-An executable suite of \textbf{86 invariants} encodes every item above, so a claim the data stopped
-supporting fails a test rather than surviving in prose.
+\section{Reproducibility}\label{app:repro}
+
+Every figure in this paper is generated from measured data by a script in the release; no number is
+typed into a figure by hand. Figures~\ref{fig:defect}, \ref{fig:masks} and \ref{fig:qual} are
+rendered from a dedicated inference pass that stores the attention maps, the exact pruning masks, the
+crop pixels handed to the model, and the model's real predictions, so each panel is an artefact of a
+forward pass rather than an illustration. Each such figure states its item-selection rule in its
+caption, and the pruning figure selects on \emph{disagreement between rankings} rather than on which
+ranking turns out to be correct.
+
+An executable suite of \textbf{86 invariants} encodes every retraction and every corrected number
+above. Each is a named test asserting the shape of a result --- that a control sits at chance, that a
+CI includes zero, that an in-sample figure exceeds its out-of-fold counterpart --- so a claim the
+data stopped supporting fails a test rather than surviving in prose. The suite runs in seconds, with
+no GPU, model or network access.
+
+\bibliography{refs}
+\bibliographystyle{iclr2027_conference}
 
 \end{document}
