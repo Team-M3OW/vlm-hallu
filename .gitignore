@@ -2,7 +2,7 @@
 /main.pdf
 *.pdf
 # ...but our own paper and its figures are ours to publish
-!paper/paper.pdf
+!paper/iclr2027_submission.pdf
 !paper/figs/*.pdf
 
 # LaTeX build artifacts

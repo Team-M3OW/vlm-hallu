@@ -11,6 +11,11 @@ import phase70_rerank_head as P70
 
 D = "/home/kavinder/ARNABI_ARSH/vlm-hallu/data"
 F = "/home/kavinder/ARNABI_ARSH/vlm-hallu/paper/figs"
+def save(fig, name):
+    fig.savefig(f"{F}/{name}.png")
+    fig.savefig(f"{F}/{name}.pdf")
+
+
 plt.rcParams.update({"font.size": 8, "axes.spines.top": False, "axes.spines.right": False,
                      "figure.dpi": 220, "savefig.bbox": "tight", "axes.grid": False})
 C = {"bad": "#c0392b", "good": "#1a6b54", "neutral": "#7f8c8d", "hl": "#2c5aa0",
@@ -75,7 +80,7 @@ def fig1():
     ax.add_patch(Rectangle((gt[0]*gw-.5, gt[1]*gh-.5), (gt[2]-gt[0])*gw, (gt[3]-gt[1])*gh,
                            fill=False, ec="#f1c40f", lw=1.2))
     ax.set_title("MEAN 16–26\n(standard)", fontsize=7.2, color=C["bad"], fontweight="bold")
-    fig.savefig(f"{F}/fig1_defect.png"); plt.close(fig)
+    save(fig, "fig1_defect"); plt.close(fig)
     print("fig1 ok", qid)
 
 
@@ -92,7 +97,7 @@ def fig2():
     ax.set_xlabel("number of layers averaged"); ax.set_ylabel("evidence found (%)")
     ax.set_xscale("log"); ax.set_xticks([1, 3, 11, 28]); ax.set_xticklabels(["1", "3", "11", "28"])
     ax.set_ylim(34, 49)
-    fig.savefig(f"{F}/fig2_averaging.png"); plt.close(fig)
+    save(fig, "fig2_averaging"); plt.close(fig)
     print("fig2 ok")
 
 
@@ -118,7 +123,7 @@ def fig3():
     h, lb = axes[0].get_legend_handles_labels()
     fig.legend(h, lb, fontsize=6.6, frameon=False, ncol=3, loc="lower center",
                bbox_to_anchor=(0.5, -0.17))
-    fig.savefig(f"{F}/fig3_pruning.png"); plt.close(fig)
+    save(fig, "fig3_pruning"); plt.close(fig)
     print("fig3 ok")
 
 
@@ -151,7 +156,7 @@ def fig4():
     ax.set_xlabel("layer"); ax.set_ylabel("gain over no crop (pp)")
     ax.legend(fontsize=6.5, frameon=False, loc="upper left")
     ax.set_title("and only when the crop delivers", fontsize=8)
-    fig.savefig(f"{F}/fig4_l21.png"); plt.close(fig)
+    save(fig, "fig4_l21"); plt.close(fig)
     print("fig4 ok")
 
 
@@ -179,7 +184,7 @@ def fig5():
             if c == 0:
                 ax.text(-0.06, 0.5, lab, transform=ax.transAxes, rotation=90,
                         va="center", ha="center", fontsize=7, color=col, fontweight="bold")
-    fig.savefig(f"{F}/fig5_qualitative.png"); plt.close(fig)
+    save(fig, "fig5_qualitative"); plt.close(fig)
     print("fig5 ok", len(picks))
 
 
@@ -204,7 +209,7 @@ def fig6():
                 arrowprops=dict(arrowstyle="-|>", color="k", lw=1.1))
     ax.text(3.45, 0, "depth", fontsize=7, va="center")
     ax.set_xlim(-0.6, 3.9); ax.set_ylim(-1.6, 1.5); ax.axis("off")
-    fig.savefig(f"{F}/fig6_depth.png"); plt.close(fig)
+    save(fig, "fig6_depth"); plt.close(fig)
     print("fig6 ok")
 
 
