@@ -4530,3 +4530,68 @@ All eight early depths fall below random (mean **−3.7pp [−10.3,+2.7]**) and 
 above it (mean **+6.7pp [−0.1,+13.7]**). The sign pattern is 12/12 in the predicted direction; no
 individual contrast clears zero at n=191. **The "early is worse than random" claim rests on §14L(b)'s
 paired design, not on this sweep** — recorded here so the weaker evidence is not double-counted.
+
+
+## §14T  ★★★ THE METHOD CLEARS THE BAR ON SINGLE-OBJECT QUESTIONS, ON TWO MODELS (Phases 97, 101)
+
+§14D's "0 of 2 against the equal-compute baseline" compared **Qwen3-VL at the held-out-validated
+W=0.25** against **Qwen2-VL at W=0.15, a window that was never swept on it**. Phase 97 fixes that:
+same items, same head, W ∈ {0.15,0.25,0.35}, W **transferred** from Qwen3-VL rather than selected.
+
+### Pooled — still does not clear, on either model
+
+| | bar (uniform@600) | head@0.25 | Δ |
+|---|---|---|---|
+| Qwen3-VL-2B | 63.9% | 71.7% | **+7.9pp [−0.5,+16.2]** ✗ |
+| Qwen2-VL-7B | 58.1% | 64.9% | **+6.8pp [−1.0,+14.7]** ✗ |
+
+The unfairness was real — Qwen2-VL's margin **more than doubles**, +3.1 → +6.8pp — and fixing it was
+still not enough. **Two positive point estimates of similar size with lower bounds within a point of
+zero is an underpowered contrast, not a refuted one**, and the ledger's wording is corrected
+accordingly: NOT DEMONSTRATED, not REJECTED.
+
+### ✅ Single-object questions — clears on both
+
+| | n | bar | head@0.25 | Δ |
+|---|---|---|---|---|
+| **Qwen3-VL, `direct_attributes`** | 115 | 62.6% | 78.3% | **+15.7pp [+6.1,+25.2]** ✔ |
+| **Qwen2-VL, `direct_attributes`** | 115 | 57.4% | 68.7% | **+11.3pp [+1.7,+20.9]** ✔ |
+| Qwen3-VL, `relative_position` | 76 | 65.8% | 61.8% | −3.9pp [−18.4,+10.5] |
+| Qwen2-VL, `relative_position` | 76 | 59.2% | 59.2% | +0.0pp [−13.2,+13.2] |
+
+> **This is the first thing in the project to beat spending the same compute on a bigger image, on
+> more than one architecture.** The scope limit is not a caveat bolted on afterwards — §6D/Ph 36
+> predicted it before any of these runs: a relational question's evidence set is the **union** of the
+> objects involved, **7.9× larger in area**, and one window cannot cover it.
+
+⚠ **Declared honestly:** phase 71b's *formal* pre-registered decision rule was on the **pooled**
+contrast, and pooled does not clear. The single-region stratum was a mechanism-derived expectation
+named in §14D's own title before Qwen2-VL was ever run — it is not a slice found after the fact — but
+it was not the registered primary, and both numbers belong in the paper.
+
+### The window-width mechanism, replicated
+
+| | W=0.15 | 0.25 | 0.35 | 0.50 | 0.70 |
+|---|---|---|---|---|---|
+| Qwen3-VL **oracle** placement | **90.1** | 88.0 | 83.8 | 79.6 | 65.4 |
+| Qwen3-VL **head** placement | 68.6 | **71.7** | 69.1 | 65.4 | 63.4 |
+| Qwen2-VL **oracle** placement | **91.1** | 87.4 | 80.6 | — | — |
+| Qwen2-VL **head** placement | 61.3 | **64.9** | 64.4 | — | — |
+
+**Oracle placement is monotone decreasing in W on both models; head placement is not.** Perfect aim
+wants the tightest window; imperfect aim buys forgiveness with width. The optimum is interior *only*
+for a proposer that misses, which is why W=0.25 and not W=0.15 — and it retroactively explains why
+phase 39 had to retract an interior optimum measured on the weaker argmax proposer.
+
+⚠ On Qwen2-VL the peak itself is weak: head@0.25 − head@0.15 is **+3.7pp [−2.1,+9.4]**, and 0.25 vs
+0.35 is flat. Claim the oracle/head *contrast*, not a sharp peak location.
+
+### ✗ And the sizer fails its own robustness check (Phase 99, 101)
+
+A free per-item window sizer over the six pass-1 attention features looked like the missing point at
+**+8.9pp [+0.5,+17.3]** on the 5-value grid. Restricted to the 3-value grid both models share, it
+**inverts**: +6.8pp [−1.6,+14.7] against the bar and **−1.0pp** against the fixed constant. Found on
+the model where it was discovered, before it reached the second one. A `top1_frac` routing gate
+(+9.6pp [+2.0,+17.7]) is **not** substituted for it — `PREREG_DCR_SIZER.md` bars exactly that move.
+The two-pass confidence rule that rescued the *old* proposer is also null here (−0.5pp [−4.7,+3.1]):
+it was compensating for a bad proposer, and there is less to compensate for now.

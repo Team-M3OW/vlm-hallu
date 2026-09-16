@@ -21,6 +21,8 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **The encoding cliff** | **Q3, Q2** | step at 0.15–0.25 merged tokens, oracle flat across it (§13C) |
 | **The serialization sink** | **Q3, Q2, OV, NX** | 3.4–4.5× implicit, 2.0–2.3× on `image_newline` (§5) |
 | **No published crop policy beats the budget axis at matched tokens** | **Q3, Q2** | §9A/§9B |
+| **★ DCR beats the compute-matched baseline on SINGLE-OBJECT questions** | **Q3, Q2** | **+15.7pp [+6.1,+25.2]** / **+11.3pp [+1.7,+20.9]**, n=115 each, W transferred not selected. Null on relational (−3.9 / +0.0) exactly as §6D predicts. ⚠ pooled does not clear; both numbers must be reported (§14T) |
+| **Oracle placement wants a tighter window than learned placement does** | **Q3, Q2** | oracle monotone decreasing in W (90.1→65.4 / 91.1→80.6); head peaks at 0.25 on both (§14T) |
 
 ---
 
@@ -33,7 +35,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **"Signed contrast helps outside Qwen3-VL crop placement"** | **Second independent failure.** §14K: on Q2 the learned combination = best single layer exactly. §14L: on token pruning, linear vs plain block-mean is +2.6/−1.0/+1.0, all null. **Finished as a general claim.** |
 | **"Rank-only multi-crop beats single-crop"** | Predicted +5.5pp from the coverage exchange rate; measured **−3.1pp**. The coverage model has no term for distractor cost. ⚠ prompting confound under test (phase 81b). |
 | **"No single layer is a good localiser"** | False on Q2 — L21 alone beats the block mean by 8.4pp and all 5 folds pick it. Cut. |
-| **"DCR beats the compute-matched budget baseline"** | **Never survived on EITHER model.** Q3 +4.7pp [−3.7,+13.1], Q2 +3.1pp [−5.2,+11.0]. Only a V\*Bench single-region stratum ever cleared zero. **Remove from METHOD.md.** |
+| ~~**"DCR beats the compute-matched budget baseline"** (pooled)~~ | **Reworded, not un-rejected.** At the transferred W=0.25 it is Q3 **+7.9pp [−0.5,+16.2]**, Q2 **+6.8pp [−1.0,+14.7]** — two positive estimates with lower bounds inside a point of zero. That is **NOT DEMONSTRATED at n=191**, not refuted. The old numbers compared Q3 at a held-out W against Q2 at a window never swept on it (§14T). Pooled still may not be claimed. |
 | **"DCR beats the argmax proposer it replaces"** | Q3 **+8.4pp [+2.6,+14.7]** ✔, Q2 **+4.7pp [−1.0,+11.0]** ✗. Direction consistent, magnitude halved, significance lost. Demoted to provisional; cannot be claimed pooled. |
 
 ---
@@ -50,7 +52,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **Evidence region is causally live (3.32×, −10.5pp) (§14H)** | Q3 | Masking experiment must be re-run on Q2. |
 | **Seven internal interventions null (§10, §14H)** | Q3 | The *pattern* is single-model. At minimum the decisive arms (attention amplification, contrastive decoding) need Q2. |
 | **Coverage as mediator / sign of the allocation effect (§6D)** | Q3, Q2 (partial) | Q2 replication was −9.4 / +41.8pp; confirm it covers the same strata. |
-| **Learned-sizer headroom +11.0pp (phase 78)** | Q3 | Future work; must not be claimed as general. |
+| **Learned-sizer headroom +11.0pp (phase 78)** | Q3 | **Now closed as unreachable from free signals.** The OOF sizer inverts across W grids (+8.9pp → −1.0pp vs the constant, §14T). |
 | **Label-free locator finds the read-depth transition (§14S)** | Q3, Q2 | **Region ✔, exact layer ✗.** Divergence rises L13–L14; damage recovers L14–L16. L14 does not clear zero (+4.7 [−1.0,+10.5]); L16 does (+11.0 [+3.7,+18.8]). Claim only the region. |
 | **★ Pruning at layer 2 is worse than random; late read-out loses nothing at 10% keep (§14L)** | Q3 | **phase 83 running on Q2.** Sharp prediction: Q2's early layers are worse (gt_pct 0.620 vs 0.456), so the penalty should be **LARGER**. A smaller penalty refutes the mechanism. **This is now the paper's strongest result — its replication matters most.** |
 
