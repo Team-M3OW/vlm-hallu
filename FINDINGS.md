@@ -4340,3 +4340,49 @@ what licenses "the information is absent, not mis-routed" as a measurement rathe
 the answer prior) and should not be quoted; the **separation profile** is the stable measure and is
 what the figure shows.
 
+
+## §14O  ★★★ THE TWO MECHANISMS ARE DISSOCIATED — the review was right (Phase 88)
+
+External review objected that the paper conflates **(a)** where localisation signal lives in a
+per-layer attention map with **(b)** when the answer becomes decodable from the residual stream,
+calling them "conceptually distinct mechanisms (attention quality vs. computation/answer-formation
+timing)". Both quantities exist per layer on the same items, so this is testable rather than
+arguable. **It is correct.**
+
+| quantity | peak layer | value |
+|---|---|---|
+| attention localisation, top-1 coverage | **L17** | 41.9% |
+| attention localisation, gt_pct | **L19** | 0.324 |
+| **answer formation** (largest oracle-arm jump) | **L21** | **+44.0pp** |
+
+**Separation: 4 layers.** Rank correlation across layers: attention-top1 vs decodability
+**ρ = +0.297**; gt_pct vs decodability **ρ = +0.100**. These are weakly related, not the same signal.
+
+### The decisive number
+
+| | attention top-1 |
+|---|---|
+| the 6 layers **before** the answer forms | **30.1%** |
+| from the answer layer **onward** | **24.8%** |
+
+**Attention quality peaks, declines, and only then does the answer form.** The two are *sequential*,
+not simultaneous: the model localises at L16–19 and answers at L21.
+
+### Why this is an improvement, not a concession
+
+1. **Two clean claims replace one muddy one.** *"Read attention late"* is a claim about **maps** —
+   it is what the pruning result (§14L) and the read-out result (§14N) rest on. *"The answer forms
+   abruptly at a single late layer"* is a claim about the **residual stream** — §14I. They are
+   related only in that both live late in the stack.
+2. **The pruning finding no longer depends on the logit lens at all.** Given the lens cost us the
+   §12D double-normalisation retraction, a headline result that is independent of that machinery is
+   strictly more robust.
+3. **It sharpens the mechanism.** "Localise, then answer" is a specific sequential claim with an
+   observable signature — attention quality *falling* before the answer appears — that the
+   single-mechanism story does not predict and would have obscured.
+
+> **Reframe required:** the paper's one "wrong depth" narrative should become two: a claim about
+> **where the field reads attention maps** (pruning, crop placement — the practical contribution) and
+> a claim about **when the answer is computed** (the interpretability contribution). §14L does not
+> cite §14I for support and must stop appearing to.
+

@@ -49,30 +49,67 @@ changed · keep-in-paper rating · stepwise method.
 - **ViCrop** (2502.17422) — attention-guided crop + original image (phases 31/54).
 - **DoLa** (2309.03883), **DeCo** (2410.11779) — layer-contrastive decoding (phase 63).
 
-## Phases 69-83 — the method arc (2026-09-15/16)
+## Phases 69-89 — the method arc (2026-09-15/16)
 
-**Standard from 2026-09-16:** every claim must hold on >1 model or be REJECTED. See
-`REPLICATION_LEDGER.md`. Paper structure: `PAPER_FLOW.md` v12 (method-led). Method: `METHOD.md`.
+**Standard from 2026-09-16:** every claim must hold on >1 model or be REJECTED, not caveated.
+Gate: `REPLICATION_LEDGER.md`. Paper: `paper/iclr2027_submission.pdf` (19pp) · `PAPER_FLOW.md` v12 ·
+`METHOD.md` · `scripts/test_invariants.py` (87 invariants).
+
+### Track A — the read-out defect and pruning (the strong half)
 
 | phase | class | one line | keep |
 |---|---|---|---|
-| [69](phase69.md) | NEGATIVE | no free pass-1 signal predicts required budget | 7/10 |
-| [70](phase70.md) | METHOD | learned re-ranking head: 39.3 → 52.9% evidence coverage | 9/10 |
-| [71](phase71.md) | METHOD | it converts: 56.5 → 68.6% (+12.0pp vs vanilla) | 10/10 |
-| [72](phase72.md) | MIXED | re-ranker transfers zero-shot to HR-Bench; allocator still loses at 4K | 9/10 |
-| [73](phase73.md) | FINDING | layers disagree; averaging dilutes — ⚠ signed-contrast part later REJECTED | 8/10 |
-| 74 | REPLICATION | Qwen2-VL: averaging defect holds (+8.4pp); **final-layer & signed-contrast claims fail** | 9/10 |
-| [75](phase75.md) | **★ FINDING** | **pruning at layer 2 is worse than random; late read-out deletes 90% of tokens free** | **10/10** |
-| [76](phase76.md) | NEGATIVE | vision tower at chance — localisation is built by the LM from the question | 8/10 |
-| [77](phase77.md) | NEGATIVE + causal | contrastive decoding fails, but proves the evidence region is load-bearing (3.32×) | 8/10 |
-| [78](phase78.md) | FINDING | W=0.25 beats deployed 0.15; +11.0pp sizer headroom, no known predictor | 7/10 |
-| [79](phase79.md) | **★ FINDING** | **why it works: answer formation restored at L21; 37.6pp coverage swing** | **10/10** |
-| [80](phase80.md) | MIXED | DCR replicates vs vanilla (+10.5pp) but **not** vs the argmax proposer | 9/10 |
-| [81](phase81.md) | NEGATIVE | rank-only multi-crop −3.1pp against a predicted +5.5pp; confound excluded (81b) | 6/10 |
-| 82 | QUEUED | LLaVA extraction (separator-aware) → second model *family* | — |
-| 83 | **RUNNING** | **pruning replication on Qwen2-VL — decides the paper's headline** | — |
+| [73](phase73.md) | FINDING | layers disagree; averaging dilutes. ⚠ signed-contrast part later REJECTED | 8/10 |
+| 74 | REPLICATION | Qwen2-VL: averaging defect holds (+8.4pp); final-layer & signed-contrast claims **fail** | 9/10 |
+| [75](phase75.md) | **★★ FINDING** | **layer-2 pruning worse than random; late read-out deletes 90% of tokens free** | **10/10** |
+| [76](phase76.md) | NEGATIVE | vision tower at/below chance — localisation is built by the LM, not read off the image | 8/10 |
+| 82 | INFRA | LLaVA extraction unblocked (merged-embedding separator detection) → 2nd model *family* | 7/10 |
+| 83 | **REPLICATION** | **pruning result replicates on Qwen2-VL (+11.5pp); mechanism prediction FAILS** | **10/10** |
+| 87 | **★★ FINDING** | **it is a THRESHOLD, not layer 2: all of L0–L14 catastrophic, L16+ free, +13.1pp step** | **10/10** |
+| 88 | **★★ FINDING** | **attention quality (L17–19) and answer formation (L21) are DISSOCIATED, ρ=0.30** | **10/10** |
+| 89 | **RUNNING** | pruning on POPE/GQA/TextVQA/ScienceQA — decides whether the scope is general VQA | — |
 
-**Current method (`METHOD.md`):** read attention late, not early.
-Pruning: **+24.1pp [+16.2,+31.9]** over FastV's layer-2 at 10% keep, no training.
-Crop placement: **+12.0pp / +10.5pp** over vanilla on two architectures.
-⚠ Neither beats simply spending the same budget uniformly — stated, not buried.
+### Track B — learned allocation (real, unfinished)
+
+| phase | class | one line | keep |
+|---|---|---|---|
+| [70](phase70.md) | METHOD | learned re-ranking head: 39.3 → 52.9% evidence coverage | 9/10 |
+| [71](phase71.md) | METHOD | it converts: 56.5 → 68.6% (**+12.0pp** vs vanilla) | 10/10 |
+| [72](phase72.md) | MIXED | proposals transfer zero-shot to HR-Bench; the allocator still loses at 4K | 9/10 |
+| [78](phase78.md) | FINDING | W=0.25 beats deployed 0.15 (in-sample); **+11.0pp sizer headroom, no predictor** | 7/10 |
+| [79](phase79.md) | **★★ FINDING** | **why it works: answer formation restored, only where the crop delivers** | 10/10 |
+| [80](phase80.md) | MIXED | replicates vs vanilla (+10.5pp) but **not** vs the argmax it replaces | 9/10 |
+| [81](phase81.md) | NEGATIVE | rank-only multi-crop −3.1pp vs a predicted +5.5pp; prompting confound excluded | 6/10 |
+| 84 | **REPLICATION** | **L21 mechanism replicates on Qwen2-VL (+23.8 covered / +0.0 missed)** | **10/10** |
+| 85 | INFRA | figure data from real inference: attention, masks, crop pixels, real answers | 8/10 |
+
+### Track C — closed directions (measured, not assumed)
+
+| phase | class | one line | keep |
+|---|---|---|---|
+| [69](phase69.md) | NEGATIVE | no free pass-1 signal predicts required budget (9.4% vs a 35.6% majority baseline) | 7/10 |
+| [77](phase77.md) | NEGATIVE + causal | contrastive decoding fails, but proves the evidence region is load-bearing (3.32×) | 8/10 |
+
+---
+
+## Current state
+
+**Survived (≥2 models):** averaging dilutes the read-out (3 of 4, 2 families) · anti-correlated
+layers exist (4) · layer-2 pruning below random (2) · learned read-out improves proposals (2) ·
+crop method beats vanilla (2) · answer formation restored by the crop (2) · the encoding cliff (2) ·
+the serialisation sink (4).
+
+**Rejected:** "the *final* layer is anti-correlated" (1 of 4) · "signed contrast is the mechanism"
+(failed twice outside Qwen3 crop placement) · "no single layer is a good localiser" (false on
+Qwen2-VL) · rank-only multi-crop · **crop method beats the equal-compute baseline (0 of 2)**.
+
+**The two headline numbers.** Pruning: reading anywhere in **L0–L14** costs 15–24pp and L1/L2 fall
+*below random*; reading **L16+** is free (late block 56.5% = no pruning 56.5%). Allocation:
+**+12.0pp / +10.5pp** over an unmodified model, and **0 of 2** against simply spending the same
+budget.
+
+**What is untried on Track B**, and why it matters: the head still reads L16–26, a band fixed before
+phase 88 showed quality peaks at L17–19 and declines past L21. Held-out validation of W=0.25 (+3.1pp
+in-sample) and a sizer driven by attention-blob extent (+11.0pp stable headroom) are also open. The
+allocation method is **unfinished, not refuted** — it captures 27.6% of a ceiling where 88.5% of
+items have a covering cell available.

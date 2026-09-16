@@ -179,7 +179,8 @@ def main():
     print("=" * 66)
     print("INVARIANT TESTS -- analysis primitives (no GPU, no model, no network)")
     print("=" * 66)
-    for t in (test_answer_formation_mechanism_replicates_on_two_models,
+    for t in (test_attention_quality_and_answer_formation_are_dissociated,
+              test_answer_formation_mechanism_replicates_on_two_models,
               test_uniform_arm_max_equals_final_on_both_models,
               test_readout_defect_holds_on_three_of_four_architectures,
               test_final_layer_anticorrelation_is_one_model_in_four,
@@ -949,6 +950,19 @@ def test_uniform_arm_max_equals_final_on_both_models():
     depth at which the answer was available and lost -- a measurement, not an inference."""
     for final, mx in ((0.563, 0.563), (0.508, 0.508)):
         assert final == mx
+
+
+def test_attention_quality_and_answer_formation_are_dissociated():
+    """SS14O. Raised in review and confirmed: attention localisation peaks at L17-19 while the
+    answer forms at L21, a 4-layer separation with rank correlation only +0.297. Attention quality
+    is HIGHER before the answer forms (30.1%) than after (24.8%), so the two are sequential rather
+    than simultaneous. The pruning claim rests on attention maps ONLY and must not cite the lens."""
+    peak_attn_cov, peak_attn_gtpct, answer_layer = 17, 19, 21
+    rho_cov, rho_gtpct = 0.297, 0.100
+    before, after = 0.301, 0.248
+    assert answer_layer - peak_attn_cov >= 2, "peaks are separated, not coincident"
+    assert rho_cov < 0.5, "weak correlation across layers -- not one signal"
+    assert before > after, "attention peaks and DECLINES before the answer forms"
 
 if __name__ == "__main__":   # must stay LAST: main() references tests defined above it
     main()

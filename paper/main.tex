@@ -29,9 +29,9 @@
 \begin{abstract}
 Vision--language models decide \emph{what to look at} --- which visual tokens to keep, where to crop
 --- by reading their own attention. We show the field reads it at the wrong depth.
-Question-conditioned localisation does not exist in the vision encoder (at chance on four
-architectures), is too weak at early language-model layers to be usable, and becomes reliable only in
-the upper half of the stack. The practical cost is large and, to our knowledge, unreported: ranking
+Question-conditioned localisation is absent from the vision encoder (at or below chance; measured on
+one model), too weak at early language-model layers to be usable, and reliable only in the upper half
+of the stack. The practical cost is large and, to our knowledge, unreported: ranking
 visual tokens for pruning by layer-2 attention --- the default in a widely used method --- is
 \bad{worse than ranking them at random} on both models we test, losing $22.0\pp$ and $13.1\pp$
 against no pruning at all. Reading late layers instead discards \gd{90\% of visual tokens at no
@@ -811,7 +811,8 @@ language-model read-out (learned) & \gd{45.5\%} \\
 \end{center}
 \end{table}
 
-\textbf{Every vision-tower arm is at or below chance.} Not weak --- absent. The vision encoder never
+\textbf{Every vision-tower arm is at or below chance.} Not weak --- absent.
+\textbf{This measurement is on Qwen3-VL-2B only} and we do not claim it cross-architecture. The vision encoder never
 sees the question, so there is no question-independent salience that suffices when the target is
 small and the question selects among several plausible objects.
 
