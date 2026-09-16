@@ -67,7 +67,8 @@ Gate: `REPLICATION_LEDGER.md`. Paper: `paper/iclr2027_submission.pdf` (19pp) · 
 | 83 | **REPLICATION** | **pruning result replicates on Qwen2-VL (+11.5pp); mechanism prediction FAILS** | **10/10** |
 | 87 | **★★ FINDING** | **it is a THRESHOLD, not layer 2: all of L0–L14 catastrophic, L16+ free, +13.1pp step** | **10/10** |
 | 88 | **★★ FINDING** | **attention quality (L17–19) and answer formation (L21) are DISSOCIATED, ρ=0.30** | **10/10** |
-| 89 | **RUNNING** | pruning on POPE/GQA/TextVQA/ScienceQA — decides whether the scope is general VQA | — |
+| 89 | ✗ ABORTED | VQA run hung 36 min at 0% CPU — disk 99% full, download blocked, no timeout | — |
+| 93 | **RUNNING** | **pruning on POPE + MMBench — decides whether the scope is general VQA** | — |
 
 ### Track B — learned allocation (real, unfinished)
 
@@ -77,6 +78,9 @@ Gate: `REPLICATION_LEDGER.md`. Paper: `paper/iclr2027_submission.pdf` (19pp) · 
 | [71](phase71.md) | METHOD | it converts: 56.5 → 68.6% (**+12.0pp** vs vanilla) | 10/10 |
 | [72](phase72.md) | MIXED | proposals transfer zero-shot to HR-Bench; the allocator still loses at 4K | 9/10 |
 | [78](phase78.md) | FINDING | W=0.25 beats deployed 0.15 (in-sample); **+11.0pp sizer headroom, no predictor** | 7/10 |
+| 90 | **★ FINDING** | **W=0.25 SURVIVES held-out selection** (71.7→71.6%, folds pick it 99/100). Track B's baseline moves to **+15.0pp** vs vanilla, **+7.7pp [−0.6,+16.0]** vs the bar | **9/10** |
+| 91 | FINDING | restricted to per-layer maps, ALL layers beat any contiguous block or quality-selected subset — poor layers are negative evidence, not noise | 6/10 |
+| 92 | ✗ VOID | premised on the head reading only L16–26. **It already reads all 28**; `BLOCK` only feeds one derived feature. No lever, and the "gain" was against a restriction we invented | 0/10 |
 | [79](phase79.md) | **★★ FINDING** | **why it works: answer formation restored, only where the crop delivers** | 10/10 |
 | [80](phase80.md) | MIXED | replicates vs vanilla (+10.5pp) but **not** vs the argmax it replaces | 9/10 |
 | [81](phase81.md) | NEGATIVE | rank-only multi-crop −3.1pp vs a predicted +5.5pp; prompting confound excluded | 6/10 |
@@ -108,8 +112,18 @@ Qwen2-VL) · rank-only multi-crop · **crop method beats the equal-compute basel
 **+12.0pp / +10.5pp** over an unmodified model, and **0 of 2** against simply spending the same
 budget.
 
-**What is untried on Track B**, and why it matters: the head still reads L16–26, a band fixed before
-phase 88 showed quality peaks at L17–19 and declines past L21. Held-out validation of W=0.25 (+3.1pp
-in-sample) and a sizer driven by attention-blob extent (+11.0pp stable headroom) are also open. The
-allocation method is **unfinished, not refuted** — it captures 27.6% of a ceiling where 88.5% of
-items have a covering cell available.
+**Track B after phases 90–92.** W=0.25 is real: held-out selection costs 0.2pp and the folds pick it
+99 times out of 100, so the honest baseline is **+15.0pp over vanilla** and **+7.7pp [−0.6,+16.0]**
+against the equal-compute bar — about one point from the claim that is currently 0-for-2. The input
+band is **not** a lever: phase 92 was premised on the head reading L16–26 when it already reads all
+28 layers, so that path is void and the cheapest route to the missing point is gone.
+
+**The one remaining Track B lever** is per-item window sizing: phase 78 measured **+11.0pp of stable
+headroom**, target size is ruled out as a predictor, and attention-blob extent is untried. A second
+option is retraining the head on post-crop *accuracy* rather than *coverage* — we optimise a proxy
+for the thing we want, and the outcomes are already on disk. The method remains **unfinished, not
+refuted**: it captures 27.6% of a ceiling where 88.5% of items have a covering cell available.
+
+**Open on Track A:** whether the L14→L16 threshold sits at the same *relative* depth on other models,
+and **why** it is there at all — the sharpest remaining experiment is to run one image with different
+questions and measure, per layer, when attention starts to depend on the question.
