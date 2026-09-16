@@ -4301,3 +4301,42 @@ fold-validated**, and only it is claimed.
 Final-layer gt_pct: **0.529** (Q3) · 0.416 (Q2) · 0.451 (OV) · 0.488 (NX). Only Qwen3-VL is above
 the 0.500 chance level. **1 of 4** — §14K's rejection is confirmed at four models, not two.
 
+
+## §14I(b)  ★★★ REPLICATED: cropping restores answer formation, on two architectures (Phase 84)
+
+§14I was Part III's centrepiece and single-model. Qwen2-VL-7B, identical pipeline, n=191. Lens
+implemented as in §12D (final layer from `model.logits`, both paths asserted to disagree).
+
+**Pre-registered:** the specific layer index was **not** expected to transfer. What had to replicate
+was (a) the *shape* — near-zero separation across most of the stack, then a step that persists — and
+(b) the *causal control*, that the step appears only where the window covers.
+
+### ✅ The causal control replicates
+
+| stratum | head | uniform | oracle | Δ (head − uniform) |
+|---|---|---|---|---|
+| **window covers** (n=84) | **86.9%** | 63.1% | 92.9% | **+23.8pp [+13.1,+34.5]** ✔ |
+| **window misses** (n=107) | 41.1% | 41.1% | 89.7% | **+0.0pp [−11.2,+11.2]** |
+
+**Swing between strata: 23.8pp** (Qwen3-VL: 37.6pp). Where the crop delivers, the gain nearly reaches
+oracle; where it misses, it is *exactly* zero. On Qwen3-VL the miss stratum was mildly negative
+(−7.9pp); here it is flat. Direction preserved, magnitude smaller — the same pattern as §80 and
+§14L(b).
+
+### ✅ The shape replicates, one layer later
+
+head − uniform separation: **≈0 through L21**, then **+8 (L22), +16 (L23), +13, +12, +12, +10**. The
+step is at L22–23 rather than L21 — within the tolerance fixed before the run.
+
+### ✅ And the sharpest sub-claim holds identically
+
+**uniform's maximum over all 28 layers equals its final answer** — 50.8% = 50.8% here, 56.3% = 56.3%
+on Qwen3-VL. On neither model is there a depth at which the answer was available and lost. This is
+what licenses "the information is absent, not mis-routed" as a measurement rather than an inference.
+
+> **Ledger: 8 survived / 5 rejected / 3 provisional.** Part III no longer rests on a single model.
+
+⚠ The "biggest single-layer jump" statistic is noisy here (head's largest single step lands at L4,
+the answer prior) and should not be quoted; the **separation profile** is the stable measure and is
+what the figure shows.
+

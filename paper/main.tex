@@ -7,6 +7,7 @@
 \usepackage{amsmath,amssymb}
 \usepackage{xcolor}
 \usepackage{subcaption}
+\usepackage{amssymb}
 
 \definecolor{bad}{HTML}{C0392B}
 \definecolor{gd}{HTML}{1A6B54}
@@ -78,11 +79,11 @@ if they worked, all null; and five claims of our own rejected when tested on a s
 
 \begin{figure}[t]
 \begin{center}\includegraphics[width=\textwidth]{figs/fig1_defect.pdf}\end{center}
-\caption{\textbf{The layers disagree, and the standard read-out averages the disagreement away.} One
-V*Bench item; the yellow box is the queried object. Each panel is attention over image positions at
-one layer; $\times$ marks its maximum (\gd{green} inside the target, \bad{red} outside). Individual
-layers disagree sharply. The rightmost panel is the read-out used in practice --- the mean over
-layers 16--26 --- whose maximum lands outside the target.}
+\caption{\textbf{The same model, the same forward pass, read at two depths.} A real V*Bench item
+with the queried object boxed in yellow. Middle and right show the model's actual attention over
+image positions, upsampled onto the image it received; $\times$ is each read-out's argmax. At layer 2
+--- where the standard pruning default reads --- the mass sits away from the target. At layers
+16--26 it concentrates on it. Nothing here is illustrative: both maps come from one inference pass.}
 \label{fig:defect}
 \end{figure}
 
@@ -151,6 +152,18 @@ token. A late read-out discards $90\%$ of visual tokens at no measurable cost, o
 \label{fig:prune}
 \end{figure}
 
+\begin{figure}[t]
+\begin{center}\includegraphics[width=\textwidth]{figs/fig_prune_masks.pdf}\end{center}
+\caption{\textbf{What each ranking actually throws away.} Unshaded regions are the $10\%$ of visual
+tokens kept; everything darkened is discarded before the answer is computed. Yellow box: the queried
+object. Beneath each panel is the model's \emph{real} prediction on that pruned input. Items are the
+first three in our pool on which the two rankings give different answers --- selected on
+\emph{disagreement}, never on which ranking turns out to be right, and on the first item both are
+wrong. Across the full pool of 14, late-layer pruning preserves the full-image answer on
+\gd{13/14} items and layer-2 pruning on \bad{7/14}.}
+\label{fig:masks}
+\end{figure}
+
 At $10\%$ keep, the late read-out is within noise of using every token ($-0.5\pp\ci{-5.8}{+4.7}$ and
 $-1.6\pp\ci{-6.3}{+3.1}$), while layer-2 ranking loses $22.0\pp\ci{-29.8}{-14.7}$ and $13.1\pp$
 respectively and falls \emph{below random selection} on both models ($-3.7\pp$, $-4.7\pp$). The
@@ -185,10 +198,28 @@ The right panel is the causal control. Splitting the \emph{same} arm by whether 
 the evidence: $+29.7\pp\ci{+19.8}{+39.6}$ where it covers, $-7.9\pp\ci{-18.0}{+2.2}$ where it misses
 --- a $37.6\pp$ swing. The step appears only when the intervention delivers.
 
+\paragraph{Replication.} Both the shape and the control hold on Qwen2-VL-7B. Separation is
+${\approx}0$ through L21 and then steps ($+8, +16, +13, +12, +12, +10\pp$ at L22--L27); the index
+moves by one layer, which we did not require to transfer. The control replicates at
+$+23.8\pp\ci{+13.1}{+34.5}$ where the window covers against $+0.0\pp\ci{-11.2}{+11.2}$ where it
+misses, a $23.8\pp$ swing. One detail does \emph{not} generalise: on Qwen3-VL a miss is mildly
+harmful ($-7.9\pp$) whereas on Qwen2-VL it is exactly neutral, so the cross-model claim is that the
+gain appears \emph{only} where the crop delivers, not that a miss actively hurts. The sharpest
+sub-claim holds identically on both: the uncropped arm's maximum over all 28 layers \emph{equals}
+its final answer ($56.3\%$ and $50.8\%$), so on neither model is there a depth at which the answer
+was available and lost.
+
 \begin{figure}[t]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig5_qualitative.pdf}\end{center}
-\caption{Items where the standard read-out misses and a learned one succeeds. Yellow: queried object.
-\bad{Red}/\gd{green}: the crop each read-out selects.}\label{fig:qual}
+\begin{center}\includegraphics[width=\textwidth]{figs/fig_crops.pdf}\end{center}
+\caption{\textbf{The crops the model is actually fed, and what it actually answers.} Top: the source
+image with the queried object (yellow) and the window each read-out selects. Below: the real cropped
+input handed to the model, refit to the same $300$ tokens, with its prediction and confidence.
+\checkmark/$\times$ is against the gold answer. Items are the first four in the pool where the
+standard read-out's window misses the evidence and the learned one contains it. Note the
+calibration failure in the leftmost column: the standard read-out crops a featureless stretch of
+wall and the model answers \emph{wrong with $p{=}0.98$}, while the learned crop lands on the people
+and answers correctly at $p{=}1.00$. Confidence on a crop that contains nothing is not lower than
+confidence on a crop that contains the evidence.}\label{fig:qual}
 \end{figure}
 
 \section{What does not work}\label{sec:neg}
@@ -215,28 +246,57 @@ Our crop-placement method improves over an unmodified model on two architectures
 ($+12.0\pp\ci{+4.2}{+19.9}$, $+10.5\pp\ci{+2.6}{+18.3}$) but \textbf{we have not shown it beats
 simply spending the same compute on a larger uniform image} ($+4.7\pp\ci{-3.7}{+13.1}$ and
 $+3.1\pp\ci{-5.2}{+11.0}$). We report this rather than restricting to the stratum where it clears.
-Pruning baselines are reimplemented on a common backbone, not run from released checkpoints. The
-mechanism of Section~\ref{sec:mech} is verified on one model. Appendix~\ref{app:ledger} tags every
-claim by how many models support it.
+Pruning baselines are reimplemented on a common backbone, not run from released checkpoints.
+Coverage labels require ground-truth boxes and so exist only on V*Bench. Appendix~\ref{app:ledger}
+tags every claim by how many models support it.
 
 \appendix
-\section{Protocol}\label{app:proto}
 
-Budgets are calibrated by iterating on the processor's own realised grid and are \emph{measured},
-never computed. Models load in \texttt{bfloat16}: loading a bf16 checkpoint in fp16 produced all-NaN
-logits whose \texttt{argmax} fell through to index 0, which read as a clean negative result until
-caught. Learned components use grouped $k$-fold so an item's ${\sim}300$ cells never straddle train
-and test. Bootstrap CIs are paired, $10{,}000$ resamples. The logit lens takes intermediate layers as
-$\texttt{lm\_head}(\texttt{norm}(h_i))$ but the \textbf{final} layer from \texttt{model.logits}:
-re-normalising an already-normalised final state gives reconstruction error $23.47$ against $0.06$
-and corrupts only that layer. Both paths are computed and asserted to disagree, so the bug cannot
-return silently. An executable suite of 84 invariants encodes every retraction below, so a claim the
-data stopped supporting fails a test rather than surviving in prose.
+\section{Experimental protocol}\label{app:proto}
+
+\subsection{Budgets are measured, never computed}
+A visual-token budget cannot be set analytically: processors merge patches, pad, and round. Every arm
+is therefore calibrated by iterating on the processor's \emph{own realised grid} until the token count
+is within tolerance, and the realised count is logged with every record. Any contrast whose arms
+differ by more than $10\%$ in median realised tokens is \textbf{voided} rather than reported. In the
+runs reported here all arms land within $0$--$6.7\%$ of target.
+
+\subsection{Numerical precision}
+Models load in \texttt{bfloat16}. Loading a bf16 checkpoint in fp16 produces all-NaN logits; because
+\texttt{argmax} over NaN returns index $0$ and the first option is over-represented in the label
+distribution, this reads as a clean, plausible, uniformly negative result. It cost us a spurious
+architecture-specificity finding before it was caught. All scripts now assert \texttt{torch.isfinite}
+on logits and attention before writing any record.
+
+\subsection{Cross-validation}
+Every learned component uses grouped $k$-fold ($k{=}5$) with folds grouped \emph{by item}, so an
+item's ${\sim}300$ cells never straddle train and test. Layer-selection results are reported
+out-of-fold: in-sample selection of a ``best layer'' is the best of 28 candidates on 191 items and is
+badly optimistic (Appendix~\ref{app:corr}).
+
+\subsection{The logit lens}\label{app:lens}
+Intermediate layers are read as $\texttt{lm\_head}(\texttt{norm}(h_i))$; the \textbf{final} layer is
+taken from \texttt{model.logits} and \emph{never} from $\texttt{norm}(h_{-1})$. HuggingFace has
+already applied the final norm to the last hidden state, so re-applying it gives reconstruction error
+$23.47$ against $0.06$ --- corrupting only that layer, which makes the error invisible in layer-wise
+plots. Both paths are computed and their disagreement is asserted, so a zero gap now signals that the
+\emph{correct} path is not in use.
+
+\subsection{Statistics}
+All intervals are paired bootstrap over items, $10{,}000$ resamples, percentile method. Where a
+prediction is stated before a run it is written into the script's docstring with its rejection rule,
+so a result cannot be reinterpreted after the fact. We report intervals rather than $p$-values
+throughout, and we do not correct for multiplicity: the claims that survive are those that replicate
+on a second architecture, which is a stronger filter than any correction.
 
 \section{Replication ledger}\label{app:ledger}
 
+Our standard is that a claim must hold on \emph{more than one model} or be rejected rather than
+caveated. Table~\ref{tab:ledger} is the gate: a claim enters the paper only from the top block.
+
 \begin{table}[h]
-\caption{Every claim by supporting models. A claim enters the paper only from the top block.}
+\caption{Every claim by supporting models.}
+\label{tab:ledger}
 \begin{center}
 \begin{tabular}{lcc}
 \toprule
@@ -247,6 +307,7 @@ Anti-correlated layers exist & 4 & \gd{survived} \\
 Layer-2 pruning below random & 2 & \gd{survived} \\
 Learned read-out improves proposals & 2 & \gd{survived} \\
 Crop method beats unmodified model & 2 & \gd{survived} \\
+Answer formation restored by the crop & 2 & \gd{survived} \\
 Encoding cliff & 2 & \gd{survived} \\
 Serialisation sink & 4 & \gd{survived} \\
 \midrule
@@ -256,7 +317,6 @@ Serialisation sink & 4 & \gd{survived} \\
 Rank-only multi-crop & $-3.1\pp$ vs $+5.5\pp$ predicted & \bad{rejected} \\
 Crop method beats equal-compute baseline & 0 of 2 & \bad{rejected} \\
 \midrule
-Answer formation at a single layer & 1 & provisional \\
 Zero-shot transfer to HR-Bench & 1 & provisional \\
 Evidence region causally live & 1 & provisional \\
 Seven internal nulls & 1 & provisional \\
@@ -265,15 +325,144 @@ Seven internal nulls & 1 & provisional \\
 \end{center}
 \end{table}
 
+\section{Per-layer structure across architectures}\label{app:layers}
+
+Table~\ref{tab:gtpct} gives mean \texttt{gt\_pct} by depth --- the rank of the ground-truth cell as a
+fraction of all cells, where $0.500$ is chance by construction and lower is better.
+
+\begin{table}[h]
+\caption{Layer quality by depth. \emph{Which} layers are anti-correlated differs by architecture;
+\emph{that some are} holds on all four.}
+\label{tab:gtpct}
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+\bf MODEL & \bf EARLY & \bf MID & \bf LATE & \bf FINAL LAYER \\
+\midrule
+Qwen3-VL-2B & 0.456 & 0.413 & 0.409 & \bad{0.529} \\
+Qwen2-VL-7B & \bad{0.620} & \bad{0.515} & 0.392 & 0.416 \\
+LLaVA-OneVision-7B & --- & --- & --- & 0.451 \\
+LLaVA-NeXT-7B & --- & --- & --- & 0.488 \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{table}
+
+Qwen2-VL's early and mid layers sit \emph{above} chance --- 15 of its 28 layers are worse than
+$0.45$ --- which is why averaging all of them collapses that model to $21.5\%$. Qwen3-VL's problem is
+instead its \emph{final} layer. The general claim is that anti-correlated layers exist and averaging
+them in is what hurts; the specific identity of the bad layers does not transfer, and we reject the
+final-layer claim on that basis (it holds on 1 of 4).
+
+\section{The allocation ledger: what we could not make work}\label{app:alloc}
+
+Four attempts to \emph{regress a continuous geometric quantity} from model internals, all failed:
+
+\begin{itemize}
+\item \textbf{Token budget from target size.} With a \emph{perfect} ground-truth area oracle, the rule
+$b \geq t^*/\textrm{area}$ loses to flat uniform in 11 of 12 cells, scored against the uniform ladder
+at each controller's own mean spend.
+\item \textbf{Token budget from any free pass-1 signal.} 17 features (attention concentration, entropy,
+spread; logit-lens confidence, margin, cross-layer agreement; image geometry). Out-of-fold
+$\rho = 0.254$, but exact-rung accuracy is $9.4\%$ against a $35.6\%$ majority baseline --- worse than
+a constant. The required-budget distribution is bimodal ($68/191$ items need the smallest budget,
+$37$ need more than the ladder offers) and no free signal makes that call.
+\item \textbf{Window size from target size.} Across four quartiles spanning a $100\times$ range of
+target area, the best window is $0.15$ in \emph{every} quartile. A per-item oracle window is worth
+$+11.0\pp$ after a stability check, so the headroom is real --- but no predictor we tried reaches it.
+\item \textbf{Attention-space reallocation.} Amplifying attention on the \emph{ground-truth} cells
+recovers $16\%$ of what cropping the same region buys. The target is sub-token: there is nothing to
+amplify.
+\end{itemize}
+
+\begin{quote}
+Ranking positions is learnable from internals. Regressing scale is not. Every method in this paper
+that works is a ranking method, and every one that failed asked the model how \emph{much} rather than
+\emph{where}.
+\end{quote}
+
+\section{Rank-only multi-crop: a falsified prediction}\label{app:multicrop}
+
+The ledger above suggests a method that only ranks: take the top-$k$ separated cells, split the budget
+evenly, show all $k$ in one pass --- no size or budget decision anywhere. We priced it before running:
+union coverage of the top-4 \emph{and} above the encoding cliff at $75$ tokens each is $63.4\%$
+against single-crop's $52.9\%$, i.e.\ $+10.5\pp$ of answerable items at identical total budget,
+turning over at $k{=}5$. At the measured coverage exchange rate this predicts $+5.5\pp$.
+
+Measured: $\mathbf{-3.1\pp\ci{-9.4}{+3.1}}$. The prediction had the wrong \emph{sign}, so the model
+behind it is wrong, not merely imprecise. The exchange rate was estimated on \emph{single} crops,
+where coverage decides whether the evidence is visible at all; with four crops, three are distractors
+and the account has no term for distractor cost. Ranking still works inside the format --- our top-4
+beats four random crops by $+27.7\pp$ --- but the format costs more than the extra coverage buys.
+
+This contradicted an earlier in-project result of $+7.9\pp$ for multi-crop, so before recording the
+negative we tested the clearest difference between the two setups: the connector text between images.
+Re-running with the descriptive connector gave \emph{identical} accuracy on all three arms, while
+$0/25$ probability vectors matched byte-for-byte --- the prompt changes the output without flipping
+decisions. The deficit is real, not a prompting artifact.
+
+\section{Seven internal interventions}\label{app:seven}
+
+Each would have been free if it worked; each is null.
+
+\begin{enumerate}
+\item \textbf{Serialisation-sink suppression.} Biasing attention away from the trailing row boundary
+is indistinguishable from biasing away random or interior image tokens ($-0.5\pp$), while the same
+operation on \emph{prompt} tokens costs $-17.3\pp$ --- so the machinery bites, and image-token
+attention is simply not scarce in the direction of removal.
+\item \textbf{Attention amplification on the target.} Ground-truth-targeted amplification gains
+$+5.8\pp$, $16\%$ of what cropping the same region buys. Every practical arm is indistinguishable
+from a random control.
+\item \textbf{Residual-stream steering.} A shared direction exists (cosine $0.53$--$0.75$) and an
+item's own displacement is $47\%$ reachable at L20, but the transferable vector gives $+0.0\pp$.
+\item \textbf{Layer read-out selection for the answer.} No layer under uniform encoding exceeds
+$52.9\%$ against the oracle crop's $92.6\%$.
+\item \textbf{DoLa / DeCo.} Null against a correctly-computed baseline. (Against the
+double-normalised baseline of Appendix~\ref{app:corr} they appeared favourable, which is how the bug
+was found.)
+\item \textbf{Component ablation.} Null.
+\item \textbf{Contrastive decoding steered to the ground-truth region.} The decisive one, because it
+aims perfectly. Masking the evidence region shifts logits $3.32\times$ more than masking a random
+region and costs $10.5\pp$ of accuracy --- the region is unambiguously load-bearing --- and yet
+contrast on it reaches a \emph{ceiling} of $+2.6\pp\ci{-0.5}{+5.8}$, and $-5.5\pp$ against its own
+compute-matched bar.
+\end{enumerate}
+
+The seventh retires the family. The previous six could each be dismissed as steering to the wrong
+place; this one steered to the ground truth, verified the place was causally live, and still could
+not convert it.
+
 \section{Corrections made during this work}\label{app:corr}
 
-A double-normalised logit lens manufactured a ``free read-out gain'' and a favourable baseline
-comparison; it was caught because a second code path computed the same quantity and disagreed. A
-transfer result was called negative from a category-ordered prefix and reversed at full $n$. Two
-mechanisms were proposed for a failure that turned out not to exist, and both were refuted by our own
-data. A capture fraction was quoted against a restricted rather than true ceiling
-($65\%\rightarrow27.6\%$). An AUROC was computed on an unmasked map ($0.576\rightarrow0.745$).
-In-sample ``best layer'' selection inverted a conclusion until fold-validated
-($41.9\%\rightarrow36.1\%$, below the baseline it appeared to beat).
+We list these because several changed conclusions, and because the mechanism that caught each one is
+the part worth reusing.
+
+\begin{itemize}
+\item \textbf{A double-normalised logit lens} (Appendix~\ref{app:lens}) manufactured a ``$+5.1\pp$
+free read-out gain'', an evidence-dependent late-layer bias, and a favourable comparison against
+DoLa. \emph{Caught} because a second code path computed the same quantity and disagreed --- $100\%$
+agreement at L24, $82.2\%$ at the final layer.
+\item \textbf{A transfer result called negative from a prefix.} HR-Bench is ordered by category; the
+first $244$ rows were $65\%$ relational, the stratum where our method does nothing. The balanced
+$n{=}800$ result reversed the sign ($+0.0 \rightarrow +4.9\pp$, CI clear of zero).
+\item \textbf{Two mechanisms proposed for a failure that did not exist.} Both were refuted by our own
+data --- ``the map is flat at 4K'' (peak concentration $0.0228$ vs $0.0269$, only $1.18\times$ apart)
+and ``below the cliff there is nothing to re-rank'' (the gain is \emph{largest} below the cliff).
+\item \textbf{A capture fraction against a restricted ceiling.} Quoted as $65\%$ of an
+oracle-among-top-5 gap; against the true ceiling (does \emph{any} cell cover: $88.5\%$) it is
+$27.6\%$. The loose version also implied the method was near its limit when $35.6\pp$ of headroom
+remained.
+\item \textbf{An AUROC computed on an unmasked map} ($0.576$); ring-masked as everywhere else in the
+paper it is $0.745$. This briefly made a second signal look competitive when it is substantially
+worse.
+\item \textbf{In-sample layer selection} read $41.9\%$ and collapsed to $36.1\%$ out-of-fold ---
+\emph{below} the block mean it appeared to beat, inverting the conclusion for that model.
+\item \textbf{A pre-registered mechanism prediction that failed} (Section~\ref{sec:prune}): the
+layer-2 pruning penalty should have been larger on the model whose early layers rank the target
+worse. It is smaller. The claim replicates; the causal story does not, and we report them separately.
+\end{itemize}
+
+An executable suite of \textbf{86 invariants} encodes every item above, so a claim the data stopped
+supporting fails a test rather than surviving in prose.
 
 \end{document}

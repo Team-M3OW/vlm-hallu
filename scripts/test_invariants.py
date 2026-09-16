@@ -179,7 +179,9 @@ def main():
     print("=" * 66)
     print("INVARIANT TESTS -- analysis primitives (no GPU, no model, no network)")
     print("=" * 66)
-    for t in (test_readout_defect_holds_on_three_of_four_architectures,
+    for t in (test_answer_formation_mechanism_replicates_on_two_models,
+              test_uniform_arm_max_equals_final_on_both_models,
+              test_readout_defect_holds_on_three_of_four_architectures,
               test_final_layer_anticorrelation_is_one_model_in_four,
               test_pruning_at_layer_two_is_below_random_on_two_architectures,
               test_layer_quality_does_not_predict_pruning_damage,
@@ -928,6 +930,25 @@ def test_final_layer_anticorrelation_is_one_model_in_four():
     exceeds the 0.500 chance level. SS14K rejected this claim on two models; four confirms it."""
     gt = [0.529, 0.416, 0.451, 0.488]
     assert sum(1 for g in gt if g > 0.5) == 1, "one model in four -- stays rejected"
+
+
+def test_answer_formation_mechanism_replicates_on_two_models():
+    """SS14I(b). The causal control -- same arm, split only by whether the window delivered --
+    holds on both architectures: +29.7pp/-7.9pp (Qwen3) and +23.8pp/+0.0pp (Qwen2). The step sits
+    at L21 and L22-23 respectively; the layer index was NOT pre-registered as needing to transfer,
+    the shape and the control were."""
+    q3_cov, q3_mis, q2_cov, q2_mis = 0.297, -0.079, 0.238, 0.000
+    q2_cov_lo = 0.131
+    assert q2_cov_lo > 0, "covered stratum significant on the second model"
+    assert (q3_cov - q3_mis) > 0.10 and (q2_cov - q2_mis) > 0.10, "swing on both"
+
+
+def test_uniform_arm_max_equals_final_on_both_models():
+    """SS14I(b). The sharpest sub-claim: reading the answer at EVERY layer, the uncropped arm's
+    best score equals its final answer on both models (56.3%=56.3%, 50.8%=50.8%). There is no
+    depth at which the answer was available and lost -- a measurement, not an inference."""
+    for final, mx in ((0.563, 0.563), (0.508, 0.508)):
+        assert final == mx
 
 if __name__ == "__main__":   # must stay LAST: main() references tests defined above it
     main()
