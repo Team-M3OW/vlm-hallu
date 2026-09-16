@@ -1,6 +1,16 @@
 # Teammate's paper — under double-blind review. Do not publish.
-main.pdf
+/main.pdf
 *.pdf
+# ...but our own paper and its figures are ours to publish
+!paper/paper.pdf
+!paper/figs/*.pdf
+
+# LaTeX build artifacts
+*.aux
+*.fdb_latexmk
+*.fls
+*.log
+*.out
 
 # Experiment artifacts: large, regenerable from scripts/, and some exceed GitHub's 100MB limit
 data/
