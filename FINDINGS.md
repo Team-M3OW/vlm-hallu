@@ -4489,3 +4489,44 @@ depth sweep there confirms or kills the locator.
 baseline, inside a flat region — and was briefly read as refuting the hypothesis. The real signal is
 10–100×. Rule replaced with "first layer exceeding 10× baseline", which gives L16 and L14.
 
+
+
+## §14S  ⚠ THE LOCATOR IS RIGHT ABOUT THE REGION, WRONG ABOUT THE LAYER (Phase 96)
+
+Phase 95's question-divergence measurement is **label-free** — same image, four unrelated questions,
+per-layer map divergence — and on Qwen2-VL it switched on at **L13–L14** (0.0046 → 0.0130 → 0.0442,
+then 0.1779 at L16). That is a prediction about a quantity never measured on this model: pruning
+damage should step there. Phase 96 sweeps read depth directly. n=191, budget 286–315 measured, all
+arms prune the same count from the same layer.
+
+| read depth | acc | vs L2 |
+|---|---|---|
+| no pruning | 52.9% | +13.6 [+5.8,+21.5] |
+| L0 / L1 / **L2** / L4 / L6 | 38.7 / 39.3 / **39.3** / 40.3 / 40.8% | ~0 |
+| L8 / L10 / L12 | 36.6 / 38.7 / 40.3% | ~0 |
+| **L14** | **44.0%** | +4.7 **[−1.0,+10.5]** ✗ |
+| **L16** | **50.3%** | **+11.0 [+3.7,+18.8]** ✔ |
+| L20 / L24 / L26 | 49.2 / 50.3 / 48.7% | +9.9 / +11.0 / +9.4, all ✔ |
+| late block (L15–26) | 50.8% | +11.5 [+4.2,+18.8] ✔ |
+| **random selection** | **42.9%** | +3.7 [−3.1,+10.5] |
+
+### ✅ The shape is confirmed
+A flat floor for the first half of the stack, a single transition, then a plateau to the end.
+L20−L16 is **−1.0pp [−6.3,+4.2]** — nothing is gained after L16. This is the depth-effect reading
+(b) of phase 87, not the "layer 2 is an anomalous quirk" reading (a): **every** depth up to L12 is
+equally bad, and L2 is not special.
+
+### ⚠ The prediction is off by one to two layers — report it that way
+Divergence switches on at **L13–L14**; damage recovers at **L14–L16**. L14 sits halfway between the
+floor (~39%) and the plateau (~50%) and its gain over L2 does **not** clear zero. The decisive step is
+**L16−L14 = +6.3pp [+0.0,+12.6]** and **L16−L12 = +9.9pp [+3.1,+17.3]**.
+
+> **Claim as supported:** question-divergence locates the *transition region* without labels.
+> **Not supported:** naming the single best read layer. Reading at the layer where divergence first
+> rises still loses 6.3pp against reading two layers later.
+
+### The random-selection comparison is consistent but underpowered
+All eight early depths fall below random (mean **−3.7pp [−10.3,+2.7]**) and all four late depths sit
+above it (mean **+6.7pp [−0.1,+13.7]**). The sign pattern is 12/12 in the predicted direction; no
+individual contrast clears zero at n=191. **The "early is worse than random" claim rests on §14L(b)'s
+paired design, not on this sweep** — recorded here so the weaker evidence is not double-counted.

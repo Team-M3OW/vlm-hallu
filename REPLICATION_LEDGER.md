@@ -51,6 +51,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **Seven internal interventions null (§10, §14H)** | Q3 | The *pattern* is single-model. At minimum the decisive arms (attention amplification, contrastive decoding) need Q2. |
 | **Coverage as mediator / sign of the allocation effect (§6D)** | Q3, Q2 (partial) | Q2 replication was −9.4 / +41.8pp; confirm it covers the same strata. |
 | **Learned-sizer headroom +11.0pp (phase 78)** | Q3 | Future work; must not be claimed as general. |
+| **Label-free locator finds the read-depth transition (§14S)** | Q3, Q2 | **Region ✔, exact layer ✗.** Divergence rises L13–L14; damage recovers L14–L16. L14 does not clear zero (+4.7 [−1.0,+10.5]); L16 does (+11.0 [+3.7,+18.8]). Claim only the region. |
 | **★ Pruning at layer 2 is worse than random; late read-out loses nothing at 10% keep (§14L)** | Q3 | **phase 83 running on Q2.** Sharp prediction: Q2's early layers are worse (gt_pct 0.620 vs 0.456), so the penalty should be **LARGER**. A smaller penalty refutes the mechanism. **This is now the paper's strongest result — its replication matters most.** |
 
 ---
