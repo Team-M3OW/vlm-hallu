@@ -68,7 +68,9 @@ Gate: `REPLICATION_LEDGER.md`. Paper: `paper/iclr2027_submission.pdf` (19pp) · 
 | 87 | **★★ FINDING** | **it is a THRESHOLD, not layer 2: all of L0–L14 catastrophic, L16+ free, +13.1pp step** | **10/10** |
 | 88 | **★★ FINDING** | **attention quality (L17–19) and answer formation (L21) are DISSOCIATED, ρ=0.30** | **10/10** |
 | 89 | ✗ ABORTED | VQA run hung 36 min at 0% CPU — disk 99% full, download blocked, no timeout | — |
-| 93 | **RUNNING** | **pruning on POPE + MMBench — decides whether the scope is general VQA** | — |
+| 93 | **★★ FINDING** | **collapse is LARGER on general VQA: layer-2 is 15.0pp (POPE) / 25.5pp (MMBench) BELOW random.** ⚠ "free pruning" retracted — V\*Bench-only | **10/10** |
+| 94 | **★★ FINDING** | **early attention is no better than a coin-flip even for coarse culling** (+1.0pp vs random first cut). Method: cut blind early, rank late — 64% compute saved vs 39% | **9/10** |
+| 95 | **★★★ MECHANISM** | **attention is QUESTION-BLIND until ~50% of depth** (divergence 0.001 → 0.14, 13× at L14→L16 on both models) — exactly the pruning threshold. Label-free locator | **10/10** |
 
 ### Track B — learned allocation (real, unfinished)
 
@@ -124,6 +126,19 @@ option is retraining the head on post-crop *accuracy* rather than *coverage* —
 for the thing we want, and the outcomes are already on disk. The method remains **unfinished, not
 refuted**: it captures 27.6% of a ceiling where 88.5% of items have a covering cell available.
 
-**Open on Track A:** whether the L14→L16 threshold sits at the same *relative* depth on other models,
-and **why** it is there at all — the sharpest remaining experiment is to run one image with different
-questions and measure, per layer, when attention starts to depend on the question.
+**Track A is now a method.** The defect: attention is question-blind through the first half of the
+network — maps for different questions on the same image differ by ~0.001 until L13, then jump 13×
+by L16, on both models at 50–57% of depth. Anything ranking visual tokens on attention read before
+that is ranking on something that does not know what was asked, which is why layer-2 pruning is
+**below random** on three benchmarks (−15.0pp POPE, −25.5pp MMBench) and why an attention-guided
+coarse cut is **indistinguishable from a coin-flip**.
+
+Three parts: **(1)** a label-free locator — run one image with several questions, find where the
+maps diverge, no boxes needed; **(2)** prune past that depth: **+16.5 to +27.0pp** over the layer-2
+default, no training; **(3)** to recover compute, cut half the tokens *blind* at L2 and rank the
+survivors late — **64%** of visual-token compute saved against pure-late's 39%, at −4.7pp
+[−9.9,+0.5].
+
+**Open:** the locator's prediction that Qwen2-VL's pruning threshold sits at **L13–L14** is untested —
+that run confirms or kills it as a general tool. Two-stage is V\*Bench-only. And the crop-placement
+method (Track B) still sits at −0.6 against the equal-compute baseline.

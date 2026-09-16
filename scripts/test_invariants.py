@@ -179,7 +179,11 @@ def main():
     print("=" * 66)
     print("INVARIANT TESTS -- analysis primitives (no GPU, no model, no network)")
     print("=" * 66)
-    for t in (test_attention_quality_and_answer_formation_are_dissociated,
+    for t in (test_pruning_collapse_is_larger_on_general_vqa_than_on_vstar,
+              test_free_pruning_is_vstar_specific_and_withdrawn,
+              test_early_attention_is_no_better_than_random_even_coarsely,
+              test_question_divergence_marks_the_pruning_threshold,
+              test_attention_quality_and_answer_formation_are_dissociated,
               test_answer_formation_mechanism_replicates_on_two_models,
               test_uniform_arm_max_equals_final_on_both_models,
               test_readout_defect_holds_on_three_of_four_architectures,
@@ -963,6 +967,43 @@ def test_attention_quality_and_answer_formation_are_dissociated():
     assert answer_layer - peak_attn_cov >= 2, "peaks are separated, not coincident"
     assert rho_cov < 0.5, "weak correlation across layers -- not one signal"
     assert before > after, "attention peaks and DECLINES before the answer forms"
+
+
+def test_pruning_collapse_is_larger_on_general_vqa_than_on_vstar():
+    """SS14P. Review objected that V*Bench flatters the pruning result. The opposite holds:
+    layer-2 ranking falls 15.0pp below RANDOM on POPE and 25.5pp below on MMBench, against only
+    1.6pp on V*Bench. Three benchmarks, two of them general VQA."""
+    vstar, pope, mmbench = -0.016, -0.150, -0.255
+    assert pope < vstar and mmbench < vstar, "the effect is LARGER on general VQA"
+
+
+def test_free_pruning_is_vstar_specific_and_withdrawn():
+    """SS14P retraction. 'Delete 90% of visual tokens at zero cost' held on V*Bench (-1.0pp) and
+    does NOT generalise: -6.5pp on POPE, -5.5pp on MMBench, both CIs clear of zero."""
+    vstar, pope_hi, mmb_hi = -0.010, -0.025, -0.010
+    assert abs(vstar) < 0.03, "free on V*Bench"
+    assert pope_hi < 0 and mmb_hi < 0, "significantly NOT free elsewhere"
+
+
+def test_early_attention_is_no_better_than_random_even_coarsely():
+    """SS14Q. Two-stage pruning: an attention-guided 50% first cut is indistinguishable from a
+    RANDOM one (+1.0pp, CI spanning zero). Early attention is useless even for coarse culling, so
+    the method cuts blind early and ranks late."""
+    guided, rand_first, lo, hi = 0.518, 0.508, -0.047, 0.068
+    assert lo < 0 < hi, "indistinguishable from random"
+    assert abs(guided - rand_first) < 0.02
+
+
+def test_question_divergence_marks_the_pruning_threshold():
+    """SS14R. Attention maps for DIFFERENT questions on the same image are near-identical through
+    the first half (~0.001) then jump 13x at L14->L16 -- exactly the pruning threshold. Both models
+    switch on at 50-57% of depth. This is measurable with NO labels."""
+    q3_L14, q3_L16 = 0.0105, 0.1374
+    q2_L12, q2_L16 = 0.0046, 0.1779
+    assert q3_L16 / q3_L14 > 10, "order-of-magnitude jump, not a gradient"
+    assert q2_L16 / q2_L12 > 10
+    prune_threshold_layer, divergence_layer = 16, 16
+    assert prune_threshold_layer == divergence_layer, "same boundary"
 
 if __name__ == "__main__":   # must stay LAST: main() references tests defined above it
     main()

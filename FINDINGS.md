@@ -4386,3 +4386,106 @@ not simultaneous: the model localises at L16–19 and answers at L21.
 > a claim about **when the answer is computed** (the interpretability contribution). §14L does not
 > cite §14I for support and must stop appearing to.
 
+
+## §14P  ★★★ THE PRUNING COLLAPSE HOLDS ON GENERAL VQA — and is far larger there (Phase 93)
+
+External review objected that V\*Bench is the benchmark most likely to flatter this result: a
+small-object *search* task where the answer hinges on one tiny region, so question-conditioned
+late-layer attention is exactly what should matter. Tested on two benchmarks the pruning literature
+actually uses, both loaded from local cache. **The objection is refuted, and the effect is larger on
+general VQA.**
+
+| | none | random | **layer-2** | late |
+|---|---|---|---|---|
+| **POPE** (n=200, yes/no object presence) | 90.5% | 82.5% | **67.5%** | 84.0% |
+| **MMBench** (n=200, 4-way general) | 85.5% | 78.5% | **53.0%** | 80.0% |
+
+| layer-2 vs random selection | |
+|---|---|
+| V\*Bench | −1.6pp |
+| **POPE** | **−15.0pp [−22.0,−7.5]** |
+| **MMBench** | **−25.5pp [−33.0,−18.0]** |
+
+vs no pruning: **−23.0pp** and **−32.5pp**. Late read-out beats layer-2 by **+16.5pp [+8.5,+24.5]**
+and **+27.0pp [+20.5,+33.5]**. Three benchmarks, two of them general VQA.
+
+### ⚠ RETRACTED: "delete 90% of visual tokens at zero cost" does NOT generalise
+
+On V\*Bench a late read-out cost −1.0pp (free). On POPE it costs **−6.5pp [−10.5,−2.5]** and on
+MMBench **−5.5pp [−10.0,−1.0]**, both significant. V\*Bench answers hinge on one small region so 90%
+of tokens genuinely are irrelevant; general VQA uses more of the image. **The free-lunch claim was
+V\*Bench-specific and is withdrawn.** What generalises is that a late read-out is *far better than
+the alternative*, not that it is free.
+
+⚠ MMBench was rejected earlier in this project for **allocation** work (512px images leave no
+allocation headroom). That objection does not apply to pruning, which adds no pixels. Reusing a
+previously-rejected benchmark requires the justification stated, not assumed.
+
+---
+
+## §14Q  ★★ EARLY ATTENTION IS NO BETTER THAN COIN-FLIPPING, EVEN FOR COARSE CULLING (Phase 94)
+
+Reading late means paying for half the network before discarding anything. Hypothesis: early
+attention is useless for choosing the best 10% but adequate for dropping the *worst 50%*. Two-stage:
+cut to 50% at L2, re-rank survivors at L16, final 10%. n=191, all arms end at 10% keep.
+
+| arm | acc | visual-token compute saved |
+|---|---|---|
+| no pruning | 56.5% | 0% |
+| late only (L16) | 55.5% | 39% |
+| **two-stage, attention-guided 50%** | **51.8%** | **64%** |
+| **two-stage, RANDOM 50%** | **50.8%** | **64%** |
+| two-stage, 25% early | 39.3% | 74% |
+| layer-2 only (FastV) | 34.6% | 84% |
+
+**The control decides it: attention-guided vs random first cut = +1.0pp [−4.7,+6.8], indistinguishable.**
+
+> Early attention is not merely a poor *ranker* — it is no better than a coin-flip even for deciding
+> which half of the tokens to discard. So the honest method drops the pretence: **cut blind early,
+> rank late.** 64% of visual-token compute saved against pure-late's 39%, at −4.7pp [−9.9,+0.5], and
+> **+17.3pp [+9.9,+25.1]** over FastV's single early cut. Cutting to 25% early collapses to 39.3%,
+> so 50% is near the limit a blind cut tolerates.
+
+⏳ V\*Bench only; needs POPE/MMBench.
+
+---
+
+## §14R  ★★★ THE MECHANISM: attention is QUESTION-BLIND until ~50% of depth (Phase 95)
+
+Phase 87 measured a threshold but could not explain it. Hypothesis: early layers cannot rank tokens
+by relevance because their attention does not yet depend on **what was asked**. Test with no labels
+at all — run the same image with 4 *different* questions (borrowed from other items, not paraphrases)
+and measure per-layer divergence between the resulting maps.
+
+| layer | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| L0–L12 | 0.001–0.005 | 0.001–0.005 |
+| L13 | — | 0.0130 |
+| L14 | **0.0105** | **0.0442** |
+| **L16** | **0.1374** | **0.1779** |
+| L20 | 0.2144 | 0.3107 |
+
+**Divergence is ~0.001 through the first half — asking about the scarf, the cart, or the shirt
+produces effectively the same attention map — then jumps 13× at L14→L16.** Both models switch on at
+**50–57% of depth**.
+
+This is **exactly** the pruning threshold (§87: the +13.1pp step at L14→L16). Early-layer ranking
+fails because it is ranking on something question-blind, which is why it performs like coin-flipping
+(§14Q) and below random (§14P).
+
+### Three stages, not one
+
+**blind (L0–L13) → question-aware (L14–L16) → answered (L21).** §14O's dissociation now has a shape:
+question-dependence and usable localisation switch on together; the answer forms five layers later.
+
+### It is also a deployable tool
+
+"Read at 57% of depth" is useless to someone with a different model — locating their threshold would
+need ground-truth boxes. Question-divergence needs **none**: a few forward passes on one image.
+**Prediction for Qwen2-VL, untested:** its pruning threshold should sit at **L13–L14**. Running the
+depth sweep there confirms or kills the locator.
+
+⚠ Our first detection rule (3× the early baseline) fired on noise at L5 — 0.0055 against a 0.0016
+baseline, inside a flat region — and was briefly read as refuting the hypothesis. The real signal is
+10–100×. Rule replaced with "first layer exceeding 10× baseline", which gives L16 and L14.
+
