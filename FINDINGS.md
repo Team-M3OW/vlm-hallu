@@ -4206,3 +4206,98 @@ matters more; recorded as partial.)
 > uniformly (+1.6pp [−6.3,+9.4] for multi, +4.7pp [−3.7,+13.1] for single), and the one principled
 > idea for fixing that has been tested and failed.
 
+
+## §14L(b)  ★★★ REPLICATED: pruning at the wrong depth costs 11–21pp on two architectures (Phase 83)
+
+§14L was the paper's strongest claim and single-model. Qwen2-VL-7B, identical pipeline, block
+rescaled to the same fraction of the stack (L15–26 of 28), n=191.
+
+| keep | random | **layer-2 (FastV default)** | **block-mean (late)** | no pruning |
+|---|---|---|---|---|
+| **10%** | 44.5% | **39.8%** | **51.3%** | **52.9%** |
+| 25% | 47.1% | 40.3% | 50.8% | |
+| 50% | 45.5% | 43.5% | 50.3% | |
+
+### ✅ The claim survives at two models
+
+| | Qwen3-VL-2B | **Qwen2-VL-7B** |
+|---|---|---|
+| late read-out − layer-2, 10% keep | **+21.4pp** | **+11.5pp [+4.2,+18.8]** ✔ |
+| …25% keep | +16.8pp | **+10.5pp [+3.1,+17.8]** ✔ |
+| …50% keep | +3.7pp n.s. | **+6.8pp [+0.5,+13.1]** ✔ |
+| **layer-2 vs random selection** | **−3.7pp** | **−4.7pp** |
+| late read-out vs no pruning (10%) | −0.5pp | **−1.6pp [−6.3,+3.1]** |
+
+**Ranking visual tokens by layer-2 attention is worse than ranking them at random, on both
+architectures.** And on both, a late read-out discards 90% of visual tokens at a cost
+indistinguishable from zero.
+
+The effect is **about half the size** on Qwen2-VL — the same direction-preserved,
+magnitude-halved pattern §80 found for DCR.
+
+### ⚠ The mechanism prediction FAILED, and is reported separately from the verdict
+
+Pre-registered: because Qwen2-VL's early layers rank the target *worse* (gt_pct **0.620** vs
+Qwen3's 0.456, §14K), the layer-2 penalty should be **larger**. It is **smaller** —
+**−13.1pp** against Qwen3's **−21.9pp**.
+
+> **Layer ranking quality does not predict pruning damage.** "The question-conditioned signal does
+> not exist yet at layer 2" survives as a *description* of where the signal is, but it is **not a
+> sufficient account of how much pruning there costs**. §7 of PAPER_FLOW must state the claim
+> (replicated) without the causal story (unsupported).
+
+Candidate explanations, none tested: model scale (7B may carry more redundancy across visual
+tokens), depth-normalised position of layer 2, or the interaction between pruning depth K and where
+the signal forms. **Not asserted** — two mechanisms were already proposed and refuted today, and a
+third guess is not worth more than the honest gap.
+
+### ⚠ The `linear` arm is NOT the replication
+
+It loads Qwen3-VL's learned weights and applies them to Qwen2-VL attention — a cross-model weight
+transfer (50.3% at 10% keep, *below* this model's own block-mean 51.3%). The replication contrast
+is block-mean vs layer-2, both computed from the model's own attention. This distinction was written
+into the analyzer before the run so the stronger-looking number could not be quoted by mistake.
+
+
+## §14N  ★★ FOUR ARCHITECTURES, TWO FAMILIES: the read-out defect holds on 3 of 4 (Phase 82)
+
+The strongest multi-architecture evidence in the project. Identical pipeline, block rescaled to the
+same fraction of each stack, learned read-out fitted **out-of-fold** and grouped by item, n=191 each.
+
+| model | deployed block mean | learned read-out | Δ | CI | chance |
+|---|---|---|---|---|---|
+| Qwen3-VL-2B | 39.3% | 45.5% | **+6.3pp** | [+2.6,+10.5] ✔ | 2.2% |
+| Qwen2-VL-7B | 35.1% | 43.5% | **+8.4pp** | [+3.1,+13.6] ✔ | 2.2% |
+| **LLaVA-OneVision-7B** | 25.1% | 26.2% | **+1.0pp** | **[−2.6,+5.2] ✗** | 2.1% |
+| LLaVA-NeXT-7B | 12.6% | 18.8% | **+6.3pp** | [+2.1,+10.5] ✔ | 2.2% |
+
+**3 of 4, spanning two model families and two tokenization schemes** (implicit raster boundaries in
+Qwen; explicit `image_newline` separators in LLaVA). Averaging *all* layers is worse than the block
+on all four (36.6 / 21.5 / 20.4 / 9.9%).
+
+### The exception is reported as an exception
+
+**LLaVA-OneVision is a null** (+1.0pp, CI spans zero). It is also the only model where the best
+single layer *equals* the block mean (25.1% = 25.1%) — its layers apparently agree with one another,
+so there is no disagreement for a combination to exploit. Internally consistent, but **one data
+point: not built into a story.**
+
+### Absolute localisation varies enormously — a finding in its own right
+
+39.3% (Qwen3-VL) → 35.1% → 25.1% → **12.6%** (LLaVA-NeXT), against a ~2.2% chance rate. **All four
+localise far above chance** (unlike the vision tower, §14G, which sits *at* chance) but the LLaVA
+models are 2–3× worse in absolute terms. Anyone building crop-placement methods on LLaVA starts from
+a much weaker proposal signal than the Qwen numbers in this paper suggest.
+
+### ⚠ Methodological note carried from §14K
+
+The "best single layer" column is **in-sample** (best of N on 191 items) and is reported for
+description only. On Qwen3-VL the in-sample value reads 41.9% and collapses to **36.1%**
+out-of-fold — *below* the block mean it appeared to beat. **Only the learned read-out column is
+fold-validated**, and only it is claimed.
+
+### The final-layer claim stays rejected
+
+Final-layer gt_pct: **0.529** (Q3) · 0.416 (Q2) · 0.451 (OV) · 0.488 (NX). Only Qwen3-VL is above
+the 0.500 chance level. **1 of 4** — §14K's rejection is confirmed at four models, not two.
+

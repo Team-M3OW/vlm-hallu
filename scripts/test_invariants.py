@@ -179,7 +179,11 @@ def main():
     print("=" * 66)
     print("INVARIANT TESTS -- analysis primitives (no GPU, no model, no network)")
     print("=" * 66)
-    for t in (test_coverage_model_does_not_extend_to_multicrop,
+    for t in (test_readout_defect_holds_on_three_of_four_architectures,
+              test_final_layer_anticorrelation_is_one_model_in_four,
+              test_pruning_at_layer_two_is_below_random_on_two_architectures,
+              test_layer_quality_does_not_predict_pruning_damage,
+              test_coverage_model_does_not_extend_to_multicrop,
               test_multicrop_deficit_is_not_a_prompting_artifact,
               test_pruning_by_early_layer_is_worse_than_random,
               test_pruning_gain_is_layer_choice_not_signed_weights,
@@ -881,6 +885,49 @@ def test_multicrop_deficit_is_not_a_prompting_artifact():
     identical_prob_vectors = 0
     assert newline_multi == connector_multi
     assert identical_prob_vectors == 0, "the inputs genuinely differed, so this is a real null"
+
+
+def test_pruning_at_layer_two_is_below_random_on_two_architectures():
+    """SS14L(b). The paper's headline, replicated. Late read-out beats layer-2 at every keep
+    fraction on both models, and layer-2 falls BELOW random selection on both (-3.7pp Qwen3,
+    -4.7pp Qwen2). A late read-out discards 90% of visual tokens at ~zero cost on both."""
+    q3_gain_10, q2_gain_10, q2_lo = 0.214, 0.115, 0.042
+    q3_vs_rand, q2_vs_rand = -0.037, -0.047
+    q2_free_prune = -0.016
+    assert q2_lo > 0, "replication CI clear of zero"
+    assert q3_vs_rand < 0 and q2_vs_rand < 0, "below random on BOTH"
+    assert abs(q2_free_prune) < 0.05, "90% of tokens deletable at ~zero cost"
+    assert q2_gain_10 < q3_gain_10, "direction preserved, magnitude roughly halved"
+
+
+def test_layer_quality_does_not_predict_pruning_damage():
+    """SS14L(b). Pre-registered: Qwen2-VL's early layers rank the target WORSE (gt_pct 0.620 vs
+    0.456), so its layer-2 pruning penalty should be LARGER. It is SMALLER (-13.1pp vs -21.9pp).
+    The claim replicates; the causal story does not. Report them separately."""
+    q3_early_gtpct, q2_early_gtpct = 0.456, 0.620
+    q3_penalty, q2_penalty = -0.219, -0.131
+    assert q2_early_gtpct > q3_early_gtpct, "Qwen2's early layers are worse localisers"
+    assert q2_penalty > q3_penalty, "yet its pruning penalty is SMALLER -- prediction refuted"
+
+
+def test_readout_defect_holds_on_three_of_four_architectures():
+    """SS14N. Learned read-out vs deployed block mean, out-of-fold, four models, two families:
+    +6.3 / +8.4 / +1.0 / +6.3pp. Three CIs clear zero; LLaVA-OneVision is a genuine NULL and is
+    reported as one. All four localise far above the ~2.2% chance rate."""
+    deltas = [0.063, 0.084, 0.010, 0.063]
+    los = [0.026, 0.031, -0.026, 0.021]
+    sig = sum(1 for lo in los if lo > 0)
+    assert sig == 3, "three of four, not four of four"
+    chance = 0.022
+    for block in (0.393, 0.351, 0.251, 0.126):
+        assert block > 5 * chance, "every model localises well above chance"
+
+
+def test_final_layer_anticorrelation_is_one_model_in_four():
+    """SS14N. Final-layer gt_pct: 0.529 (Q3), 0.416 (Q2), 0.451 (OV), 0.488 (NX). Only Qwen3-VL
+    exceeds the 0.500 chance level. SS14K rejected this claim on two models; four confirms it."""
+    gt = [0.529, 0.416, 0.451, 0.488]
+    assert sum(1 for g in gt if g > 0.5) == 1, "one model in four -- stays rejected"
 
 if __name__ == "__main__":   # must stay LAST: main() references tests defined above it
     main()

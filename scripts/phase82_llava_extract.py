@@ -97,7 +97,22 @@ def run(tag, mid, out_path):
     nl = newline_vec(model)
     if nl is None:
         print(f"  {tag}: image_newline not found -- cannot segment. SKIPPING."); return
-    emb_layer = model.get_input_embeddings()
+    # The image features are injected DURING forward, not at the embedding layer: every image
+    # token id is the same placeholder, so get_input_embeddings() returns an IDENTICAL vector for
+    # all of them (verified: min = median = max distance to image_newline). Separators are only
+    # visible in the MERGED embeddings, so capture those with a pre-hook on the language model.
+    CAP = {"emb": None}
+
+    def _pre(mod, args, kwargs):
+        e = kwargs.get("inputs_embeds")
+        if e is None and args:
+            e = next((a for a in args if torch.is_tensor(a) and a.dim() == 3), None)
+        if e is not None:
+            CAP["emb"] = e.detach()
+        return None
+
+    lm = getattr(getattr(model, "model", model), "language_model", None) or model.model
+    hook = lm.register_forward_pre_hook(_pre, with_kwargs=True)
     nL = model.config.get_text_config().num_hidden_layers
     print(f"  {tag}: {nL} layers, image_newline dim {tuple(nl.shape)}", flush=True)
 
@@ -148,16 +163,20 @@ def run(tag, mid, out_path):
                 skip += 1; continue
             base, n_img = int(pos[0].item()), int(len(pos))
             inp = inp.to(model.device)
-            with torch.no_grad():
-                emb = emb_layer(inp["input_ids"])[0, base:base + n_img].float()
-                d = (emb - nl.float().to(emb.device)).abs().max(-1).values
-                isnl = (d < 1e-2).cpu().tolist()
-            g = grid_from_separators(isnl)
-            if g is None:
-                skip += 1; continue
-            gh, gw, keep = g
+            CAP["emb"] = None
             with torch.no_grad():
                 out = model(**inp, output_attentions=True)
+            if CAP["emb"] is None:
+                skip += 1; del out; torch.cuda.empty_cache(); continue
+            emb = CAP["emb"][0, base:base + n_img].float()
+            d = (emb - nl.float().to(emb.device)).abs().max(-1).values
+            isnl = (d < 1e-2).cpu().tolist()
+            g = grid_from_separators(isnl)
+            if g is None:
+                if skip < 2:
+                    print(f"    grid fail: {int(sum(isnl))} seps of {n_img} tokens", flush=True)
+                skip += 1; del out; torch.cuda.empty_cache(); continue
+            gh, gw, keep = g
             A = np.stack([out.attentions[L][0, :, -1, base:base + n_img].float().mean(0).cpu().numpy()
                           for L in range(len(out.attentions))])
             del out; torch.cuda.empty_cache()
@@ -175,6 +194,7 @@ def run(tag, mid, out_path):
             n += 1
             if n % 40 == 0:
                 print(f"    [{n}] {n/(time.time()-t0):.2f} it/s (skipped {skip})", flush=True)
+    hook.remove()
     del model; torch.cuda.empty_cache()
     print(f"  {tag}: wrote {n}, skipped {skip} -> {out_path}", flush=True)
 
