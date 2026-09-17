@@ -4720,3 +4720,42 @@ replication is the one that decides whether the head can be claimed over the sim
 ### Incidental
 Both out-of-fold folds selected window **L16–19 or L17–20** — the max rule independently rediscovers
 the band the deployed block was hand-set to, and the band phase 95's label-free locator points at.
+
+
+## §14X  ✗ NEGATIVE: the attention depth profile does NOT detect encoding failure (Phase 107)
+
+Pre-registered geometry-free — no GT box, no target extent, nothing from the label. Features: per
+layer peak / entropy / top-1 share / top-5 share / peak-over-median, plus cross-layer statistics
+(max-minus-mean gap, argmax instability across depth, consecutive-layer divergence and where it
+first rises, early-vs-late map agreement). Out-of-fold, 5 folds.
+
+**Targets.** `err` = pass-1 wrong. **`encfail` = pass-1 wrong AND the oracle crop right** — a
+*certified* encoding failure, a label no other work can construct because it needs the crop control.
+
+| AUROC, target `encfail` | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| max-softmax (baseline) | 0.588 | **0.651** |
+| predictive entropy (baseline) | 0.625 | **0.679** |
+| `peak` alone (§8A) | 0.506 | 0.484 |
+| **depth profile, GBT** | 0.630 | **0.579** |
+| depth + confidence | 0.652 | 0.580 |
+
+**1 of 2, with the ordering reversed on the second model — rejected.** On Qwen3-VL the depth profile
+edges the baselines; on Qwen2-VL it is worse than both. Recorded next to §14B: no free pass-1 signal
+predicts the required *budget*, and no attention-depth signal predicts *encoding failure*.
+
+### ★ Two things survive the negative
+
+**1. The base rates are the paper's headline.** 37.7% (Qwen3) and 41.4% (Qwen2) of *all* V\*Bench
+items are certified encoding failures, i.e. **86.7% / 84.0%** of every error is fixed by spending the
+same 300 tokens on the evidence region (94.0% / 89.4% at W=0.15). **Nine in ten errors are encoding
+failures, not reasoning failures, on two architectures.**
+
+**2. `peak` is at chance for correctness (0.484–0.506) while predicting coverage at 0.788 (§8A).**
+The free signal that says whether a crop will land says nothing about whether the model is wrong.
+Another instance of the §14O dissociation: quantities about *where attention is* and quantities about
+*whether the answer forms* are different quantities.
+
+⚠ This does **not** test Orgad et al. (ICLR'25), whose central claim is that **token selection** is
+what makes probing work — probe the *exact answer tokens*, not a pooled summary. We probed attention
+statistics, which is not their method. Phase 109 tests theirs.
