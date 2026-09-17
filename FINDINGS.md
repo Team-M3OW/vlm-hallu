@@ -4889,3 +4889,50 @@ Same quantity, same model, same items, two extractions: **~1pp apart.**
 **Our run-to-run noise floor on top-1 coverage is therefore about 1pp**, and the +1.6pp arm above sits
 inside it. Any coverage difference of that size anywhere in this project is noise and must not be
 read as signal.
+
+
+## §15A  ★★★ TOKEN-LEVEL PROOF OF THE CLIFF, and Orgad et al. does NOT port (Phase 109)
+
+Orgad et al., *LLMs Know More Than They Show* (ICLR'25), claim truthfulness information is
+**concentrated in the exact answer tokens**, and that probing the last position or a pooled mean
+misses it. The VLM analogue of an exact answer token is the **exact evidence token** — visual tokens
+whose patch overlaps the annotated region. Qwen3-VL-2B, n=191, hidden states at 5 positions × 28
+layers, out-of-fold logistic probes.
+
+| position | best AUROC, `err` | `encfail` |
+|---|---|---|
+| **`last`** (final prompt position) | **0.714** | **0.733** |
+| `evid` (mean over evidence tokens) | 0.587 | 0.648 |
+| `evid_max` | 0.594 | 0.674 |
+| **`rand`** (size-matched random region, same image, same pass) | 0.503 | 0.489 |
+| `imgmean` | 0.541 | 0.563 |
+
+### ✗ Their headline does not reproduce
+`evid` − `last` = **−0.127** and **−0.085**. In text, the exact answer tokens beat the last position;
+in vision the evidence tokens are **worse** than it. The control passes — `evid` − `rand` = +0.084 /
++0.158, so the evidence tokens carry more than mere region identity — but they carry *less than the
+final position does*. (Phase 24's retraction is why that control is mandatory: without it a probe
+separates "annotated object" from "random rectangle" and can read AUROC 1.000.)
+
+### ✅ And the deeper version of their claim is confirmed, sharply
+
+| best AUROC for `err` | below the cliff (n=83) | above the cliff (n=108) |
+|---|---|---|
+| `last` | 0.725 | 0.693 |
+| **`evid`** | **0.513 — chance** | **0.656** |
+
+> **The visual tokens covering the target predict the model's correctness only when the target is
+> above the encoding cliff. Below it they are at chance.**
+
+This is a **token-level measurement of the cliff**, obtained with no crop, no oracle arm and no
+accuracy contrast — an independent route to §13/§66's conclusion. `last` is unaffected by the split
+because the final position encodes the model's own uncertainty, which exists whether or not it saw
+anything. The stratum contrast is within-position, so the optimistic best-layer selection biases both
+sides equally.
+
+### Incidental: the evidence token's content is an EARLY-layer quantity
+`evid` peaks at **L1** (0.587 / 0.648) and decays to ~0.47–0.51 by L27. A visual token is most
+informative about its own content immediately after the projector, and mixing washes it out — the
+same phenomenon that made attention rollout collapse to 12.6% (§14V/phase 104).
+
+⚠ Qwen2-VL is queued. `last` vs `evid` and the cliff split both need the second model.
