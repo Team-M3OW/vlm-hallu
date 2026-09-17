@@ -22,8 +22,9 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **The encoding cliff** | **Q3, Q2** | step at 0.15–0.25 merged tokens, oracle flat across it (§13C) |
 | **The serialization sink** | **Q3, Q2, OV, NX** | 3.4–4.5× implicit, 2.0–2.3× on `image_newline` (§5) |
 | **No published crop policy beats the budget axis at matched tokens** | **Q3, Q2** | §9A/§9B |
+| **★★★ Layer-2 pruning is BELOW RANDOM — 2 MODELS × 3 BENCHMARKS** | **Q3, Q2 × V\*, POPE, MMBench** | layer-2 − random: V\* −3.7/−4.7, POPE −15.0/−11.0, MMBench −25.5/−5.5; late − layer-2 clears in all six cells (§14L(b), §14P, §15H) |
 | **★★ DCR is the ONLY arm that clears the compute-matched bar — beating a training-free max-aggregated read-out on both models** | **Q3, Q2** | head−bar single-object +15.7 [+6.1,+25.2] / +11.3 [+1.7,+20.9] ✔; max_win4−bar +9.6 [+0.0,+19.1] / +6.1 [−3.5,+15.7] ✗; head−max_win4 +6.1 / +5.2, both lower bounds at zero (§14W(b)) |
-| **★ DCR beats the compute-matched baseline on SINGLE-OBJECT questions — now on a SECOND BENCHMARK (Q3)**: HR-Bench 4k **+7.5 [+2.2,+12.5]**, n=400, W=0.15 unswept; argmax does not clear (§15E). Crossing (Q2 on HR-Bench) queued | **Q3, Q2** | **+15.7pp [+6.1,+25.2]** / **+11.3pp [+1.7,+20.9]**, n=115 each, W transferred not selected. Null on relational (−3.9 / +0.0) exactly as §6D predicts. ⚠ pooled does not clear; both numbers must be reported (§14T) |
+| **★★★ DCR beats the compute-matched baseline on SINGLE-OBJECT questions — 2 MODELS × 2 BENCHMARKS**: V\*Bench +15.7 / +11.3; HR-Bench 4k **+7.5 [+2.2,+12.5] / +8.5 [+3.8,+13.2]**, n=400 each, W=0.15 unswept. Argmax clears in no cell; relational loses in every cell; pooled null in every cell (§15E, §15H) | **Q3, Q2 × V\*, HR** | **+15.7pp [+6.1,+25.2]** / **+11.3pp [+1.7,+20.9]**, n=115 each, W transferred not selected. Null on relational (−3.9 / +0.0) exactly as §6D predicts. ⚠ pooled does not clear; both numbers must be reported (§14T) |
 | **Oracle placement wants a tighter window than learned placement does** | **Q3, Q2** | oracle monotone decreasing in W (90.1→65.4 / 91.1→80.6); head peaks at 0.25 on both (§14T) |
 
 ---

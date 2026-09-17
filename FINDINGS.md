@@ -5173,3 +5173,43 @@ on either model at the doubling the method is charged for.
 argmax@0.15 on single vs bar: Qwen3 +2.5 [−2.8,+7.8], Qwen2 **−6.0 [−18.1,+4.8]**. The plain argmax
 clears on neither model at 4K; only the learned head did (§15E, Qwen3). Whether the head clears on
 Qwen2 at 4K is phase 72c-qwen2, queued.
+
+
+## §15H  ★★★ BOTH CROSSINGS PASS — the first claims to survive models × benchmarks (Phases 72c-q2, 93b)
+
+### The method: 2 models × 2 benchmarks on single-object questions
+Qwen2-VL-7B head (trained on V\*Bench, phase 72a-q2), applied zero-shot to HR-Bench 4k, n=800,
+full-prompt localiser, W=0.15 unswept. Budget 586 vs 584 tokens. Internal control passed: on the 84
+rows where head and argmax chose the same cell the contrast is exactly +0.0.
+
+| single-object, head vs equal compute | |
+|---|---|
+| Qwen3-VL, V\*Bench (n=115) | +15.7 [+6.1,+25.2] ✔ |
+| Qwen2-VL, V\*Bench (n=115) | +11.3 [+1.7,+20.9] ✔ |
+| Qwen3-VL, HR-Bench 4k (n=400) | +7.5 [+2.2,+12.5] ✔ |
+| **Qwen2-VL, HR-Bench 4k (n=400)** | **+8.5 [+3.8,+13.2]** ✔ |
+
+And the rest of the pattern replicates in every cell: the plain argmax does **not** clear (Qwen2 4K:
+−5.8 [−10.8,−0.8]), relational loses (−8.8), pooled is null (−0.1 [−3.6,+3.4]). head − argmax on
+single at 4K: **+14.2 [+9.8,+19.0]**. CircularEval: bar 44.0%, argmax 28.0%, head 45.0%.
+
+### The pruning collapse: 2 models × 3 benchmarks
+Qwen2-VL-7B, 10% keep from layer 2, block L15–26. Void check passed (arms differ; the first run's
+283/400 identical rows are expected at 10% keep on near-ceiling benchmarks — cf. the void run's 400/400).
+
+| | POPE | MMBench | V\*Bench (§14L(b)) |
+|---|---|---|---|
+| layer-2 − random | **−11.0 [−17.0,−5.0]** | **−5.5 [−10.5,−1.0]** | −4.7 |
+| late − layer-2 | **+12.0 [+5.0,+19.0]** | **+8.0 [+3.5,+12.5]** | +11.5 |
+| late − none | −4.0 [−8.5,+0.0] | −2.5 [−6.5,+1.5] | −1.6 |
+
+**Ranking visual tokens by layer-2 attention is worse than ranking them at random on two
+architectures and three benchmarks.** "Late pruning is free" does *not* generalise (−4.0 / −2.5 off
+V\*Bench), consistent with §14P's earlier retraction of that half.
+
+### What this settles
+Before today no claim in the project had been replicated across both axes. Now two have:
+- **layer-2 pruning below random** — 2 × 3
+- **the method beats equal compute on single-object questions** — 2 × 2
+plus one boundary (relational questions lose under cropping, 2 × 2, §15G). Both findings survive;
+neither had to be demoted to make room for the other.

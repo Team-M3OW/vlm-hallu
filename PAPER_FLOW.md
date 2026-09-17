@@ -132,6 +132,12 @@ own checks.
 venue, §4) · Qwen family end-task, LLaVA on proposals only (3 of 4).
 **§3/§5:** two models, except §15A and five of the seven nulls (single-model, replication queued).
 
+## Crossed (2026-09-17, late)
+- **Method on single-object: 2 models × 2 benchmarks** (§15H). The 4K negative was an artefact (§15D/E).
+- **Layer-2 pruning below random: 2 models × 3 benchmarks** (§15H).
+- Relational boundary: 2 × 2 (§15G). Coverage interaction on HR-Bench: 1 of 2, rejected.
+- §15A withdrawn (1 of 2).
+
 ## Open before submission
 
 1. **§15A on Qwen2-VL** — queued; it is §3's second pillar and single-model today.
