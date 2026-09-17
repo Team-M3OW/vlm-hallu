@@ -146,6 +146,13 @@ venue, §4) · Qwen family end-task, LLaVA on proposals only (3 of 4).
   label-free. Clears the bar on Qwen3 only (1 of 2). The learned head remains the only arm clearing
   on both (§16D).
 
+- **Data (phases 133–134):** 3,000 public boxed items (TextVQA via Visual-CoT) do not help — a head
+  trained on them scores *below the deployed argmax* on V\*Bench and mixing them in hurts (−5.8).
+  The read-out is **task-specific**: the switch-on layer is L11–13 for text reading, L16 for
+  small-object attributes (§16E). Transfer works within a question type (V\*→HR-Bench) and fails
+  across. More data helps only if it is same-task, and no such public boxed source exists beyond
+  V\*Bench itself.
+
 ## Crossed (2026-09-17, late)
 - **Method on single-object: 2 models × 2 benchmarks** (§15H). The 4K negative was an artefact (§15D/E).
 - **Layer-2 pruning below random: 2 models × 3 benchmarks** (§15H).
