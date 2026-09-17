@@ -5650,3 +5650,55 @@ Consistent with §6E/§8A: the two-pass confidence signal is a strong coverage d
 (AUROC 0.885) and weak on Qwen3-VL. As a label-free head it is rejected under the standing rule; a
 pre-registered variant with a different label-free target (agreement with the model's own
 600-token answer, i.e. self-distillation from the bar) is queued as 162b.
+
+
+### §18D  ✗ Fix 4 — a map-only dispersion ROUTE does not carry the pooled claim (Phase 156)
+
+Standing constraint 7 permits question-type adaptation **only from the attention map**. The §18B
+diagnostic gives the map-side signal: top-1 mass share of the raw gated-max map separates
+single-object from relational at AUROC 0.735 / 0.805. This tests it in the form the banned keyword
+rule took — a hard route — before 163 tests it in the permitted form, a window that adapts
+continuously. Composition, thresholds and scoring are phase 150's, so the rows are comparable line
+for line; τ is chosen out-of-fold, GroupKFold(5) grouped by item (V\*Bench) / instance (HR-Bench).
+
+| model | bench | router | routed | pooled − bar |
+|---|---|---|---|---|
+| Qwen3-VL | V\*Bench | R1 keyword (banned, context) | 60.2% | +9.4 [+3.1,+15.2] ✔ |
+| Qwen3-VL | V\*Bench | **R3 top1_frac, map-only, OOF** | 71.2% | **+2.6 [−4.7,+9.4]** ✗ |
+| Qwen2-VL | V\*Bench | **R3 top1_frac, map-only, OOF** | 69.6% | **+7.3 [+1.0,+13.6]** ✔ |
+| Qwen3-VL | HR-Bench | R3 top1_frac (block-mean, phase 46) | 5.0% | −1.1 [−1.9,−0.5] ✗ |
+| Qwen3-VL | HR-Bench | R2 oracle category (ceiling) | 50.0% | +3.8 [+1.1,+6.4] ✔ |
+
+**The pre-registered primary fails: 1 of 2 on V\*Bench.** R3 − R1 is **−6.8 [−12.0,−1.6]** on Qwen3
+and +0.5 [−4.2,+5.2] on Qwen2 — on Qwen3 the map-only route is significantly *worse* than the text
+rule it would replace. The AUROC replicates exactly (0.735 / 0.805 gated-max; 0.745 / 0.839
+block-mean) so the signal is real; **detection at AUROC 0.74 is not enough to route when the
+alternative is a rule that is 100% concordant with the labels.** Agreement with the category oracle:
+R3 63.9% / 69.6%, R1 100%.
+
+On HR-Bench the statistic is at **chance** (AUROC 0.515) and the fitted threshold degenerates to
+routing 5% of items — i.e. "almost never crop" — which still loses 1.1pp. §17A's HR-Bench null is
+therefore not a keyword-rule artefact: **no question-type signal of this kind is present in that
+benchmark's block-mean maps at all.** The gated-max arm there is unrun (no per-layer HR-Bench maps on
+disk; one localisation pass per instance, queued), as is Qwen2-VL HR-Bench.
+
+> **What this leaves for fix 2b.** A hard route is the wrong shape for a map-only signal this noisy:
+> it spends the whole AUROC on one binary decision. Phase 163's mass-containment window uses the same
+> statistic *continuously* — a concentrated map yields a small window, a dispersed one a larger window
+> — so a mid-confidence item degrades gracefully instead of being misrouted. 156 is the control that
+> says the continuous form is the one worth running, not a redundant second router.
+
+Free, CPU-only, 2.3 s, 237 MB peak: `scripts/phase156_dispersion_router.py`,
+`data/phase156_dispersion_router.json`.
+
+### §18D  ✗ (Qwen3-VL) Fix 2b — the mass-containment window fails for a legible reason (Phase 163)
+Mass box grown on the raw gated map to q=0.6 of its mass, falling back to the head's W=0.25 window when
+the box is concentrated. **The box is huge for everyone**: median area 0.286 (single) / 0.308
+(relational) against 0.0625, and only 4% / 1% of items fell back to the tight crop. Single-object
+**−19.1 [−27.8,−10.4]** vs the head window; relational +1.3 [−11.8,+14.5] vs the bar (null); pooled
+−1.6. The raw map is *peaked* but its *mass* has a long tail (median top-1 share 0.11 even on
+single-object), so 60% of the mass spans ~30% of the image regardless of question type. The dispersion
+signal (§18B diagnostic, AUROC 0.74/0.81) is **relative**, not absolute, and a fixed mass fraction
+cannot read it. This is the second geometric window to fail after the peaks rule; with the closed
+per-item sizer (§14U) it is the third attempt to derive a window from the map. **Not tuning q.**
+Qwen2-VL leg pending as the formal second cell.
