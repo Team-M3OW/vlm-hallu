@@ -5744,3 +5744,15 @@ no better than no crop): the map can decide *whether* to crop, not *how large*. 
 question-agnostic and clears pooled on both models is therefore the simplest one — *crop tight when
 the model's own attention is concentrated, otherwise spend the budget on the whole image.* Whether
 that is admissible under constraint 7 is the pending ruling (§18E).
+
+### §18G  ✗ Depth re-ranking over (cell, W) pairs — a METRIC ARTEFACT, not adaptation (Phase 166)
+Train the head with $W$ as an input to predict coverage@$W$; argmax over (cell, $W$). OOF coverage
+of the chosen window: joint **80.6 / 71.7** vs fixed head@0.25 **63.4 / 55.5** — but the joint model
+chooses **W=0.5 on 89–97% of items**, and "coverage $\geq 0.5$" is monotone in $W$ by construction.
+The reference row exposes it: **always W=0.5 at the fixed head's cell scores 82.7 / 74.9**, *above* the
+joint model, while head@0.5 is already known to be **worse on accuracy** (65.4 vs 71.7; 60.2 vs 64.9,
+§14T) because the magnification is gone. Coverage rewards large windows and never charges for lost
+resolution, so a coverage-trained (cell, $W$) re-ranker learns "bigger", not "adaptive". **No end-task
+run.** An accuracy-aware target for $W$ is the dead sizer (§14U). Recorded as the fourth failed
+attempt to make the window adapt; with §18F it says: from the depth profile the method can decide
+*where*, not *how large*.
