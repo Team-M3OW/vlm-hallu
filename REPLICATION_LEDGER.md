@@ -54,7 +54,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **Depth profile worth +7.3pp; sink indicators worth +0.0pp (§14C(b))** | Q3 | Ablation must be re-run on Q2. |
 | **Evidence region is causally live (3.32×, −10.5pp) (§14H)** | Q3 | Masking experiment must be re-run on Q2. |
 | **Seven internal interventions null (§10, §14H)** | Q3 | The *pattern* is single-model. At minimum the decisive arms (attention amplification, contrastive decoding) need Q2. |
-| **Coverage as mediator / sign of the allocation effect (§6D)** | Q3, Q2 (partial) | Q2 replication was −9.4 / +41.8pp; confirm it covers the same strata. |
+| **Coverage as mediator / sign of the allocation effect (§6D)** | Q3, Q2 (partial) | Q2 replication was −9.4 / +41.8pp on V\*Bench. ⚠ The **W-by-category interaction on HR-Bench is 1 of 2** (−11.9 ✔ / −3.0 ✗, §15G). Claim coverage on V\*Bench only. |
 | ~~Learned-sizer headroom +11.0pp (phase 78)~~ | — | **CLOSED.** The OOF sizer failed its pre-registered primary on Qwen2-VL (+3.7pp [−3.1,+10.5] vs the bar, **−3.1pp** vs the constant) and had already inverted across grids on Qwen3-VL. Dead on 2 models, 2 grids (§14U). |
 | **Label-free locator finds the read-depth transition (§14S)** | Q3, Q2 | **Region ✔, exact layer ✗.** Divergence rises L13–L14; damage recovers L14–L16. L14 does not clear zero (+4.7 [−1.0,+10.5]); L16 does (+11.0 [+3.7,+18.8]). Claim only the region. |
 | **★ Pruning at layer 2 is worse than random; late read-out loses nothing at 10% keep (§14L)** | Q3 | **phase 83 running on Q2.** Sharp prediction: Q2's early layers are worse (gt_pct 0.620 vs 0.456), so the penalty should be **LARGER**. A smaller penalty refutes the mechanism. **This is now the paper's strongest result — its replication matters most.** |
@@ -65,7 +65,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 
 | boundary | evidence |
 |---|---|
-| **Relational questions** — one window cannot cover a union 7.9× larger in area | −3.9 / +0.0pp vs the bar on both models (§14T) |
+| **Relational questions — the first 2 MODEL × 2 BENCHMARK claim in the project** (a limit, not a gain) | V\*Bench −3.9 / +0.0pp; HR-Bench argmax@0.15 **−10.5 / −32.8pp** vs the bar (§14T, §15G) |
 | **Existence questions — crop-based allocation is INVALID** | POPE: crop −56.7 / −77.3 / −63.0pp vs the bar; the crop answers "no" to everything because a 6%-area window is evidence of absence. The oracle arm is **circular** there (knowing the box = knowing presence), so POPE cannot even provide a ceiling (§15B) |
 | **LLaVA-OneVision** — no layer disagreement to exploit | head −1.0pp; its best single layer equals its block mean (§14N, §14Y) |
 | **MMBench** — 512px, no budget axis | not run; reported as NO AXIS, as in phases 25/28 |

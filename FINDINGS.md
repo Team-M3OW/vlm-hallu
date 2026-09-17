@@ -5145,3 +5145,31 @@ read. Phase 83 (which did prune Qwen2-VL correctly) imports the qwen2_vl module.
 behind the 72c-qwen2 run. The void file is kept as `phase93b_VOID_wrong_module.jsonl`.
 
 **Rule reinforced:** an arm contrast of exactly +0.0 [+0.0,+0.0] is a pipeline fault, never a null.
+
+
+## §15G  ✗ THE W-BY-CATEGORY INTERACTION IS 1 OF 2 — coverage crossing fails as specified (Phase 116b)
+
+Qwen2-VL-7B, HR-Bench 4k, n=150, same rows and arms as phase 116. Void check passed (29/150 items
+with all arms identical; a void run gives 150/150).
+
+| pre-registered: W0.12 − W0.25 | Qwen3-VL (116) | **Qwen2-VL (116b)** |
+|---|---|---|
+| single (n=83) | +2.4 [−3.6,+8.4] | −4.8 [−13.3,+3.6] |
+| **cross (n=67)** | **−11.9 [−23.9,−1.5]** ✔ | **−3.0 [−11.9,+6.0]** ✗ |
+
+Direction consistent on `cross`, significance absent. **1 of 2 — the interaction is rejected as a
+cross-model, cross-benchmark claim.** What *does* replicate is the coarser boundary: relational
+questions lose under cropping on both models (argmax@0.15 vs bar on `cross`: −10.5 / **−32.8pp**),
+which with V\*Bench's null on relational makes "cropping does not beat the bar on relational
+questions" a **2 model × 2 benchmark** boundary — the first thing in this project to survive both
+axes, and it is a *limit*, not a gain.
+
+### Secondary, replicated: HR-Bench's budget axis is NOT exceptional
+slope 300→600: Qwen3 **+6.7 [+1.3,+12.7]**, Qwen2 **+8.7 [+3.3,+14.7]**; V\*Bench +7.3 [+0.7,+14.0].
+The premise that 4K is special because "spending tokens obviously helps more there" is not supported
+on either model at the doubling the method is charged for.
+
+### Also on the record
+argmax@0.15 on single vs bar: Qwen3 +2.5 [−2.8,+7.8], Qwen2 **−6.0 [−18.1,+4.8]**. The plain argmax
+clears on neither model at 4K; only the learned head did (§15E, Qwen3). Whether the head clears on
+Qwen2 at 4K is phase 72c-qwen2, queued.
