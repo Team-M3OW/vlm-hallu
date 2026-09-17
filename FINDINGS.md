@@ -6019,3 +6019,26 @@ systematic gain for a larger noise cost. The per-item best-W "ceiling" (+16/+22 
 noise (max over six ~65%-accurate binaries), not headroom. Eighth window-adaptation design; with §14U, §18B, §18D,
 §18F, §18G, §18H (and the banned §18E gate) the axis is closed: *from the map the method decides where, not how large.*
 Script: scripts/phase174_utility_window.py.
+
+## §18M — LLM "layer-disagreement" techniques ported to the attention read-out (phase 175): none beats the fixed gate
+
+Deep search (DoLa 2309.03883; SLED 2411.02433; Confident Layer Decoding 2606.21906; Attention-guided layer selection
+for CD 2607.23067; ASL rank-stability layer selection 2601.07667; InertiaKV EMA aggregation 2609.03515; RippleKV
+perturbation-sensitivity budgets 2608.08684). Everything label-free and per-sample was ported to the stored maps
+(coverage@0.25, 4 architectures); paired vs gate max (§16D):
+
+| rule | Qwen3 | Qwen2 | LLaVA-NeXT | OneVision |
+|---|---|---|---|---|
+| gate max (reference) | 56.0 | 51.8 | 25.7 | 23.6 |
+| CLD entropy-valley layer (backward scan) | −12.0 ✗ | −1.0 | +0.5 | +4.2 |
+| Att-Entropy-Min layer (window) | −2.6 | +2.1 | +0.0 | +1.0 |
+| Att-JSD layer vs final (window) | +1.0 | −1.0 | +1.6 | −10.5 ✗ |
+| ASL rank-stability layer | −11.5 ✗ | −8.4 ✗ | +0.0 | −6.8 ✗ |
+| depth-EMA of ranks (β=0.5) | −13.6 ✗ | −6.8 ✗ | +0.5 | +2.1 |
+| SLED extrapolation A_gate + α(A_gate − A_early), α=1 | +0.5 | −0.5 | +2.1 | +2.1 |
+
+Per-sample layer picks land on the gate band (medians L17–L21) — every label-free selector rediscovers the
+divergence locator and none improves on reading it with a fixed max. SLED-style depth extrapolation is exactly
+equal to gate max on both Qwen (its early-mean subtraction is nearly constant across cells). Rank-based
+aggregations (ASL, EMA) are the worst: within-layer ranks throw away the magnitude contrast the max relies on.
+Not adopted. Script: scripts/phase175_llm_layer_rules.py.
