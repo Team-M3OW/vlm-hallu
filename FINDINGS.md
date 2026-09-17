@@ -5385,3 +5385,25 @@ set comes from a label-free measurement, not out-of-fold selection on boxes.
 
 Cross-family: no training-free rule helps LLaVA; max hurts OneVision (−4.2). The divergence gate on
 LLaVA (phase 142) is the one open test. Full report: `REPORT_track3.md`.
+
+### §16C addendum 3 — per-layer neighbourhoods bring the readable head to parity at W=0.15 (Phase 132)
+Three readable additions to the log-linear. Δ vs the GBT, phase-70 folds:
+
+| W=0.15 | GBT | A+ (per-layer quadratic) | A++ (6 layer×nb products) | **A+nb (per-layer 3×3 neighbourhood, ~91 params)** |
+|---|---|---|---|---|
+| Qwen3-VL | 53.4 | 52.9 (−0.5) | 50.3 (−3.1) | **56.0 (+2.6 [−2.1,+7.3])** |
+| Qwen2-VL | 44.0 | 43.5 (−0.5) | 42.4 (−1.6) | **45.5 (+1.6 [−3.1,+6.3])** |
+| LLaVA-NeXT | 19.9 | 22.5 (+2.6) | 23.6 (+3.7) | **24.6 (+4.7 [−0.5,+9.9])** |
+| LLaVA-OneVision | 24.1 | **33.0 (+8.9 [+4.7,+13.6])** ✔ | 30.9 (+6.8) ✔ | **30.4 (+6.3 [+1.6,+11.5])** ✔ |
+
+W=0.25: A+nb −2.6 [−7.3,+2.1] on Qwen3 (fails the −1.5 rule, inside the CI), +2.1 on Qwen2, +6.3 /
++4.2 on LLaVA; A+ collapses on Qwen2 (−7.9 ✗).
+
+> **At the deployed window, a log-linear model over log-attention, ranks and per-layer local means —
+> ~91 readable parameters — is at parity with the tree on both Qwen models (within the 1–2.5pp noise
+> floor, CIs spanning zero) and ahead of it on both LLaVA models.** Not superior anywhere on Qwen;
+> at W=0.25 it is 3 of 4. The tree stays as the *accuracy* head for the method's end-task numbers;
+> A+nb is the head to *show* — every weight is "layer l, this much, smoothed over its neighbours".
+> The per-layer neighbourhood is the ingredient: it turns the tree's one 3×3 feature (on the block
+> mean) into 28, one per layer, which is the spatial structure phase 130's CNN tried to learn from
+> scratch and could not at n=191.
