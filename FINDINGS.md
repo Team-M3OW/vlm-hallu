@@ -5324,3 +5324,16 @@ W=0.25: log-linear −3.1 / **−6.8 [−11.5,−2.1]** on Qwen; +5.2 / +0.5 on 
 
 **4 of 4 for the readable head vs 3 of 4 for the tree**, at a 2–3pp cost on Qwen. At W=0.25 OneVision
 is +2.1 [−4.2,+7.9] (n.s.) and NeXT +10.5 ✔. The portability claim is W=0.15-only until replicated.
+
+### §16C addendum 2 — what the readable head reads (standardised Lasso weights on log-attention, W=0.15)
+| | largest + | largest − | geometry |
+|---|---|---|---|
+| Qwen3-VL | **L19** +.110, L5, L17, L8, L24 | **L26** −.078, L10, L3, L22, L23, **L27** | 3×3 nb **+.116**; sink flags ≈0 |
+| Qwen2-VL | **L19** +.064, **L21** +.051, L16 | L7 −.069, L11, L17, L23, L25 | 3×3 nb **+.137**; sink flags ≈0 |
+
+Read directly: both models weight **L19** most; Qwen2 adds **L21**, its answer-formation layer
+(§14I(b)); Qwen3's last layers (L26, L27) carry *negative* weight — the anti-correlated-final-layer
+observation of §14F, Qwen3-specific as §14K found; the neighbourhood term dominates geometry and the
+sink indicators are ≈0, matching the ablation (§14C(b): profile +7.3, sink +0.0). This is the tree's
+mechanism stated in 63 numbers. Queued: phase 121b (question + instruction, no options) to finish
+isolating the answer-position effect.
