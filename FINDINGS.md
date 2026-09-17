@@ -5608,3 +5608,18 @@ vs the fixed W=0.25 head, and does not help relational (−2.6 [−15.8,+9.2] vs
 Median span area 0.100 vs 0.0625. The criterion is wrong, not necessarily the idea; a diagnostic of
 which untuned map statistics separate the two question types follows. Qwen2-VL leg and the
 threshold-free mass-containment variant (163) pending.
+
+#### §18B diagnostic — which untuned map statistic sees question type?
+Median per item, AUROC for relational (both models):
+
+| map | statistic | single | relational | AUROC Q3 / Q2 |
+|---|---|---|---|---|
+| GBT score | peak2/peak1 | 0.755 / 0.694 | 0.825 / 0.813 | 0.62 / 0.65 |
+| **raw gated-max attention** | **top-1 share** | **0.111 / 0.207** | **0.064 / 0.079** | **0.735 / 0.805** |
+| raw gated-max attention | top-5 share | 0.298 / 0.422 | 0.206 / 0.243 | 0.70 / 0.80 |
+
+**The raw question-conditioned map is concentrated for single-object questions and diffuse for
+relational ones; the GBT map is not** (it regresses coverage and is smooth everywhere). Fix 2 must
+therefore read dispersion of the *raw* gated map, not peaks of the score map. Phase 163 patched
+accordingly before running: mass box grown on the raw gated map; concentrated maps fall back to the
+head's W=0.25 window.
