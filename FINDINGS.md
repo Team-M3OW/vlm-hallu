@@ -5579,3 +5579,23 @@ its deployed argmax is far worse (31.9% coverage — the read-out defect grows w
 recovers +28.8pp of coverage and +19pp over the argmax end-task, but the 8B model at uniform@600 is strong
 enough (65.2% single) that the crop's gain no longer clears the bar. Honest reading: **the read-out
 defect is larger at scale; the allocation win is smaller**, because the bar rises faster than the crop.
+
+
+## §18  ARCHITECTURE FIXES FOR THE TWO DEPLOYABILITY CRITICISMS
+
+### §18A  ✗ Fix 1 — depth-aligned features do NOT make the head task-agnostic (Phase 160)
+Re-index the profile relative to the task's switch-on layer $s$ (18 layers, $s{-}6\ldots s{+}11$) and
+transfer TextVQA $\to$ V\*Bench zero-shot.
+
+| TextVQA head → V\*Bench | W=0.15 (argmax 39.3) | W=0.25 (argmax 46.6) |
+|---|---|---|
+| unaligned (same absolute layers) | 27.2 (−12.0 [−17.8,−6.3]) | 26.7 (−19.9) |
+| **aligned, $s$ from gt profile (16 / 12)** | **33.5 (−5.8 [−11.0,−0.5])** | **34.0 (−12.6)** |
+| aligned, $s$ from a label-free max-share proxy (13 / 11) | 28.3 (−11.0) | 23.6 (−23.0) |
+
+Alignment recovers **6–7pp** of the cross-task gap — the switch-on shift is a real part of the
+mechanism — but the aligned head is still significantly *worse than no head*, and the label-free
+proxy for $s$ (first layer whose ring-masked max share doubles the early-layer median) selects the
+wrong layer. **The read-out remains task-specific under depth alignment.** Recorded as a negative
+with a mechanism confirmation inside it; the head's supervision must come from the target question
+type (§17B: ~50 boxes).
