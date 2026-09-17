@@ -38,9 +38,12 @@ cannot cross that threshold: amplifying attention on exactly the right cells rec
 re-encoding those cells recovers, because the oracle set is one cell of $294$. We give a method that
 does cross it. \emph{Depth-Profile Re-ranking} reads the language model's attention over image cells
 at all $28$ layers, ranks cells with a small learned head, and crops once. Against the equal-compute
-baseline of encoding a larger image, it is the only arm in our study that wins, and it wins on two
-architectures and two benchmarks on single-object questions ($+15.7$, $+11.3$, $+7.5$, $+8.5\pp$,
-all CIs clear); the standard argmax read-out clears in no cell. Along the way we show the deployed
+baseline of encoding a larger image, it is the only arm in our study that wins: on single-object
+questions it clears the bar on three checkpoints and three benchmarks ($+15.7$, $+11.3$, $+14.8$,
+$+7.5$, $+8.5$, $+10.5\pp$, all CIs clear; pooled across benchmarks $+9.2\ci{+6.1}{+12.4}$,
+$n{=}1030$); the standard argmax read-out clears in no cell. Routed by the model's own text-only,
+untuned judgement of whether a question is relational, it clears the bar \emph{pooled} over question
+types in three of four cells. Fifty boxed items recover $70\%$ of the head's gain. Along the way we show the deployed
 read-out is wrong on four separable axes --- it averages layers where a max is worth $+7$\pp, reads
 the attention weight rather than $\alpha\|v\|$, averages all heads, and fails entirely unless the
 prompt ends at the answer-emission point --- and that ranking visual tokens by layer-2 attention is
@@ -74,9 +77,12 @@ When we run that comparison, every published policy we test breaks even or loses
 \begin{itemize}\setlength\itemsep{1pt}
 \item \textbf{A method that beats equal compute (\S\ref{sec:method}).} Depth-Profile Re-ranking
 (DPR) ranks image cells by their full $28$-layer attention profile and crops once. On single-object
-questions it beats a uniform image at the same token count on \vstar\ and \hrb, on Qwen3-VL-2B and
-Qwen2-VL-7B: $+15.7$, $+11.3$, $+7.5$, $+8.5\pp$, all confidence intervals clear of zero. The
-deployed argmax clears in no cell. Zero-shot to \hrb\ with nothing refitted.
+questions it beats a uniform image at the same token count on \vstar, \hrb\ and HR-Bench~8k, on
+Qwen3-VL-2B, Qwen2-VL-7B and Qwen2.5-VL-7B (Table~\ref{tab:method}); the deployed argmax clears in
+no cell. Zero-shot to HR-Bench with nothing refitted. With an untuned router --- the model asked,
+text-only, whether the question is relational --- it clears the bar pooled over question types in
+three of four cells (\S\ref{sec:route}). Fifty boxed items from one benchmark recover $70\%$ of the
+gain. Wall-clock cost is $1.4$--$1.8\times$ the bar (\S\ref{sec:cost}).
 \item \textbf{The strong baseline it is measured against (\S\ref{sec:readout}).} The standard
 read-out --- mean over a late block of layers, mean over heads, argmax --- is wrong on four axes,
 each fixable in one line. We port the fixes from LLM work (max over layers~\citep{mcdanel2026claa},
@@ -186,7 +192,27 @@ DPR absolute & & $78.3\%$ & $68.7\%$ & $72.0\%$ & $70.8\%$ \\
 {\footnotesize $^\dagger$ best training-free read-out (max over a $4$-layer window, App.~\ref{app:trainfree}); the deployed mean-block argmax is lower.}
 \end{table}
 
-Table~\ref{tab:method} is the paper's central result. On single-object questions the learned head
+\begin{table}[t]
+\centering\small
+\caption{\textbf{Additional checkpoints and a third benchmark.} Same protocol; $W$ transferred, not
+selected. Qwen3-VL-8B does not clear: its deployed argmax is far worse ($31.9\%$ coverage vs $46.6$ on the
+2B) and the head recovers $+19\pp$ over it, but the 8B model at $600$ tokens is strong enough that the crop
+no longer clears the bar.}
+\label{tab:more}
+\resizebox{\textwidth}{!}{\begin{tabular}{llrrr}
+\toprule
+model & benchmark & head $-$ bar, single & argmax $-$ bar, single & head $-$ bar, pooled \\
+\midrule
+Qwen2.5-VL-7B & \vstar\ ($n{=}115$) & \gd{$+14.8$}\ci{+4.3}{+25.2}\ok & $+7.8$\ci{-1.7}{+17.4} & $+6.3$\ci{-1.6}{+14.1} \\
+Qwen3-VL-2B & HR-Bench~8k ($n{=}400$) & \gd{$+10.5$}\ci{+5.2}{+16.0}\ok & $+3.5$\ci{-1.5}{+8.8} & $+0.6$\ci{-3.4}{+4.6} \\
+Qwen3-VL-8B & \vstar\ ($n{=}115$) & $+4.3$\ci{-5.2}{+13.9} & $-14.8$\ci{-25.2}{-4.3} & $-1.6$\ci{-8.9}{+5.8} \\
+\midrule
+\multicolumn{2}{l}{pooled single-object, Q3-2B $+$ Q2-7B, \vstar\ $+$ 4k ($n{=}1030$)} & \gd{$+9.2$}\ci{+6.1}{+12.4}\ok & & \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Table~\ref{tab:method} is the paper's central result, Table~\ref{tab:more} its extension. On single-object questions the learned head
 clears the equal-compute bar in all four model$\times$benchmark cells; the argmax feeding the
 identical crop pipeline clears in none. Against the unmodified model the gains are $+15.0/+14.1\pp$;
 against random placement $+28.3/+26.7\pp$. The \hrb\ result is zero-shot --- the head was trained on
@@ -196,6 +222,29 @@ Qwen2-VL; $44.0\%$ vs $46.0\%$ on Qwen3-VL, where the argmax is $40.0\%$).
 \paragraph{Two things it does not do.} It does not clear the bar pooled over question types on any
 cell, and it loses on relational questions on every cell. Both were predicted before the runs
 (\S\ref{sec:limits}) and both stay in every table.
+
+\subsection{Deploying it: routing, supervision, cost}\label{sec:route}\label{sec:cost}
+\paragraph{Routing.} DPR loses on relational questions, so a system must decide when to apply it. We
+build and evaluate that decision at exactly matched tokens: routed items get DPR, unrouted items get the
+$600$-token image, and everything is scored against the $600$-token image. A free keyword rule (left /
+right / above / between / \dots) matches \vstar's category labels on $100\%$ of items and lifts DPR over
+the bar \emph{pooled} on both models ($+9.4\ci{+3.1}{+15.2}$, $+6.8\ci{+1.0}{+12.6}$); it does not
+transfer to \hrb's phrasing. An \emph{untuned} router --- the model itself asked, text-only and without
+the image, ``does answering this require comparing, counting, or locating two or more objects relative
+to each other?'' --- clears pooled in three of four cells ($+10.5\ci{+4.2}{+16.8}$,
+$+6.8\ci{+1.0}{+12.6}$ on \vstar; $+2.8\ci{+0.4}{+5.1}$ for Qwen2-VL on \hrb; $+0.4$ for the 2B model
+there, which over-routes). With the category labels as an oracle router all four clear. The composition is
+not hypothetical, and its cost is one ${\sim}60$-token text pass.
+\paragraph{Supervision.} The head needs boxes, and \S\ref{sec:limits} shows they must come from the
+target question type. How many? Training on $k$ random items and testing on the rest: $k{=}25$ gives
+$+7.6/+8.2\pp$ over the argmax, $k{=}50$ gives $+11.9/+11.4$ (sd $2.3/2.8$ over ten draws) against
+$+16.8/+16.2$ at $k{=}191$ --- \emph{fifty boxed items recover $70\%$ of the gain}, once per question
+type, and the head then transfers zero-shot across benchmarks of that type (Table~\ref{tab:more}).
+\paragraph{Cost.} Tokens are matched; wall-clock is not. Measured at batch $1$, $n{=}50$, median:
+the $600$-token pass takes $314/335$\,ms on the two models; DPR with an eager \texttt{output\_attentions}
+localiser takes $1.84\times/2.02\times$ that; with a forward hook that materialises only the last query
+row at the block layers, $1.78\times/1.40\times$. Two sequential passes are a real cost and we report
+it as one.
 
 \subsection{Internal controls}
 On the rows where the head and the argmax select the same cell (84 of 800 on \hrb), the two arms are
@@ -543,13 +592,13 @@ failures ($1$ of $2$, ordering reversed); plain predictive entropy is the best d
 
 \section{Limitations}\label{sec:lim}
 
-The end-task win is single-object questions on two Qwen checkpoints and two benchmarks; pooled it does
-not clear anywhere. LLaVA is tested on proposals only. The cliff, the interventions and the mechanism
+The end-task win is single-object questions; pooled it clears only through a router, which clears
+three of four cells untuned. Three Qwen checkpoints and three benchmarks, but not fully crossed, and
+Qwen3-VL-8B does not clear: the read-out defect grows with scale while the crop's margin over a stronger
+baseline shrinks. LLaVA is tested on proposals only; no other family is tested end-task. The cliff, the interventions and the mechanism
 are \vstar-only because it is the only venue with boxes where the oracle control is valid ---
 POPE's oracle is circular, \hrb\ has no boxes --- and five of the seven intervention nulls are
-single-model. The head is task-specific and needs boxes on its training benchmark. The equal-compute
-bar counts tokens, not latency; two $300$-token passes and one $600$-token pass are not identical in
-wall-clock. Every number in this paper was obtained with $n{=}191$ or $n{=}800$ items and a
+single-model. The head is task-specific and needs boxes on its training benchmark. The equal-compute bar counts tokens; wall-clock is $1.4$--$2.0\times$ (\S\ref{sec:cost}). Every number in this paper was obtained with $n{=}191$ or $n{=}800$ items and a
 $1$--$2.5\pp$ run-to-run floor on coverage; lower bounds of $+1.7$ and $+2.2$ are real but thin.
 
 \bibliography{refs}
