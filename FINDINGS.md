@@ -5652,7 +5652,7 @@ pre-registered variant with a different label-free target (agreement with the mo
 600-token answer, i.e. self-distillation from the bar) is queued as 162b.
 
 
-### §18D  ✗ Fix 4 — a map-only dispersion ROUTE does not carry the pooled claim (Phase 156)
+### §18H  ✗ Fix 4 — a TUNED map-only dispersion route does not carry the pooled claim (Phase 156)
 
 Standing constraint 7 permits question-type adaptation **only from the attention map**. The §18B
 diagnostic gives the map-side signal: top-1 mass share of the raw gated-max map separates
@@ -5699,6 +5699,14 @@ localisation pass per instance, queued), as is Qwen2-VL HR-Bench.
 
 Free, CPU-only, 2.3 s, 237 MB peak: `scripts/phase156_dispersion_router.py`,
 `data/phase156_dispersion_router.json`.
+
+⚠ **Reconciled with §18E/§18F, which clear on both models using the same statistic.** The difference
+is the threshold, not the signal. Here τ is *fitted* out-of-fold to maximise training-fold routed
+accuracy and routes 71.2% / 69.6%; §18E uses the *untuned* training-fold **median** and routes 50% /
+52%, clearing on both models (+5.8 / +5.8). **Tuning the threshold overfits the training folds** — at
+n=191 with a 40-point quantile grid the fitted τ does not generalise, while a fixed median does.
+Read together, the two entries say the dispersion signal is real and usable, and that the only
+defensible way to set its operating point at this sample size is a rule with no free parameter.
 
 ### §18D  ✗ (Qwen3-VL) Fix 2b — the mass-containment window fails for a legible reason (Phase 163)
 Mass box grown on the raw gated map to q=0.6 of its mass, falling back to the head's W=0.25 window when
@@ -5848,3 +5856,37 @@ layers are L0–L3 (Qwen3) and L4–L8 (Qwen2) — *early* layers — whereas th
 (L20–L26, §19). §14F's correlation was carried by early layers every rule already ignores; sink contamination
 and "anti-evidence late layer" are different properties. The head's subtraction still has no label-free proxy.
 Training-free status unchanged: gate max, 1 of 2 on the end task (§16D). Script inline; no GPU.
+
+## §18H — Proportional multi-peak allocation (phase 168): pre-registered P1 FAILS; mechanism degenerate
+
+**Design.** Split the 300-token second-pass budget over the top-3 NMS peaks of the OOF head map in proportion to
+their mass (window W·sqrt(share)), one multi-image pass; arms uniform@600 (bar), head@0.25, prop, prop with fixed W,
+oracle@0.25. Budgets matched (bar 598/597, prop 595/594, head 590/602). **Pre-registered P1:** prop − bar on
+RELATIONAL, CI clear of zero on both models. **Guard:** prop − head@0.25 on single-object not significantly negative.
+
+| model | stratum | bar | head@.25 | prop | oracle | prop − bar | prop − head |
+|---|---|---|---|---|---|---|---|
+| Qwen3-VL | single | 62.6 | 78.3 | 80.0 | 96.5 | +17.4 [+7.8,+27.0] ✔ | +1.7 [−5.2,+9.6] |
+| Qwen3-VL | relational | 65.8 | 65.8 | 56.6 | 75.0 | **−9.2 [−23.7,+5.3]** | −9.2 [−22.4,+2.6] |
+| Qwen3-VL | all | 63.9 | 73.3 | 70.7 | 88.0 | +6.8 [−1.6,+15.2] | −2.6 [−9.4,+4.2] |
+| Qwen2-VL | single | 57.4 | 66.1 | 71.3 | 93.9 | +13.9 [+5.2,+23.5] ✔ | +5.2 [−1.7,+13.0] |
+| Qwen2-VL | relational | 59.2 | 57.9 | 68.4 | 77.6 | +9.2 [−3.9,+22.4] | +10.5 [−2.6,+23.7] |
+| Qwen2-VL | all | 58.1 | 62.8 | 70.2 | 87.4 | +12.0 [+4.2,+19.4] ✔ | +7.3 [+0.5,+14.1] ✔ |
+
+**Verdict.** P1 fails on Qwen3 (relational −9.2) → not adopted. Guard passes on both. **The mechanism was
+degenerate:** NMS returned k=3 peaks on 100% of items on both models — the head map is never concentrated enough
+to collapse to one peak — so "proportional" was in practice a fixed 3-way split of the head's top-3 peaks, i.e.
+non-adaptive multi-crop (cf. §14M, 4 uniform crops −3.1). As such it is 1 of 2 vs the head (Qwen2 +7.3 ✔ pooled,
+Qwen3 −2.6 n.s.) and opposite-signed on relational across models. Seventh adaptation design closed
+(sizer, depth-aligned, span, mass, (cell,W), windowed features, proportional). Scripts: phase168_proportional.py,
+phase168_analyze.py; data/phase168_prop_{qwen3,qwen2}.jsonl.
+
+## §18J — ILVAD depth-difference rule (ICML'26, 2605.20965) ported as a cell scorer: NEGATIVE, 4 architectures
+
+S = Σ_l ReLU(B⁽ˡ⁺¹⁾ − B⁽ˡ⁾), B binarised at τ·layer-mean (paper's rule), plus a soft un-binarised variant and
+restrictions to l ≥ gate / l ≤ gate end. Read at the answer position (paper reads first 10 generated tokens).
+Coverage at W=0.25 vs deployed block mean: binarised versions collapse to 3–13% on every model (newly-activated
+counts are dominated by sink/edge cells flipping across the threshold); soft variants are within noise or worse
+on both Qwen (best Qwen3 51.3 vs gate max 56.0; Qwen2 39.8 vs 51.8), clear only on LLaVA-NeXT (l≥gate, 27.2
+[+0.5,+7.9]). No version approaches gate max on both Qwen → not a label-free proxy for the head's subtraction.
+Cited as predecessor for the depth-difference idea. Script: scripts/phase170_ilvad_rule.py.
