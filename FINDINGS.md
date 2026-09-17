@@ -5672,15 +5672,24 @@ for line; τ is chosen out-of-fold, GroupKFold(5) grouped by item (V\*Bench) / i
 **The pre-registered primary fails: 1 of 2 on V\*Bench.** R3 − R1 is **−6.8 [−12.0,−1.6]** on Qwen3
 and +0.5 [−4.2,+5.2] on Qwen2 — on Qwen3 the map-only route is significantly *worse* than the text
 rule it would replace. The AUROC replicates exactly (0.735 / 0.805 gated-max; 0.745 / 0.839
-block-mean) so the signal is real; **detection at AUROC 0.74 is not enough to route when the
-alternative is a rule that is 100% concordant with the labels.** Agreement with the category oracle:
-R3 63.9% / 69.6%, R1 100%.
+block-mean) so the signal is real — and it reproduces §18B's diagnostic from independent code, which
+is a genuine cross-check rather than a re-read. **Detection at AUROC 0.74 is not enough to route when
+the alternative is a rule that is 100% concordant with the labels.** Agreement with the category
+oracle: R3 63.9% / 69.6%, R1 100%.
 
-On HR-Bench the statistic is at **chance** (AUROC 0.515) and the fitted threshold degenerates to
-routing 5% of items — i.e. "almost never crop" — which still loses 1.1pp. §17A's HR-Bench null is
-therefore not a keyword-rule artefact: **no question-type signal of this kind is present in that
-benchmark's block-mean maps at all.** The gated-max arm there is unrun (no per-layer HR-Bench maps on
-disk; one localisation pass per instance, queued), as is Qwen2-VL HR-Bench.
+⚠ Direction: `entropy_norm` predicts the *relational* class, so its printed AUROCs (0.315 / 0.296 /
+0.209 / 0.170) are 0.685 / 0.704 / 0.791 / **0.830** as a single-object detector — on Qwen2 block-mean
+the strongest of the four. `top1_frac` was pre-registered as primary and substitution was barred, so
+this is recorded, not acted on.
+
+On HR-Bench the statistic is at **chance** (AUROC 0.515), so the threshold has nothing to fit and
+collapses to routing 5% of rows — **40 rows, 10 distinct instances** — i.e. "almost never crop". The
+−1.1pp attached to that row is **not** a loss claim: 95% of rows are exact ties against the bar and
+contribute no variance, and `ci()` bootstraps rows rather than instances, so the interval is
+understated twice over. The conclusion rests on the AUROC alone. §17A's HR-Bench null is therefore
+not a keyword-rule artefact: **no question-type signal of this kind is present in that benchmark's
+block-mean maps at all.** The gated-max arm there is unrun (no per-layer HR-Bench maps on disk; one
+localisation pass per instance, queued), as is Qwen2-VL HR-Bench.
 
 > **What this leaves for fix 2b.** A hard route is the wrong shape for a map-only signal this noisy:
 > it spends the whole AUROC on one binary decision. Phase 163's mass-containment window uses the same
@@ -5702,3 +5711,18 @@ signal (§18B diagnostic, AUROC 0.74/0.81) is **relative**, not absolute, and a 
 cannot read it. This is the second geometric window to fail after the peaks rule; with the closed
 per-item sizer (§14U) it is the third attempt to derive a window from the map. **Not tuning q.**
 Qwen2-VL leg pending as the formal second cell.
+
+### §18E  (analysis only — no method change) a map-concentration skip clears pooled on both models
+Not run as a method; computed from stored outcomes to inform a decision. Apply DPR only when the raw
+gated map's top-1 share is above the median of the training fold (OOF, label-free, no question text);
+otherwise spend the 600 tokens on the whole image. Scored against uniform@600 everywhere.
+
+| | routes | (single / relational) | always-DPR pooled − bar | map-skip pooled − bar |
+|---|---|---|---|---|
+| Qwen3-VL | 50% | 65% / 26% | +7.9 [−0.5,+16.2] ✗ | **+5.8 [+0.5,+11.0]** ✔ |
+| Qwen2-VL | 52% | 71% / 22% | +6.8 [−1.0,+14.7] ✗ | **+5.8 [+0.5,+11.5]** ✔ |
+
+The map's dispersion is enough to decide *whether to crop at all*, even though two attempts to turn
+it into a *window size* failed (§18B, §18D). Whether a map-derived skip counts as a "router" under
+constraint 7 is a framing decision left to the user; it uses no question text and no labels, and the
+threshold is the fold median (no tuning).
