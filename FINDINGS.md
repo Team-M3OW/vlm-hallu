@@ -5315,3 +5315,12 @@ W=0.25: log-linear −3.1 / **−6.8 [−11.5,−2.1]** on Qwen; +5.2 / +0.5 on 
   CI clear), the model where the tree, max-over-layers and everything else fail. Provisional: one
   model, one window (W=0.25 is +0.5 n.s.). If it holds, the readable head is the more *portable* one
   and the tree the more *accurate* one — a trade-off worth one paragraph, not a replacement.
+
+### §16C addendum — the log-linear clears the DEPLOYED argmax on all four architectures (W=0.15)
+| vs deployed | Qwen3-VL | Qwen2-VL | LLaVA-NeXT | LLaVA-OneVision |
+|---|---|---|---|---|
+| tree | +14.1 ✔ | +8.9 ✔ | +7.3 ✔ | −1.0 ✗ |
+| **log-linear** | +11.5 ✔ | +6.8 ✔ | **+8.4 [+3.1,+13.6]** ✔ | **+5.8 [+0.5,+11.5]** ✔ |
+
+**4 of 4 for the readable head vs 3 of 4 for the tree**, at a 2–3pp cost on Qwen. At W=0.25 OneVision
+is +2.1 [−4.2,+7.9] (n.s.) and NeXT +10.5 ✔. The portability claim is W=0.15-only until replicated.
