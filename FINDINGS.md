@@ -5995,3 +5995,27 @@ fold assignment on near-identical inputs (61.1/65.8/62.8 on Qwen3) — consisten
 block mean by −11pp on Qwen2 — archived in data/phase173_wrongconv/, never analysed further. Head-averaging convention is
 load-bearing and is now stated in the extraction script. Scripts: phase173_laser_maps.py, phase173_analyze.py,
 phase173_paired.py, phase173_repro_check.py; data/phase173_laser_{qwen3,qwen3_fp16,qwen3_rep,qwen2}.jsonl (+ per-head npz, not committed).
+
+## §18L — Window chosen by EXPECTED ACCURACY (phase 174): NEGATIVE on both; the W-adaptation axis is closed
+
+Repairs the §18G objective: a 4-parameter global curve acc = f(coverage, W) (logistic in coverage, log W and their
+product; fit on training-fold items from the head@W / oracle@W / uniform@300 arms of the existing sweeps, phase 78
+Qwen3 and 97m Qwen2) and W* = argmax_W f(predicted coverage@W at the head's cell, W), predicted coverage from the
+§18G joint regressor OOF. Evaluation is an exact lookup of the end-task result of arm head@W* — no GPU, no question.
+
+| model | stratum | always 0.25 | utility-W | bar | utility − always 0.25 | utility with ACTUAL coverage − always 0.25 |
+|---|---|---|---|---|---|---|
+| Qwen3 | single | 78.3 | 70.7 | 62.6 | −7.5 [−14.2,−1.2] ✗ | −9.3 [−16.2,−2.6] |
+| Qwen3 | relational | 61.8 | 59.6 | 65.8 | −2.2 [−10.5,+6.1] | −5.3 |
+| Qwen3 | all | 71.7 | 66.3 | 63.9 | **−5.4 [−10.6,−0.3] ✗** | −7.7 [−13.1,−2.3] |
+| Qwen2 | single | 68.7 | 63.2 | 57.4 | −5.5 [−13.6,+2.6] | −4.3 |
+| Qwen2 | relational | 59.2 | 61.0 | 59.2 | +1.8 [−9.2,+13.2] | −0.0 |
+| Qwen2 | all | 64.9 | 62.3 | 58.1 | **−2.6 [−9.4,+4.0]** | −2.6 |
+
+Chosen W: Qwen3 0.35 on 44% / 0.5 on 30% / 0.15 on 21%; Qwen2 0.5 on 69% / 0.35 on 27%. P1 fails on both, the guard
+fails on Qwen3. **Diagnosis:** even with the *true* coverage the rule loses — the accuracy-vs-W curve is too flat
+(head@0.15–0.35 within 3pp on both models) relative to per-item noise, so any per-item W choice trades a small
+systematic gain for a larger noise cost. The per-item best-W "ceiling" (+16/+22 over always-0.25) is answer-key
+noise (max over six ~65%-accurate binaries), not headroom. Eighth window-adaptation design; with §14U, §18B, §18D,
+§18F, §18G, §18H (and the banned §18E gate) the axis is closed: *from the map the method decides where, not how large.*
+Script: scripts/phase174_utility_window.py.
