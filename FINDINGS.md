@@ -6140,7 +6140,20 @@ entropy rises on **54–58%** of items (CLD reports 16.2% for LLMs), yet per-lay
 to the end (L21:54→L27:58 @300; L21:64→L27:64 @600). Rising entropy ≠ degradation here — there is no better layer
 to select, which is why every ported layer-selection rule (§18K, §18M) has failed. (ii) *The resolution deficit is
 localised to answer formation*: the 300-vs-600 lens-accuracy gap is ~0 through L20 and opens to ~+10pp at L21+,
-the depth §19 identifies. Qwen2 leg pending. Script: phase177_cld_answer.py, phase177_analyze.py.
+the depth §19 identifies.
+
+**Qwen2-VL leg: same verdict — 0 of 2.** Anchor clean (51.3 vs stored 50.8 @300, 96% per-item; 58.1 vs 58.1 @600,
+100%). CLD valley K=6 −2.6 [−5.8,+0.5] @300 and −1.0 [−4.2,+2.1] @600; no variant beats the final layer on either
+budget. **The dissociation is stronger here:** final-layer entropy rises on **86–88%** of Qwen2 items (54–58% on
+Qwen3; 16.2% in CLD's LLM results) while per-layer lens accuracy still climbs to the end (L22:54 → L27:58 @600).
+
+> **In VLMs, a final-layer entropy increase does not indicate degradation.** The alignment-tax signature that
+> motivates layer selection in LLMs is present — and far more prevalent — yet carries no usable signal about
+> which layer to decode from. This is the common cause of every failed layer-selection port in this project
+> (§18K LASER, §18M CLD/Att-JSD/ASL/EMA/SLED on the map, §18N CLD on the answer): there is no better layer to
+> select, so any rule that selects one can only lose.
+
+Script: phase177_cld_answer.py, phase177_analyze.py.
 
 ## §21 — THE HEAD IS A CLOSED-FORM LINEAR DEPTH FILTER (phases 180, 181, four architectures)
 
