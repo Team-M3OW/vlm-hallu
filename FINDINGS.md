@@ -5427,3 +5427,15 @@ two families** (§14R is now 4 × 1). But max over the gated layers does not res
 (+2.1 n.s. on NeXT, −4.2 on OneVision): every training-free rule is Qwen-only; the learned head
 (3 of 4) and the readable head (4 of 4 vs deployed, §16C) are the only things that cross the family
 line. Curves in `data/phase142_llava_divergence.json`.
+
+### §16A addendum — fully isolated (Phase 121b): the options contribute nothing
+| localisation prompt | Q3 argmax | Q3 head | Q2 argmax | Q2 head |
+|---|---|---|---|---|
+| V0 question + options + instruction | 46.1 | 61.8 | 39.8 | 56.0 |
+| **V5 question + instruction, NO options** | **47.6** (+1.6 [−3.1,+6.3]) | 58.6 (−3.1 [−7.3,+1.0]) | **41.4** (+1.6 [−2.1,+5.2]) | 55.0 (−1.0 [−6.3,+4.2]) |
+| V2 question + options, no instruction (121) | 3.7 | 45.5 | 0.5 | 42.9 |
+
+Removing the options changes nothing; removing the instruction collapses the map. **The attention
+read-out works when — and only when — the prompt ends at the answer-emission point.** 2 models,
+both directions tested. §15D/§15I's "restored the options" is corrected to "restored the
+answer-emission point" (72b's bare question lacked both; only the second mattered).
