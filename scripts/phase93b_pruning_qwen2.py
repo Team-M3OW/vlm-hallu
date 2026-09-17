@@ -48,7 +48,7 @@ os.environ.setdefault("HF_HUB_CACHE", "/media/kavinder/hdd2/hf_cache")
 os.environ["HF_DATASETS_OFFLINE"] = "1"
 os.environ["HF_HUB_OFFLINE"] = "1"
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
-import transformers.models.qwen3_vl.modeling_qwen3_vl as QM
+import transformers.models.qwen2_vl.modeling_qwen2_vl as QM   # FIXED: the sed copy kept Qwen3 module; patch never reached Qwen2-VL (phase 93b void)
 from transformers import AutoProcessor, AutoModelForImageTextToText
 
 MODEL_ID = "Qwen/Qwen2-VL-7B-Instruct"

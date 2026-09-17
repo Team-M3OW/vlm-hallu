@@ -5133,3 +5133,15 @@ measurement; they were explaining an artefact.
 ### Status
 The method is now **2 benchmarks on Qwen3-VL** and **2 models on V\*Bench**. The crossing — Qwen2-VL
 head on HR-Bench — is queued (phase 72a/72c-qwen2). Until it lands the method is not 2 × 2.
+
+
+## §15F  ⛔ VOID: phase 93b (Qwen2-VL pruning on POPE/MMBench) patched the wrong modeling module
+
+All four arms — none / layer-2 / late / random — returned **identical predictions on 400/400 items**,
+CI [+0.0,+0.0]. That is the phase-42 signature of an intervention that never fired. Cause: the script
+was a sed copy of phase 93 and kept `import ...qwen3_vl.modeling_qwen3_vl as QM`; the attention patch
+was installed on Qwen3-VL's module while Qwen2-VL ran unpatched, so the prune bias was set but never
+read. Phase 83 (which did prune Qwen2-VL correctly) imports the qwen2_vl module. Fixed and re-queued
+behind the 72c-qwen2 run. The void file is kept as `phase93b_VOID_wrong_module.jsonl`.
+
+**Rule reinforced:** an arm contrast of exactly +0.0 [+0.0,+0.0] is a pipeline fault, never a null.
