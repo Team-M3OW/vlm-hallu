@@ -4793,7 +4793,7 @@ the band the deployed block was hand-set to, and Qwen2-VL's includes **L21**, th
 was its best single localiser and §14I(b) found is where its answer forms.
 
 
-## §14Y  ✗ SCOPE: the re-ranking head does NOT transfer to the LLaVA family (Phase 110)
+## §14Y  ⚠ CORRECTED — the head DOES transfer to LLaVA-NeXT at the deployed window (Phase 110, 110b)
 
 Phase 82's stored per-layer attention made this a no-GPU test. Phase 70's machinery verbatim — same
 features, same out-of-fold GroupKFold grouped by item, same negative subsampling, same ring mask —
@@ -4825,10 +4825,32 @@ At this project's measured conversion rate (**~0.62pp of accuracy per pp of cove
 clear by 11–16pp. An hour of GPU for a null we can compute in advance, which would not change the
 scoping decision.
 
-> **Consequence for the paper.** The method claim is scoped to one family and must say so:
-> *significant on two checkpoints of the Qwen family; direction consistent but not significant on
-> two checkpoints of the LLaVA family, where the underlying proposal signal is roughly half as
-> strong.* This is the weakness a reviewer would find, stated by us instead.
+### ⚠ CORRECTION (phase 110b): the above is a W=0.25 result, not a general one
+
+The table above uses **W=0.25**. The deployed window is **W=0.15**, and at that window the head
+clears on LLaVA-NeXT:
+
+| W=0.15 | block-mean | max over block | **learned head** |
+|---|---|---|---|
+| Qwen3-VL-2B | 39.3% | +1.6 ✗ | **+14.1 [+7.9,+20.4]** ✔ |
+| Qwen2-VL-7B | 35.1% | +5.2 ✔ | **+8.9 [+3.1,+14.7]** ✔ |
+| **LLaVA-NeXT-7B** | 12.6% | +0.0 ✗ | **+7.3 [+2.1,+12.6]** ✔ |
+| LLaVA-OneVision-7B | 25.1% | −3.7 ✗ *worse* | −1.0 ✗ |
+
+**The head is 3 of 4 across two families**, matching §14N's independent +6.3pp on LLaVA-NeXT — three
+measurements of the same quantity at +6.3, +7.3 and +5.2, the last being the W=0.25 arm whose CI
+spans zero. The single failure is LLaVA-OneVision, and §14N already explains it: that is the one
+model whose **best single layer equals its block mean**, so its layers agree with one another and
+there is no disagreement for any re-ranker to exploit.
+
+> **And the comparison that matters for the paper's framing: the learned head transfers across
+> families (3 of 4) while the training-free max rule does not (1 of 4 at W=0.15, and −3.7pp on
+> LLaVA-OneVision).** The hand-designed corrections that beat a simple read-out on Qwen are
+> Qwen-specific; the learned read-out is not. Any move to replace the head with something more
+> elegant must clear this bar, not just the Qwen bar.
+
+⚠ My error, recorded: I ran LLaVA at W=0.25 only and wrote the scope conclusion from it. The window
+interacts with the model, and a single-window scope claim was not supported.
 
 
 ## §14Z  ✗ NEGATIVE: the fixes that rescue a SIMPLE read-out add nothing to a LEARNED one (Phase 112)
