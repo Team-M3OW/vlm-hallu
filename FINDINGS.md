@@ -5418,3 +5418,12 @@ The head reads mostly *locally-smoothed* log-attention (neighbourhood weights ca
 mass of point weights), led by **L19 on both models** and **L21 on Qwen2** (its answer-formation
 layer), with late layers L26/L22/L23 subtracted on Qwen3 and mid layers L7/L11/L17 on Qwen2. Sink
 indicators ≈0 on both. That is the complete description of a head at parity with the tree.
+
+### §16D addendum — the divergence gate on LLaVA (Phase 142): mechanism replicates, rescue does not
+New label-free question-divergence curves for both LLaVA models. **The switch-on replicates**:
+L14 of 32 (44% depth) on LLaVA-NeXT, L16 of 28 (57%) on LLaVA-OneVision — against L14→16 of 28 on
+both Qwen models. **Attention is question-blind until roughly half depth on four architectures across
+two families** (§14R is now 4 × 1). But max over the gated layers does not rescue LLaVA localisation
+(+2.1 n.s. on NeXT, −4.2 on OneVision): every training-free rule is Qwen-only; the learned head
+(3 of 4) and the readable head (4 of 4 vs deployed, §16C) are the only things that cross the family
+line. Curves in `data/phase142_llava_divergence.json`.

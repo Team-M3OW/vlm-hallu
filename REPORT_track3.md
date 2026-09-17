@@ -104,4 +104,47 @@ single-object questions and closes the coverage gap to the head to 3.7 / 2.7pp, 
 significantly clear the bar on the second model. Its advantage over CLAA's max_win4 is that the layer
 set comes from a label-free measurement rather than out-of-fold selection on boxes.
 
-## 6. LLaVA divergence gate (phase 142) — PENDING
+## 6. LLaVA: the divergence gate does not transfer (phase 142)
+
+A phase-95 curve was measured for both LLaVA models (40 images × 4 questions, no boxes). The
+**mechanism replicates on a second family**: attention is question-blind until mid-depth, then jumps
+— LLaVA-NeXT 0.036 → **0.408 at L14 of 32** (44%), LLaVA-OneVision 0.049 → **0.289 at L16 of 28**
+(57%). Four architectures, two families, same switch-on region. But the gated max does **not**
+rescue localisation there:
+
+| gate ≥0.5·max | LLaVA-NeXT (L14, L17) | LLaVA-OneVision (L16,19,21,22,27) |
+|---|---|---|
+| deployed mean block | 23.0 | 35.6 |
+| div-gated max | 25.1 (+2.1 [−3.1,+7.3]) | 31.4 (−4.2 [−8.9,+0.5]) |
+| div-gated mean | 23.0 (+0.0) | 35.1 (−0.5) |
+
+Robust across gate constants 0.3–0.7. Max-over-layers hurts OneVision under every layer set, and the
+gate cannot fix that: OneVision's problem is not *which* layers but that its layers agree (§14N), so
+neither max nor any weighting has disagreement to exploit. **The training-free rule is Qwen-only;
+the learned head stays 3 of 4.**
+
+## 7. Verdict
+
+1. **Not additive.** Norm weighting, head selection and max-over-layers each fix the sink; stacked,
+   they land on the same ~56 / ~49 coverage. The only component that adds is the **layer set**.
+2. **The best fixed-constant, label-free locator** is *max over the layers where attention is
+   question-conditioned* (phase-95 gate, raw maps): 56.0 / 52.4 coverage, +9.9 / +12.6 over the
+   deployed rule, and on Qwen2 it beats norm-weighted max (+3.7 [+1.0,+6.8]). With heads + ‖v‖ it
+   reaches 59.7 / 51.8 — **3.7 / 2.7pp short of the learned head**.
+3. **End-task: no training-free rule clears the equal-compute bar on both models.** The label-free
+   rule clears on Qwen3 (+10.4 [+0.9,+20.9]) but not Qwen2 (+7.0 [−2.6,+16.5]); the pre-registered
+   composite clears on neither. The head clears on both, by ~4–5pp on single-object.
+4. **Dead:** ReAttn entropy rescaling (−9 to −27pp), VEA denoising (−1 to −3pp on Qwen), phase-30d
+   background on top of max/heads (null to negative).
+5. **Cross-family:** every training-free rule is Qwen-only. The divergence *mechanism* replicates on
+   LLaVA (switch-on at 44% / 57% of depth), the *rule* does not (+2.1 n.s. / −4.2).
+
+For the paper: the training-free counterpart is a real, citable one-liner — it recovers most of the
+read-out gap with no boxes and a label-free layer set — but the learned head is what converts to a
+win at equal compute, on both models and both families where proposals were tested.
+
+**Files.** scripts/phase140_trainfree_ladder.py, phase140b_gate_sensitivity.py,
+phase141_trainfree_endtask.py, phase142_llava_divergence.py, phase142b_llava_gate.py;
+data/phase140_ladder_hits.json, phase140_proposals_qwen{3,2}.json,
+phase141_trainfree_endtask_qwen{3,2}.jsonl, phase142_llava_divergence.json; logs/phase14{0,1,2}*.log.
+Nothing committed; FINDINGS/LEDGER/PAPER_FLOW untouched.

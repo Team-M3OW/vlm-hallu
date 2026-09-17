@@ -20,6 +20,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **DCR beats the vanilla VLM** | **Q3, Q2** | **+12.0pp [+4.2,+19.9]** / **+10.5pp [+2.6,+18.3]** — both CIs clear |
 | **DCR beats random placement** | **Q3, Q2** | +28.3pp / +20.9pp [+11.5,+30.4] |
 | **The encoding cliff** | **Q3, Q2** | step at 0.15–0.25 merged tokens, oracle flat across it (§13C) |
+| **Attention is question-blind until ~half depth (§14R, §16D add.)** | **Q3, Q2, NX, OV** | switch-on at 50–57% (Qwen), 44% (NeXT), 57% (OneVision); label-free divergence curves. Gating by it rescues localisation on Qwen only |
 | **The serialization sink** | **Q3, Q2, OV, NX** | 3.4–4.5× implicit, 2.0–2.3× on `image_newline` (§5) |
 | **No published crop policy beats the budget axis at matched tokens** | **Q3, Q2** | §9A/§9B |
 | **★★★ Layer-2 pruning is BELOW RANDOM — 2 MODELS × 3 BENCHMARKS** | **Q3, Q2 × V\*, POPE, MMBench** | layer-2 − random: V\* −3.7/−4.7, POPE −15.0/−11.0, MMBench −25.5/−5.5; late − layer-2 clears in all six cells (§14L(b), §14P, §15H) |
