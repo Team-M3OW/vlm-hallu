@@ -6348,4 +6348,33 @@ n=190 (1 item dropped: no LASER placement, grid mismatch in the phase-173 maps).
 
 **Stated honestly:** the label-free gate-max rule (§16D) already beats every published baseline (68.9 vs 64.7);
 supervision adds +4.2 pooled and is not significant at n=190. Both numbers go in the paper.
+
+### §23B ✗ Qwen2-VL leg: **P1 FAILS — the method does not beat published baselines on two models**
+Anchor clean (u@300 50.8, u@600 58.1 reproduce phase 97m exactly). Budgets 597 (bar) vs 607 (crop arms), within gate.
+
+| stratum | u@300 | **bar** | vicrop_L14 | vicrop_block | LASER | gate-max | **head** | oracle |
+|---|---|---|---|---|---|---|---|---|
+| single | 45.2 | 57.4 | **33.9** | 67.0 | 65.2 | 63.5 | 66.1 | 93.9 |
+| relational | 59.2 | 59.2 | 44.7 | 47.4 | 55.3 | 56.6 | 57.9 | 77.6 |
+| ALL | 50.8 | 58.1 | 38.2 | 59.2 | 61.3 | 60.7 | **62.8** | 87.4 |
+
+P1 head−LASER **+1.6 [−5.2,+8.4]** pooled, **+0.9 [−6.1,+7.8]** single — n.s. P2 head−gate-max +2.1 [−4.2,+8.9] n.s.
+head−bar +4.7 [−3.7,+12.6] n.s. **With Qwen3's +8.4 ✔ this is 1 of 2: under the standing rule the claim "depth
+re-ranking beats the best published baseline at equal compute" is REJECTED.** On Qwen2 every placement rule
+(ViCrop-block 59.2, LASER 61.3, gate-max 60.7, head 62.8) sits inside one CI of the others.
+
+### §23C What survives on BOTH models
+1. **Fixed-layer cropping is catastrophic**: 24.6 / 33.9 vs bars 62.3 / 57.4 — below the 4-option chance rate on
+   Qwen3. Reading attention at one hand-picked layer destroys the task. **2 of 2.**
+2. **The §22 scope law is family-wide, 2 of 2**: on cross-instance/relational every arm is at or below the bar on
+   both models. The failure belongs to attention-guided cropping, not to our head.
+3. **At equal compute the family is worth ~0–3pp**: vicrop_block is *below* the bar on Qwen3 (62.1 vs 63.7) and
+   +1.1 on Qwen2. Invisible in the literature because those papers do not budget-match.
+4. **Oracle headroom remains large** (87.9 / 87.4 vs heads 73.2 / 62.8): placement is still the bottleneck, so a
+   better method exists — we do not have it.
+
+⇒ **Consequence for the paper.** The method-led claim is not supported on two models. What replicates is the
+evaluation-and-scope result about the whole family (§22 + §23C). The defensible paper is findings-led, with depth
+re-ranking as the best-effort placement rule and an explicit statement that it does not reliably separate from
+LASER/ViCrop at equal compute on Qwen2.
 Scripts: phase179_placements.py, phase179_baselines.py, phase179_analyze.py.
