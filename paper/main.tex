@@ -461,11 +461,6 @@ within a question type (\vstar\ $\to$ \hrb) and fails across --- the VLM counter
 \citet{orgad2025llmsknow}'s ``skill-specific'' probes, and of \citet{lu2026reallocating}'s
 task-dependent boundary bands.
 
-\paragraph{Budget slope is not the discriminator.} We proposed, and refuted, two accounts of why
-allocation should fail at 4K: that \hrb's budget axis is steep ($+6.7/+8.7\pp$ per doubling, the same
-as \vstar's $+7.3$), and that the crop must be re-encoded at native resolution (the optimal $W$ at 4K is
-not the predicted $0.12$). The 4K failure they were explaining was an artefact (App.~\ref{app:corr}).
-
 \section{Mechanism}\label{sec:mech}
 
 \paragraph{Attention is question-blind until half depth, on four architectures.} Run the same image
@@ -500,36 +495,26 @@ Four architectures, two families (App.~\ref{app:sink}). Suppressing it buys noth
 $4.8\%$ of image tokens moves accuracy by $\leq 2\pp$ while the same number of text tokens costs $17\pp$.
 
 \section{Related work}\label{sec:related}
-
-\paragraph{Attention reweighting.} VEA~\citep{liu2026vea} highlights deep-layer evidence pixels;
-\citet{lu2026reallocating} rescale perception and reasoning heads; KLAL~\citep{esmaeilkhani2026klal}
-supervises attention with GT maps during fine-tuning. All report gains; none measures target size or
-runs an oracle control; \S\ref{sec:why} locates the boundary of the family. \citet{liu2026vea}
-identify L16--26 by AUROC against boxes on document VQA; we identify the same band by label-free
-question divergence on small-object search --- independent convergence we cite rather than claim.
-
-\paragraph{Cropping and allocation.} ViCrop~\citep{zhang2025vicrop}, ZoomEye~\citep{shen2024zoomeye},
-AttWarp~\citep{attwarp2026}, Visual-CoT~\citep{shao2024viscot}, CropVLM~\citep{carvalho2026cropvlm}.
-\S\ref{sec:priorart}: at matched realised budget ZoomEye loses to a single uniform image of its own
-budget, grounding loses $6.2\pp$ with median IoU $0.029$, AttWarp is $+0.6\pp$ against a bar its paper
-never runs, and tree search at 4K is $-15.3\pp$ against its own bar at $2.2\times$ the tokens ($n{=}800$).
-Our fixed always-crop policy fails the same bar; only the learned read-out passes it.
-
-\paragraph{Token pruning and read depth.} FastV~\citep{chen2024fastv}, FEATHER~\citep{endo2025feather},
+\textbf{Attention reweighting} --- VEA~\citep{liu2026vea}, head rescaling~\citep{lu2026reallocating},
+KLAL~\citep{esmaeilkhani2026klal} --- reports gains, measures no target size and runs no oracle control;
+\S\ref{sec:why} locates the family's boundary. VEA finds L16--26 by AUROC on document VQA; we find the
+same band label-free on small-object search, a convergence we cite rather than claim.
+\textbf{Cropping and allocation} --- ViCrop~\citep{zhang2025vicrop}, ZoomEye~\citep{shen2024zoomeye},
+AttWarp~\citep{attwarp2026}, Visual-CoT~\citep{shao2024viscot}, CropVLM~\citep{carvalho2026cropvlm} ---
+is scored at matched realised budget in App.~\ref{app:priorart}: every policy breaks even or loses
+(ZoomEye to a single uniform image of its own budget; grounding $-6.2\pp$ at median IoU $0.029$; AttWarp
+$+0.6$; tree search at 4K $-15.3$ at $2.2\times$ the tokens, $n{=}800$), and so does our own fixed
+always-crop policy; only the learned read-out passes.
+\textbf{Token pruning} --- FastV~\citep{chen2024fastv}, FEATHER~\citep{endo2025feather},
 TwigVLM~\citep{shao2025twigvlm}, LearnPruner~\citep{learnpruner2026}, \citet{wen2025rightproblem},
-\citet{wang2026worsethanrandom}. That early-layer attention is unreliable is established by all of
-them; we cite it. What none runs is the read-depth / prune-depth decomposition of \S\ref{sec:prune},
-and none reports the four read-out axes of \S\ref{sec:readout}.
-
-\paragraph{Interpretability transfer.} Attention rollout~\citep{abnar2020rollout},
-norm-based analysis~\citep{kobayashi2020norm}, LRP~\citep{chefer2021beyond}, CLAA~\citep{mcdanel2026claa},
-CoRe~\citep{tran2026core}, ReAttn~\citep{tian2026reattn}, \citet{orgad2025llmsknow}. Ported and scored
-in \S\ref{sec:readout} and App.~\ref{app:probes}: sink-targeting fixes transfer, mixing-targeting fixes
-do not, and ``probe the exact answer tokens'' does not port to vision.
-
-\paragraph{Fine-scale perception.} \citet{li2026lastpixel} find perception saturating around $12$px
-on synthetic canvases with a perception/reasoning split; the cliff of \S\ref{sec:why} is its natural-image,
-token-unit, oracle-controlled counterpart.
+\citet{wang2026worsethanrandom} --- establishes that early-layer attention is unreliable; none runs the
+read-depth/prune-depth decomposition of \S\ref{sec:prune} or reports the four axes of \S\ref{sec:readout}.
+\textbf{Interpretability transfer} --- rollout~\citep{abnar2020rollout}, norms~\citep{kobayashi2020norm},
+LRP~\citep{chefer2021beyond}, CLAA~\citep{mcdanel2026claa}, CoRe~\citep{tran2026core},
+ReAttn~\citep{tian2026reattn}, \citet{orgad2025llmsknow} --- is ported and scored in \S\ref{sec:readout}
+and App.~\ref{app:probes}. \textbf{Fine-scale perception}: \citet{li2026lastpixel} find perception
+saturating near $12$px on synthetic canvases; the cliff is its natural-image, token-unit,
+oracle-controlled counterpart.
 
 \section{What does not work}\label{sec:neg}
 
@@ -775,7 +760,7 @@ RePOPE-clean labels joined to COCO boxes, stratified to over-represent the below
 positives $<0.25$ tokens, all taken; $198$ in $[0.25,1)$; $200$ above; $200$ negatives), so overall
 accuracy is not comparable to published POPE. Budget drift $0.1\%$.
 \begin{table}[h]\centering\small
-\begin{tabular}{lrrrrrr}
+\resizebox{\textwidth}{!}{\begin{tabular}{lrrrrrr}
 \toprule
 stratum & $n$ & uniform@300 & uniform@600 & crop@0.25 & random crop & oracle crop \\
 \midrule
@@ -784,7 +769,7 @@ cliff zone & $198$ & $84.8$ & $89.4$ & \bad{$12.1$} & $16.7$ & $97.0^{\circ}$ \\
 above & $200$ & $100.0$ & $98.5$ & \bad{$35.5$} & $44.5$ & $89.5^{\circ}$ \\
 negatives & $200$ & $88.5$ & $89.5$ & $93.5$ & $94.0$ & --- \\
 \bottomrule
-\end{tabular}\\[2pt]
+\end{tabular}}\\[2pt]
 {\footnotesize $^{\circ}$circular: on POPE, knowing the box is knowing the object is present.}
 \end{table}
 The median POPE object occupies $32$ merged tokens at $B{=}300$ and only $90$ positives fall below the
@@ -840,7 +825,7 @@ uniform curve, so \texttt{peak}'s own contribution is $+1.9$.
 coverage $\approx +3$--$4\pp$ accuracy) while a third pass moves the bar to uniform@900 ($\approx+4\pp$);
 top-2 is adjacent to top-1 on $67\%$ of items. Predicted null; not run. Misses are distractors (median
 $3$--$5$ cells away, $5$--$8\%$ near-misses), so spatial fixes cannot help.
-\paragraph{Two refuted diagnostics.} ``Allocation wins where the budget axis has saturated'':
+\paragraph{Two refuted diagnostics.} Both were proposed to explain a 4K failure that turned out to be an artefact. ``Allocation wins where the budget axis has saturated'':
 \vstar's axis is near-linear ($+8.0$, $+7.3$, $+8.7\pp$ per doubling). ``The crop must be re-encoded at
 native resolution, so $W^\ast\approx 485/\text{side}$'': predicted $0.12$ at 4K, measured $0.25$, flat on
 single-object.
