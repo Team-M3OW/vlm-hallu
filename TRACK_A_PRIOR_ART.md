@@ -1,4 +1,28 @@
-# Track A — prior-art survey (2026-09-17)
+# Track A — predecessors and what remains ours (2026-09-17, reframed)
+
+**Framing decision.** TwigVLM and VEA are treated as **predecessors**, like every other work here:
+cited for what they established, not treated as vetoes. We do not claim their findings as our
+discovery, and we do not let them decide what our section is about.
+
+That early-layer attention is unreliable is now established **four times independently** — TwigVLM
+(ICCV'25) and VEA (ICLR'26) in VLMs, Lu et al. (2510.10285) on multimodal reasoning, and CLAA
+(2602.16054) on LLM prefill. A finding confirmed four times across two modalities is a platform, not
+a threat. **Our section shows the standard remedy is itself wrong in two ways.**
+
+| what we own after the reframing | evidence |
+|---|---|
+| **The aggregation RULE is wrong.** Everyone averages a late block. | max over block **+7.3 / +6.8pp**; CLAA's 4-layer window-max **+8.4 / +12.0pp** (§14V) |
+| **The QUANTITY is wrong.** Everyone reads the attention weight. | norm-weighted `alpha·||v||` **+4.7pp**, composing with max to **+10.5 [+5.8,+15.7]** — no training, no tuning |
+| **Read depth is not prune depth.** Every surveyed paper moves both together. | prune pinned at K=2, read swept: **+21.4 / +11.5pp** from the read alone; reconciles Wang et al. (CVPR'26) |
+| **Which text-attribution fixes transfer.** | rollout **−33.5**, grad×attention **−30.4**; sink-targeting fixes transfer, mixing-targeting fixes destroy the signal |
+| **The failed mechanism prediction.** | Qwen2-VL ranks worse at layer 2 and is hurt *less* (−13.1 vs −21.9) |
+| **The selection-bias caution.** | in-sample best-of-28 41.9% → **36.1%** out-of-fold, below the block mean it appeared to beat |
+
+Original survey follows.
+
+---
+
+## Track A — prior-art survey (2026-09-17)
 
 Written down because the first survey was done only in conversation and had to be re-run.
 
