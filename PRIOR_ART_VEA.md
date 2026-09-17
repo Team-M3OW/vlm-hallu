@@ -147,3 +147,57 @@ gains g≥1 to each group. **+4.2pp** average over 5 benchmarks on 3 MLRMs, <1% 
    not use: every locator in this project **averages over heads**. Selecting or weighting heads by
    visual ratio — then applying §14V's max rule across layers — is "reallocate across heads *and*
    layers" and has never been run. It needs one pass storing per-head maps.
+
+---
+
+# Two text-only siblings: CoRe and ReAttn
+
+## CoRe — "Contrastive Retrieval Heads Improve Attention-Based Re-Ranking" (2510.02219, Mar 2026)
+
+Tran, Li, Florian & Sun (RPI · IBM Research). The closest text-only analogue of phase 108, and it
+**identifies a flaw in the criterion we had queued**.
+
+Prior work selects "QR heads" by the **absolute** attention a head pays to the positive document.
+CoRe proves (Prop. 4.2) this can pick heads that also flood irrelevant documents, and measures top-8
+QR heads **degrading** re-ranking below the all-heads baseline on two models. Their replacement is a
+head-level **contrastive** score — a softmax of the positive against the negatives, which they show
+is a head-level InfoNCE objective. Fewer than **1% of heads** suffice, and they beat both baselines.
+
+**Why it matters here.** Phase 108 selected heads by Lu et al.'s modality attention ratio — the share
+of a head's mass on visual tokens — which is structurally the QR criterion. A head that floods the
+whole image scores high on it. Given our serialisation sink absorbs **41–45%** of the selected mass,
+that failure mode should be *worse* in vision than in text. Phase 108 now computes both criteria, so
+CoRe's comparison is made in vision.
+
+### The depth finding is a CONVERGENCE, not a contrast
+
+CoRe finds useful heads concentrated in **middle** layers and prunes the final 50% with negligible
+loss. Normalised by depth fraction, that agrees with us:
+
+| | onset of the useful band | after it |
+|---|---|---|
+| CoRe (32-layer LLMs) | middle layers | pruning the final 50% is ~free |
+| **ours (§14S, phase 96)** | L14→L16 of 28 = **50–57%** | **L20 − L16 = −1.0pp [−6.3,+4.2]** |
+| Lu et al. (2510.10285) | ℓ ∈ [10,17] of 27 = 37–63% | — |
+| VEA (2510.17771) | L16–26 | — |
+
+**Four independent papers, two modalities: the signal switches on around half depth, and nothing is
+gained after it.** Our phase 96 plateau is their "prune the final 50%", measured a different way.
+
+## ReAttn — "Improving Attention-based Re-ranking via Attention Re-weighting" (2602.19969, Feb 2026)
+
+Tian, Mo, Zhang, Qi & Nie (Montreal · McGill/MILA). Names two problems we have, and independently
+derives one of our fixes.
+
+**Signal concentration** — "a small number of tokens within a few documents absorb most of the total
+attention mass, while most documents receive minimal attention". That is our sink, in text.
+
+**Lexical bias** — attention over-weights tokens merely resembling the query. Their fix is
+**cross-document IDF**: down-weight tokens that receive attention across *all* candidates.
+
+> That is **phase 30d's leave-one-out background normalisation**, derived independently in another
+> modality — down-weight cells that attract attention across all items. Independent convergence on a
+> design choice we made for a different reason.
+
+**Untried here:** their second fix, **entropy-based rescaling** — down-weight maps whose attention is
+overly narrow, up-weight broader ones. We have never applied an entropy correction to the map itself.
