@@ -5756,3 +5756,18 @@ resolution, so a coverage-trained (cell, $W$) re-ranker learns "bigger", not "ad
 run.** An accuracy-aware target for $W$ is the dead sizer (§14U). Recorded as the fourth failed
 attempt to make the window adapt; with §18F it says: from the depth profile the method can decide
 *where*, not *how large*.
+
+### §18D (final)  ✗ Fix 2b — mass-containment window is 0 of 2 (Phase 163, Qwen2-VL leg)
+Qwen2-VL: relational **+5.3 [−5.3,+15.8]** vs the bar (n.s.), single **−12.2 [−21.7,−2.6]** vs the head
+window; boxes again huge (median area 0.22 / 0.31; 0–4% concentrated). Same shape as Qwen3
+(§18D). **Primary fails on both models; the guard fails on both.** Rejected.
+
+#### Where the window-adaptation line ends (§14U, §18B, §18D, §18G)
+Four attempts to make the crop window adapt to the question from the model's own signals — a learned
+per-item sizer, a peaks-spanning box, a mass-containment box, and a (cell, W) re-ranker — all fail,
+each for a diagnosed reason: the sizer regressed W from weak features; the two geometric rules read
+a relative dispersion signal with absolute constants; the re-ranker optimised a coverage target that
+does not charge for lost magnification. The one thing that clears pooled on both models is a binary
+crop / no-crop decision from the map (§18E/§18F), which is a gate, not adaptation, and is excluded by
+constraint 7. **From the depth profile the method reliably decides *where*; making it decide *how large*
+needs an accuracy-aware target, and every such target we have tried is data-limited at n=191.**
