@@ -67,6 +67,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 
 | boundary | evidence |
 |---|---|
+| **The head's read-out is TASK-SPECIFIC** — transfers within a question type (V\*→HR-Bench ✔) but not across (TextVQA→V\*Bench: −15 / −27, below the deployed argmax; mixing in hurts −5.8) | §16E, Qwen3, 3,000 Visual-CoT boxes |
 | **Relational questions — the first 2 MODEL × 2 BENCHMARK claim in the project** (a limit, not a gain) | V\*Bench −3.9 / +0.0pp; HR-Bench argmax@0.15 **−10.5 / −32.8pp** vs the bar (§14T, §15G) |
 | **Existence questions — crop-based allocation is INVALID** | POPE: crop −56.7 / −77.3 / −63.0pp vs the bar; the crop answers "no" to everything because a 6%-area window is evidence of absence. The oracle arm is **circular** there (knowing the box = knowing presence), so POPE cannot even provide a ceiling (§15B) |
 | **LLaVA-OneVision** — no layer disagreement to exploit | head −1.0pp; its best single layer equals its block mean (§14N, §14Y) |

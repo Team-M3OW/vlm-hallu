@@ -5439,3 +5439,36 @@ Removing the options changes nothing; removing the instruction collapses the map
 read-out works when — and only when — the prompt ends at the answer-emission point.** 2 models,
 both directions tested. §15D/§15I's "restored the options" is corrected to "restored the
 answer-emission point" (72b's bare question lacked both; only the second mattered).
+
+
+## §16E  ✗✗ MORE BOXED DATA DOES NOT HELP — the head's read-out is TASK-SPECIFIC (Phases 133–134)
+
+3,000 TextVQA items with Visual-CoT evidence boxes (public), Qwen3-VL attention dumped with the
+phase-30c extractor and a prompt ending at the answer-emission point. Pre-registered: a TextVQA-
+trained head applied zero-shot to V\*Bench must beat the 191-item OOF head for "data was the limit".
+
+| V\*Bench top-1 coverage | W=0.15 | W=0.25 |
+|---|---|---|
+| deployed argmax | 39.3 | 46.6 |
+| **V\*Bench OOF GBT (incumbent, 191 items)** | **53.4** | **64.4** |
+| TextVQA-only GBT → V\*Bench, zero-shot (3,000 items) | **38.2 (−15.2 [−21.5,−9.4])** | **37.2 (−27.2 [−34.0,−20.9])** |
+| TextVQA-only readable head → V\*Bench | 24.1 (−29.3) | 35.1 (−29.3) |
+| TextVQA **+** V\*Bench (OOF) GBT | 49.2 (−4.2 [−8.9,+0.5]) | **58.6 (−5.8 [−11.0,−1.0])** |
+
+**Sanity passed on TextVQA itself** (OOF: GBT 46.5 / 62.9 vs argmax 38.3 / 54.7), so the head
+learns — but what it learns does not carry to a different question type. Sixteen times more boxed
+items from an OCR-style task produce a head *worse than no head*, and mixing them in degrades the
+V\*Bench head significantly. **The data route is closed unless the data is same-task.**
+
+### What this says, joined to what we already had
+- Zero-shot transfer **within** a question type works: the V\*Bench head on HR-Bench (object/attribute
+  questions) is +4.9 coverage and clears the bar at 4K on both models (§15E/§15H).
+- Zero-shot transfer **across** question types fails: text-reading → object attributes, −15 to −27pp.
+- Orgad et al. (ICLR'25) found truthfulness probes are "skill-specific" in LLMs; the attention→evidence
+  read-out is skill-specific in VLMs the same way. **The head is not a universal attention decoder;
+  it is a per-task one**, and the paper must say so.
+
+⚠ One confound not yet separated: TextVQA prompts are open-ended (no options), V\*Bench are MCQ. The
+attention profile could be prompt-format-conditioned rather than task-conditioned. Phase 121b showed
+options change nothing *within* V\*Bench, which argues against it, but a V\*Bench-style MCQ source
+with different content (Visual7W, gated) would settle it.
