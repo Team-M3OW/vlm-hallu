@@ -78,3 +78,42 @@ redistributes emphasis.
 Stated as one sentence for the paper: *VEA showed VLMs often attend to evidence they fail to use;
 we show that holds above a measurable encoding threshold and inverts below it, where the evidence is
 not in the tokens at all and only adding resolution recovers it.*
+
+---
+
+# Companion: "Direct Visual Grounding by Directing Attention of Visual Tokens" (KLAL)
+
+Esmaeilkhani & Latecki (Temple), arXiv **2511.12738** v2. Read in full 2026-09-17.
+
+**What it is.** A **training-time** method. A KL attention loss (KLAL) is added to next-token
+prediction during fine-tuning, pulling the answer token's attention over visual tokens toward a GT
+map built automatically from task geometry or existing box/point annotations. No new labels, no
+architectural change, no extra head.
+
+| task | base | NTP only | **NTP + KLAL** |
+|---|---|---|---|
+| Grid Patch (Qwen2.5-VL-7B) | 6.12% | 28.57% | **44.90%** |
+| PixMo-Points (Qwen2.5-VL-7B) | 16.79% | 26.28% | **35.77%** |
+| Line Intersection | 47.62% | 62.64% | **70.23%** |
+| RefCOCO testB | 86.70% | 86.90% | **87.50%** |
+
+**Why it does not contradict our nulls.** Every one of our seven failed interventions is
+**inference-time on a frozen model**. KLAL changes the weights. And their own Table 5 shows it does
+not merely redirect attention — it **raises the embedding norm of target visual tokens by 6% (Qwen)
+to 19% (LLaVA)**. They had to change what is *in* the tokens too, which is our claim stated from the
+training side.
+
+> Our claim, sharpened by this paper: *no inference-time operation on a frozen model recovers
+> sub-token evidence — you must either add pixels (ours) or retrain the representation (theirs).*
+
+**What it gives us.** A citable statement that "the standard NTP loss provides an insufficient signal
+for directing attention to visual tokens", independent support that attention-to-evidence is causally
+load-bearing (their Fig. 4: only after KLAL does the average target token outweigh the average visual
+token), and a training-side counterpart that makes our inference-side scope explicit rather than
+convenient.
+
+**Where a reviewer could push.** Grid Patch targets are ~1/576 of the image — close to our cliff —
+and KLAL lifts Qwen from 6.12% to 44.90% there. The honest answer is that it does so by fine-tuning
+on that distribution, with GT attention maps, and that it has never been run on natural-image
+sub-token search (V\*Bench). Their tasks are synthetic geometry, grid patches, point annotations and
+RefCOCO, where RefCOCO objects are large.
