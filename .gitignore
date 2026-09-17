@@ -28,3 +28,4 @@ models/
 *.safetensors
 *.bin
 *.tgz
+data/phase173_*heads.npz

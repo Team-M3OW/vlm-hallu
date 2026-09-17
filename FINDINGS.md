@@ -5652,7 +5652,8 @@ pre-registered variant with a different label-free target (agreement with the mo
 600-token answer, i.e. self-distillation from the bar) is queued as 162b.
 
 
-### §18H  ✗ Fix 4 — a TUNED map-only dispersion route does not carry the pooled claim (Phase 156)
+### §20D  ✗ A TUNED map-only dispersion route does not carry the pooled claim (Phase 156)
+*(recorded in the §18 block for chronology; renumbered out of §18 after two collisions with the concurrent track)*
 
 Standing constraint 7 permits question-type adaptation **only from the attention map**. The §18B
 diagnostic gives the map-side signal: top-1 mass share of the raw gated-max map separates
@@ -5889,4 +5890,108 @@ Coverage at W=0.25 vs deployed block mean: binarised versions collapse to 3–13
 counts are dominated by sink/edge cells flipping across the threshold); soft variants are within noise or worse
 on both Qwen (best Qwen3 51.3 vs gate max 56.0; Qwen2 39.8 vs 51.8), clear only on LLaVA-NeXT (l≥gate, 27.2
 [+0.5,+7.9]). No version approaches gate max on both Qwen → not a label-free proxy for the head's subtraction.
-Cited as predecessor for the depth-difference idea. Script: scripts/phase170_ilvad_rule.py.
+Cited as predecessor for the depth-difference idea. Script: scripts/phase172_ilvad_rule.py.
+
+
+## §20  TRAINING-FREE IMPORTS FROM THE 2026 LITERATURE (phases 170–172)
+
+Three training-free methods from papers published Jul–Aug 2026, ported one at a time onto DPR and
+scored against the project's standing rules. Phase numbering note: the concurrent track also used
+171 (`phase171_laser_maps.py`); filenames disambiguate. Related: §20D (phase 156).
+
+New shared artefact: `phase170_perhead_extract.py` dumps the final token's attention over image cells
+at every (layer, head), once per model — 51 MB (Qwen3, 16 heads) / 88 MB (Qwen2, 28 heads), ragged
+grids stored as one buffer plus per-item offsets. Phase 108 kept only per-rule aggregates, so every
+new head criterion previously cost a GPU pass. **Validation:** the head-mean of this dump correlates
+**0.949** per layer with phase 30c's stored maps, and the `allheads` arm reproduces the published head
+at **62.8 / 52.9** vs **63.4 / 54.5** — inside the 1–2.5pp extraction floor (§14Z).
+
+### §20A  ⚠ 1 of 2 — VRH head selection (arXiv 2608.27417) helps Qwen2-VL only
+Their criterion: a head's attention **mass on the referent region**, scored from output query tokens
+(our V0 prompt already reads the answer slot, §16A, so this is their rule and not a degraded form).
+Head subsets are selected **inside training folds only** — phase 108's leakage lesson. The head keeps
+its 65 features; only the source of the 28-layer profile changes to the mean over selected heads.
+
+| arm | Qwen3-VL (16 heads) | Qwen2-VL (28 heads) |
+|---|---|---|
+| allheads (incumbent) | 62.8% | 52.9% |
+| **random_q25 (CONTROL)** | **63.4%** | 52.9% |
+| vrh_q25 (per-layer top 25%) | 62.8% (+0.0) | 55.5% (**+2.6**) |
+| vrh_top20 (global top-20 pairs) | 62.3% (−0.5) | **58.1% (+5.2)** ✔ |
+
+On Qwen2 both VRH arms beat all-heads *and* the random control by more than the 2.5pp floor; on
+Qwen3 neither moves. **Pre-registration required both models, so no end-task run was earned and no
+claim is made.**
+
+### §20B  ✗ 0 of 2 — ProViP variance selection (arXiv 2608.25332) adds nothing
+Their label-free criterion: pick heads whose attention over visual tokens has the highest **variance**
+(spiky = looking at something). `provip_q25` **−3.7 / +0.5**; `provip_top20` **+0.5 / −2.6**. Nothing
+clears on either model and the per-layer variant is the worst arm in the whole sweep on Qwen3.
+
+> **The control is what makes §20A/§20B readable.** A *random* 25% of heads per layer scores 63.4% on
+> Qwen3 — matching or beating every principled criterion there. Sparsifying heads costs nothing at our
+> read depth; choosing *which* ones by variance buys nothing, and by referent-mass buys something only
+> where there are 28 heads to choose from. This is §14Z's pattern again: corrections worth +10.5pp to a
+> simple read-out are worth ~0 to a learned one that already sees the raw depth profile.
+
+### §20C  ⚠ Context graft (Thinking-Once, arXiv 2607.27830 + Grounding-Isn't-Knowing, 2608.23074)
+Budget-legal analogue of their background summary: the answer pass takes **two images — the crop plus
+a downscaled full scene — totalling 300 tokens** (bug #21's 64-token floor makes exactly two
+sub-images affordable). Method = localise@300 + answer@300 = 600 = the bar. Measured tokens 613/606
+vs bar 598/597 (+2.5% / +1.5%, inside the 10% gate). Related, not repeated: §4I swept a 25/75
+crop:scene split at *oracle* placement on RePOPE.
+
+| | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| **PRIMARY** ctx64 − bar, relational | −9.2 [−22.4,+3.9] ✗ | +9.2 [−2.6,+21.1] ✗ |
+| **GUARD** ctx64 − head@0.25, single-object | **−6.1 [−11.3,−1.7] BREACH** | −0.9 [−7.8,+6.1] ok |
+| ctx64 − bar, single-object | +9.6 [−0.9,+20.0] | **+10.4 [+1.7,+19.1]** ✔ |
+| ctx64 − bar, **pooled** | +2.1 [−6.3,+10.5] | **+9.9 [+2.6,+17.3]** ✔ |
+
+**The pre-registered primary fails**: relational clears on neither model, and on Qwen3 the graft
+breaches its guard by taking resolution away from the crop where §13B says the method lives. But on
+Qwen2-VL the **pooled** contrast clears (+9.9) — the contrast DPR has never cleared — with **no router
+and no question text**, i.e. admissible under constraint 7. Recorded as an observation, not a claim:
+pooled was not the pre-registered primary and it is 1 of 2.
+
+### §20E  ★ THE PATTERN ACROSS ALL THREE IMPORTS — a confound worth one run
+Everything that worked (§20A VRH +5.2; §20C context pooled +9.9) worked on **Qwen2-VL-7B** and failed
+on **Qwen3-VL-2B**. The two differ in family, parameter count *and* head count (28 vs 16), and every
+mechanism proposed here scales with at least one of those. **Phase 154 already has Qwen3-VL-8B and
+Qwen2.5-VL-7B** — the 2×2 that separates family from size. Until that runs, "these imports need a
+bigger model" and "these imports need the Qwen2 family" are indistinguishable, and neither should be
+written down as the reason.
+
+## §18K — LASER port (per-sample layer selection by query-contrast, arXiv 2602.04304): NEGATIVE on both Qwen; plus three reproducibility controls
+
+**Port.** Phase 173 re-extracted the 191 V*Bench items at 300 tokens under three prompts — V0 (question+options+instruction),
+noq (LASER's ablation: query removed, instruction kept), bare (image only) — storing head-mean maps under the deployed
+convention (raw heads averaged, then normalised) and raw per-head maps. LASER: A^con = ReLU(A_q − A_noq), VAQ_l = ‖A^con_l‖₂
+(head-mean, and top-8-heads variant), l* = argmax_l VAQ_l per sample, localise on A^con_{l*}. Coverage at W=0.25.
+
+| rule (label-free) | Qwen3 | vs block | Qwen2 | vs block |
+|---|---|---|---|---|
+| block mean (deployed) | 46.1 | — | 39.3 | — |
+| gate max (§16D, fixed layers) | 55.5 | +9.4 [+4.7,+14.7] | 51.8 | +12.6 [+7.3,+17.8] |
+| **LASER: contrast @ per-sample l*** | **45.0** | −1.0 [−6.3,+4.2] | **51.3** | +12.0 [+7.3,+17.3] |
+| LASER top-8 heads @ l* | 45.5 | −0.5 | 45.5 | +6.3 |
+| raw with-query @ l* | 44.5 | −1.6 | 48.2 | +8.9 |
+| contrast(noq) max over gate | 56.5 | +10.5 | 51.8 | +12.6 |
+| contrast(noq) max over all layers | 57.1 | +11.0 | 50.8 | +11.5 |
+| per-sample peakiest layer ≥ gate (no ablation) | 35.6 | −10.5 ✗ | 45.5 | +6.3 |
+| learned head (OOF, same maps) | 62.8 | | 55.0 | |
+
+Paired vs gate max: contrast max over gate **+1.0 [+0.0,+2.6] (Q3) / +0.0 [−1.6,+1.6] (Q2)**; LASER @ l* −10.5 / −0.5.
+**Verdict.** Per-sample layer selection is worse than the fixed gate on Qwen3 and equal on Qwen2 → 0 of 2; query-contrast
+adds nothing beyond the gate on either. What LASER's VAQ *does* do is rediscover the gate band label-free and per sample
+(l* = L17/L18 on 72% of Qwen3 items, L19/L21 on 72% of Qwen2 items) — independent confirmation of §16D's divergence
+locator, no accuracy. The no-question subtraction is not the head's late-layer subtraction (§19). Training-free status unchanged.
+
+**Reproducibility controls (all clean).** (i) Fresh bf16 vs stored maps: Qwen2 bit-exact (cosine 1.000, rules identical);
+Qwen3 (stored fp16) cosine ≥0.99, block/gate/max within 0.5pp, 98–99% per-item agreement. (ii) fp16 vs bf16: same, fp16
+reproduces phase 30c exactly (46.6/56.0). (iii) Identical bf16 repeat: bit-exact. The tree head's OOF moves ±3pp with
+fold assignment on near-identical inputs (61.1/65.8/62.8 on Qwen3) — consistent with the 1–2.5pp floor, quoted as ±3.
+**Pipeline note:** a first extraction normalised per head *before* averaging (up-weights sink-heavy heads) and shifted the
+block mean by −11pp on Qwen2 — archived in data/phase173_wrongconv/, never analysed further. Head-averaging convention is
+load-bearing and is now stated in the extraction script. Scripts: phase173_laser_maps.py, phase173_analyze.py,
+phase173_paired.py, phase173_repro_check.py; data/phase173_laser_{qwen3,qwen3_fp16,qwen3_rep,qwen2}.jsonl (+ per-head npz, not committed).

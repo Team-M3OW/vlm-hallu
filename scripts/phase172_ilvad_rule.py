@@ -1,5 +1,5 @@
 """
-Phase 170 -- ILVAD depth-difference rule (Finding the Correct Visual Evidence Without Forgetting, ICML'26,
+Phase 172 -- ILVAD depth-difference rule (Finding the Correct Visual Evidence Without Forgetting, ICML'26,
 arXiv 2605.20965) ported as a label-free cell scorer for depth re-ranking.
     S = sum_l ReLU( B^(l+1) - B^(l) ),   B^(l) = 1[ A^(l) > tau * mean(A^(l)) ]        (paper: binarised, tau ~ 1)
 i.e. count how many times a cell becomes NEWLY activated as depth increases. Also a soft variant
