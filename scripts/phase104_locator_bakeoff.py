@@ -52,7 +52,7 @@ CFG = {"qwen3": ("Qwen/Qwen3-VL-2B-Instruct", "data/phase71a_head_proposals.json
        "qwen2": ("Qwen/Qwen2-VL-7B-Instruct", "data/phase80a_qwen2vl_proposals.json", (15, 27))}
 MODEL_ID, PROP, BLK = CFG[WHICH]
 D = "/home/kavinder/ARNABI_ARSH/vlm-hallu"
-OUT = f"{D}/data/phase104_locators_{WHICH}.jsonl"
+OUT = f"{D}/data/phase104b_locators_{WHICH}.jsonl"
 B0, W = 300, 0.25
 Image.MAX_IMAGE_PIXELS = None
 
@@ -194,7 +194,12 @@ def main():
             cov = np.array([coverage(float(fx[i]), float(fy[i]), gt) for i in range(n_img)])
             rec = {"question_id_full": qid, "category": ex["category"], "grid": [gh, gw],
                    "n_img": n_img, "cov_max": float(cov.max()),
-                   "pick": {}, "cov": {}, "gt_pct": {}}
+                   "pick": {}, "cov": {}, "gt_pct": {},
+                   # per-layer norm-weighted maps, so the MAX rule (phase 105 / CLAA) can be
+                   # applied to them off-line. Raw per-layer maps already exist on disk, but are
+                   # stored again here so both come from the identical forward pass and grid.
+                   "nw_layers":  np.round(nw.detach().cpu().numpy(), 7).tolist(),
+                   "raw_layers": np.round(raw.detach().cpu().numpy(), 7).tolist()}
             for k, m in maps.items():
                 s = np.where(rm, m, -1e9)
                 j = int(np.argmax(s))

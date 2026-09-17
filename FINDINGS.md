@@ -4676,3 +4676,47 @@ the same direction-preserved, magnitude-halved pattern §14K and §80 found twic
 Every end-task number in this project uses the head's proposals. Whether max_win4 converts as well
 as the head does is an open GPU run — and if it does, the method becomes: **crop at the argmax of a
 max-aggregated attention map, W=0.25, no training at all.**
+
+
+## §14W  ★★ THE MAX RULE PROPOSES BETTER BUT DOES NOT CONVERT (Phase 106)
+
+§14V showed CLAA's max-over-a-4-layer-window beats our mean-over-a-block read-out by +8.4 / +12.0pp
+of evidence coverage, training-free. This runs it through the answer. Qwen3-VL, n=191, W=0.25.
+
+**Pipeline control passed exactly:** `head@0.25` was RE-RUN rather than copied — stored 71.7%,
+re-run 71.7%, agreeing on **100.0%** of items. The join to the stored uniform arms is sound.
+
+| arm | acc | vs uniform@600 |
+|---|---|---|
+| uniform@300 (pass 1) | 56.5% | — |
+| **uniform@600 (the bar)** | **63.9%** | — |
+| **maxwin4@0.25 (training-free)** | **68.6%** | **+4.7pp [−3.7,+13.1]** ✗ |
+| **head@0.25 (learned)** | **71.7%** | +7.9pp [−0.5,+15.7] |
+
+| single-object questions (n=115) | vs the bar |
+|---|---|
+| **learned head** | **+15.7pp [+6.1,+25.2]** ✔ |
+| max_win4 | +9.6pp [+0.0,+19.1] ✗ |
+| head − max_win4 | +6.1pp [+0.0,+13.0] |
+
+> **The learned head earns its keep.** A one-line training-free rule recovers much of the read-out
+> gap but converts 3.1pp worse end-task and does not clear the equal-compute bar on either the pooled
+> set or the single-object stratum. Only the head clears.
+
+The arithmetic is consistent rather than surprising: max_win4's proposal coverage is 55.0% against the
+head's 63.4%, an 8.4pp gap, and at this project's measured conversion rate (~0.62pp of accuracy per pp
+of coverage) that predicts 5.2pp. Observed 3.1pp.
+
+### Why this strengthens the paper rather than weakening it
+
+Our gains were previously measured against the **deployed block-mean argmax**, which §14V showed is
+weak for a nameable reason. They now stand against a **principled, training-free, independently
+motivated baseline** — and the margin over that baseline, while not decisive (+6.1pp [+0.0,+13.0] on
+single-object), is in the right direction with the bar cleared only by the head.
+
+⚠ Qwen2-VL is queued. On coverage the head − max_win4 contrast was **1 of 2** (§14V), so the end-task
+replication is the one that decides whether the head can be claimed over the simple rule at all.
+
+### Incidental
+Both out-of-fold folds selected window **L16–19 or L17–20** — the max rule independently rediscovers
+the band the deployed block was hand-set to, and the band phase 95's label-free locator points at.

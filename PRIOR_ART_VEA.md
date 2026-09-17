@@ -117,3 +117,33 @@ and KLAL lifts Qwen from 6.12% to 44.90% there. The honest answer is that it doe
 on that distribution, with GT attention maps, and that it has never been run on natural-image
 sub-token search (V\*Bench). Their tasks are synthetic geometry, grid patches, point annotations and
 RefCOCO, where RefCOCO objects are large.
+
+---
+
+# Third in the family: "Reallocating Attention Across Layers to Reduce Multimodal Hallucination"
+
+Lu et al. (BUPT · NTU), arXiv **2510.10285v2**, Feb 2026. Training-free head-level plugin.
+
+**Method.** Compute each head's **modality attention ratio** — the fraction of its attention mass on
+visual vs textual tokens — then use depth-aware boundaries to label shallow high-visual heads as
+**perception heads** and deep high-textual heads as **reasoning heads**, and apply multiplicative
+gains g≥1 to each group. **+4.2pp** average over 5 benchmarks on 3 MLRMs, <1% extra compute.
+
+**Why it matters to us.**
+
+1. **It completes a pattern.** VEA highlights evidence pixels; KLAL supervises attention during
+   training; this rescales attention heads at inference. Three independent 2025–26 papers, three
+   interventions on emphasis, all reporting gains — **and not one of them measures target size or
+   runs an oracle-crop control.** Our cliff predicts the entire family must fail below a threshold.
+   That reframes our contribution from *competing with one paper* to *a boundary condition on a
+   family of methods*.
+2. **It contradicts VEA on the direction of the depth transition.** This paper: *"early layers
+   emphasize visual tokens, whereas deeper layers progressively shift focus toward textual tokens"*.
+   VEA: shallow layers are text-focused and deeper layers increase attention to images. The metrics
+   differ (share of total mass vs relative attention per token), which may reconcile them — but on
+   the surface two published papers state opposite things about the same phenomenon, and **nobody has
+   reconciled them.** We have the per-layer data on two models to do it.
+3. **It hands us a free untried lever.** Their modality attention ratio is a per-head statistic we do
+   not use: every locator in this project **averages over heads**. Selecting or weighting heads by
+   visual ratio — then applying §14V's max rule across layers — is "reallocate across heads *and*
+   layers" and has never been run. It needs one pass storing per-head maps.
