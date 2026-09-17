@@ -4791,3 +4791,41 @@ cleanest demonstration of that gap the project has.
 Windows selected out-of-fold: L16–19/L17–20 on Qwen3-VL, **L18–21/L19–22 on Qwen2-VL** — both land on
 the band the deployed block was hand-set to, and Qwen2-VL's includes **L21**, the layer §14K found
 was its best single localiser and §14I(b) found is where its answer forms.
+
+
+## §14Y  ✗ SCOPE: the re-ranking head does NOT transfer to the LLaVA family (Phase 110)
+
+Phase 82's stored per-layer attention made this a no-GPU test. Phase 70's machinery verbatim — same
+features, same out-of-fold GroupKFold grouped by item, same negative subsampling, same ring mask —
+pointed at a different family. Block rescaled to the same fraction of each stack. W=0.25.
+
+| | deployed argmax | learned head | Δ |
+|---|---|---|---|
+| Qwen3-VL-2B | 46.6% | 63.4% | **+16.8 [+11.0,+23.0]** ✔ |
+| Qwen2-VL-7B | 39.3% | 54.5% | **+15.2 [+9.4,+21.5]** ✔ |
+| **LLaVA-NeXT-7B** (32 layers, 552 tokens) | 23.0% | 28.3% | **+5.2 [−1.6,+12.0]** ✗ |
+| **LLaVA-OneVision-7B** (28 layers, 540 tokens) | 35.6% | 37.2% | **+1.6 [−4.2,+7.9]** ✗ |
+
+**4 of 4 positive in direction; 2 of 4 significant, and both are the same vendor.** The magnitude
+collapses by 3–10× across the family boundary.
+
+### The failure is predicted by §14N, which is why it is reported rather than explained away
+
+§14N found LLaVA-OneVision is the **one model where the best single layer equals the block mean**
+(25.1% = 25.1%) — its layers agree with one another, so there is no disagreement for a re-ranker to
+exploit. The head's whole mechanism is exploiting layer disagreement. And LLaVA-NeXT has the
+disagreement but a far weaker base signal (23.0% against Qwen3-VL's 46.6%), leaving less to re-rank.
+Both ceilings are intact (97.4% / 96.9% of items have some covering cell), so this is not a data
+problem.
+
+### The end task was deliberately NOT run
+
+At this project's measured conversion rate (**~0.62pp of accuracy per pp of coverage**, §14D),
++5.2pp of coverage predicts ≈+3pp end-task — inside noise at n=191, against a bar the Qwen models
+clear by 11–16pp. An hour of GPU for a null we can compute in advance, which would not change the
+scoping decision.
+
+> **Consequence for the paper.** The method claim is scoped to one family and must say so:
+> *significant on two checkpoints of the Qwen family; direction consistent but not significant on
+> two checkpoints of the LLaVA family, where the underlying proposal signal is roughly half as
+> strong.* This is the weakness a reviewer would find, stated by us instead.
