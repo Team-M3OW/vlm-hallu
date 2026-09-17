@@ -4759,3 +4759,35 @@ Another instance of the §14O dissociation: quantities about *where attention is
 ⚠ This does **not** test Orgad et al. (ICLR'25), whose central claim is that **token selection** is
 what makes probing work — probe the *exact answer tokens*, not a pooled summary. We probed attention
 statistics, which is not their method. Phase 109 tests theirs.
+
+
+## §14W(b)  ✅ REPLICATED: only the learned head clears the bar, on both models (Phase 106, Qwen2-VL)
+
+Pipeline control passed exactly a second time: `head@0.25` stored 64.9%, re-run 64.9%, agreeing on
+**100.0%** of items.
+
+| | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| uniform@600 (the bar) | 63.9% | 58.1% |
+| max_win4 @0.25 (training-free) | 68.6% | 60.7% |
+| **learned head @0.25** | **71.7%** | **64.9%** |
+| max_win4 − bar (pooled) | +4.7 [−3.7,+13.1] ✗ | +2.6 [−5.8,+11.0] ✗ |
+| head − bar (pooled) | +7.9 [−0.5,+15.7] ✗ | +6.8 [−1.0,+14.7] ✗ |
+| **head − bar, single-object** | **+15.7 [+6.1,+25.2]** ✔ | **+11.3 [+1.7,+20.9]** ✔ |
+| max_win4 − bar, single-object | +9.6 [+0.0,+19.1] ✗ | +6.1 [−3.5,+15.7] ✗ |
+| head − max_win4, single-object | +6.1 [+0.0,+13.0] | +5.2 [+0.0,+10.4] |
+
+> **Only the learned head clears the equal-compute bar, and it clears it on both architectures.**
+> §14V's "head − max_win4 is 1 of 2" was a contrast on *coverage*; on the end task the head wins on
+> both models (+6.1 / +5.2pp, both lower bounds at zero — consistent though marginal), and the
+> training-free rule never clears the bar on either.
+
+**The two results are not in tension and both belong in the paper.** As a *read-out*, max over a
+window beats the deployed mean by +8.4 / +12.0pp of coverage, training-free — that is a real and
+useful finding about how the field aggregates across depth. As a *proposer*, it converts worse
+(−3.1 / −4.2pp) and does not earn its second forward pass. Coverage is not accuracy, and this is the
+cleanest demonstration of that gap the project has.
+
+Windows selected out-of-fold: L16–19/L17–20 on Qwen3-VL, **L18–21/L19–22 on Qwen2-VL** — both land on
+the band the deployed block was hand-set to, and Qwen2-VL's includes **L21**, the layer §14K found
+was its best single localiser and §14I(b) found is where its answer forms.

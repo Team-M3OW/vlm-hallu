@@ -22,6 +22,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **The encoding cliff** | **Q3, Q2** | step at 0.15–0.25 merged tokens, oracle flat across it (§13C) |
 | **The serialization sink** | **Q3, Q2, OV, NX** | 3.4–4.5× implicit, 2.0–2.3× on `image_newline` (§5) |
 | **No published crop policy beats the budget axis at matched tokens** | **Q3, Q2** | §9A/§9B |
+| **★★ DCR is the ONLY arm that clears the compute-matched bar — beating a training-free max-aggregated read-out on both models** | **Q3, Q2** | head−bar single-object +15.7 [+6.1,+25.2] / +11.3 [+1.7,+20.9] ✔; max_win4−bar +9.6 [+0.0,+19.1] / +6.1 [−3.5,+15.7] ✗; head−max_win4 +6.1 / +5.2, both lower bounds at zero (§14W(b)) |
 | **★ DCR beats the compute-matched baseline on SINGLE-OBJECT questions** | **Q3, Q2** | **+15.7pp [+6.1,+25.2]** / **+11.3pp [+1.7,+20.9]**, n=115 each, W transferred not selected. Null on relational (−3.9 / +0.0) exactly as §6D predicts. ⚠ pooled does not clear; both numbers must be reported (§14T) |
 | **Oracle placement wants a tighter window than learned placement does** | **Q3, Q2** | oracle monotone decreasing in W (90.1→65.4 / 91.1→80.6); head peaks at 0.25 on both (§14T) |
 
