@@ -8,6 +8,11 @@ find fix.**
 
 ## 0. Standing constraints (do not violate)
 
+7. **No router.** (2026-09-18) The method must be question-type agnostic in mechanism: no question
+   classifier, no keyword rule, no text-only gate, no category oracle — in the method or in how the
+   paper frames its headline. Adaptation to question type may come only from the attention map the
+   method already computes. Phases 150/153 (routers) are diagnostic context only, never the method.
+
 1. **Public benchmarks only. Do not build datasets.** Everything uses POPE (COCO subset) + COCO
    `val2014` instance annotations, already on disk.
 2. **Preprocessing is NOT the headline.** The LLaVA center-crop finding (§5.1) is a footnote.
