@@ -5771,3 +5771,42 @@ does not charge for lost magnification. The one thing that clears pooled on both
 crop / no-crop decision from the map (§18E/§18F), which is a gate, not adaptation, and is excluded by
 constraint 7. **From the depth profile the method reliably decides *where*; making it decide *how large*
 needs an accuracy-aware target, and every such target we have tried is data-limited at n=191.**
+
+
+## §19  ★★ WHAT THE RE-RANKER IS ACTUALLY DOING: it SUBTRACTS layers the block mean adds
+
+Diagnostic on the items the deployed read-out gets wrong (Qwen3 n=97, Qwen2 n=111): does the score
+rank the target cell above the cell the argmax actually picked?
+
+| | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| block mean (deployed) | AUROC 0.260 — target on top for **13%** | 0.134 — **12%** |
+| readable log-linear head | 0.589 — **59%** | 0.657 — **69%** |
+| GBT head (OOF) | 0.532 — 57% | **0.709 — 71%** |
+
+**No monotone summary of the profile does this.** On those same items the distractor beats the target
+on block value, on the 3×3 neighbourhood, on peak isolation, and (Qwen3) on the late/early ratio —
+every one AUROC < 0.5. The discriminative information is not "more attention", "later attention" or
+"more spatially extended"; it is **which specific layers**.
+
+The learned weights say it directly. Of the layers the deployed block mean adds at weight $+1$, the
+head assigns **negative** weight to 6 of 11 (Qwen3-VL: L16, L20, L21, L22, L23, L26) and 5 of 12
+(Qwen2-VL: L17, L18, L20, L23, L25). Strongest positives L19 on both; strongest negatives L12/L26/L27
+(Qwen3) and L11/L23/L17 (Qwen2).
+
+> **The block mean sums layers that disagree about where the target is. The re-ranker learns which
+> layers are evidence *for* a cell and which are evidence *against* it, and subtracts the latter.**
+
+### This unifies results that were previously separate
+- §14F/phase 91: *all* layers beat any contiguous block — poor layers are **negative evidence**, not noise.
+- §14C(b): sink indicators add $+0.0$ — the sink needs no flag, because it is separated by depth shape
+  alone (fair-share attention: sink late/early ratio **0.50**, target **11.4 / 43.9**).
+- §14V: max-over-layers helps ($+7.3/+6.8$) because it stops *diluting* with bad layers — but it cannot
+  subtract them, which is the remaining $3.7/2.7\pp$ to the head.
+- §18B/§18D: geometric window rules failed because they read magnitude/extent, which carry no signal here.
+- §16E: *which* layers count against is a property of (model, task) — hence the task-specific transfer.
+
+⚠ Honest asymmetry: on Qwen2-VL the head separates target from distractor cleanly ($0.13\to0.71$); on
+Qwen3-VL the head-to-head flip is weak ($0.26\to0.53$) even though its coverage rises $46.1\to63.4$,
+so most of its Qwen3 gain comes from promoting a *different* covering cell rather than beating that
+specific distractor.
