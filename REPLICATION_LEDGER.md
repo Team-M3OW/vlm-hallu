@@ -78,6 +78,13 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 
 §5A/§5B (ph 33) · §8A 4K gating (ph 46) · §9B *our* arm only (ph 53; prior-art losses stand) · §9C all four 4K attempts (53–56) · §9D scale sweep (57) · §11B multi-crop at 4K (59) · §14E (72b). Replaced by §15E/§15H.
 
+## ✗ ARCHITECTURE FIXES REJECTED (2026-09-18)
+| fix | result |
+|---|---|
+| depth-aligned features (task-agnostic head) | recovers 6–7pp of the cross-task gap, still below the argmax (§18A) |
+| peaks-spanning window (router-free relational) | 0 of 2 on relational; fires on 90–97% of single-object items (§18B) |
+| box-free pseudo-label head (confidence gain) | 1 of 2 on coverage; clears the bar nowhere (§18C) |
+
 ## 🚧 BLOCKED
 
 | item | blocker |

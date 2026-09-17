@@ -5623,3 +5623,25 @@ relational ones; the GBT map is not** (it regresses coverage and is smooth every
 therefore read dispersion of the *raw* gated map, not peaks of the score map. Phase 163 patched
 accordingly before running: mass box grown on the raw gated map; concentrated maps fall back to the
 head's W=0.25 window.
+
+### §18B (final)  ✗ Fix 2 as specified — the peaks-spanning window is 0 of 2 (Phase 161)
+| span − bar, relational | span − head, single |
+|---|---|
+| Qwen3-VL −2.6 [−15.8,+9.2] ✗ · Qwen2-VL −1.3 [−14.5,+11.8] ✗ | −11.3 [−20.0,−2.6] · −1.7 [−11.3,+7.8] |
+
+k=2 fired on 90–97% of items on both models. Rejected; the diagnostic above locates the usable
+signal in the raw gated map, which phase 163 tests.
+
+### §18C  ✗ Fix 3 — the box-free pseudo-label head is 1 of 2 (Phase 162)
+Pseudo-target = max-softmax gain under cropping at each of the top-6 gated-max candidates; no boxes,
+no answer labels; OOF GBT; real coverage and end-task of the OOF pick.
+
+| | OOF coverage vs deployed argmax | single-object vs bar | pooled vs bar |
+|---|---|---|---|
+| Qwen3-VL | **45.0 vs 46.6** ✗ | −5.2 [−15.7,+6.1] | −5.8 |
+| Qwen2-VL | **47.1 vs 39.3** ✔ | +4.3 [−4.3,+13.9] ✗ | +5.8 [−2.1,+13.6] |
+
+Consistent with §6E/§8A: the two-pass confidence signal is a strong coverage detector on Qwen2-VL
+(AUROC 0.885) and weak on Qwen3-VL. As a label-free head it is rejected under the standing rule; a
+pre-registered variant with a different label-free target (agreement with the model's own
+600-token answer, i.e. self-distillation from the bar) is queued as 162b.
