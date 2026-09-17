@@ -6141,3 +6141,40 @@ to the end (L21:54→L27:58 @300; L21:64→L27:64 @600). Rising entropy ≠ degr
 to select, which is why every ported layer-selection rule (§18K, §18M) has failed. (ii) *The resolution deficit is
 localised to answer formation*: the 300-vs-600 lens-accuracy gap is ~0 through L20 and opens to ~+10pp at L21+,
 the depth §19 identifies. Qwen2 leg pending. Script: phase177_cld_answer.py, phase177_analyze.py.
+
+## §21 — THE HEAD IS A CLOSED-FORM LINEAR DEPTH FILTER (phases 180, 181, four architectures)
+
+**Motivation.** "More sophisticated" cannot mean more capacity: phases 45/102/112/130 already showed a spatial
+CNN, 9-seed GBT, flip augmentation, ensembles and pairwise/listwise objectives all fail to clear on both models
+(CNN −8.9/−9.4 on Qwen2). The remaining direction is structure.
+
+### §21A  Ridge ≡ GBT on identical folds, rows and features — all four architectures (phase 181)
+Features: log A_l (NL) | within-layer rank_l (NL) | log 3×3 neighbourhood | 6 geometry. 3 seeds × GroupKFold(5).
+
+| | GBT (incumbent) | ridge, closed form | ridge − tree |
+|---|---|---|---|
+| Qwen3-VL | 62.8 | 63.9 | +1.0 [−4.2,+5.8] tie |
+| Qwen2-VL | 56.0 | 55.0 | −1.0 [−4.7,+2.6] tie |
+| LLaVA-NeXT | 33.5 | 33.0 | −0.5 [−5.8,+4.2] tie |
+| LLaVA-OneVision | 42.4 | 40.8 | −1.6 [−6.8,+3.7] tie |
+
+**Adopted as the method's statement.** Accuracy is identical, so the head can be reported as a **single ridge
+solve** — no boosting, no learning rate, no early stopping, no seeds — whose weights *are* the depth filter:
+score(cell) = Σ_l w_l·log A_l + Σ_l v_l·rank_l + a·log(nb) + geometry. Strict win in interpretability and
+reproducibility at zero accuracy cost. (Phase 180's apparent ridge *advantage* over the canonical tree numbers
+was a fold/negative-subsampling difference and does not survive the same-fold test.)
+
+*Side observation, not claimed:* with all cells (no negative subsampling) and log-attention features, the tree
+itself reads 33.5 / 42.4 on the LLaVA pair vs 28.3 / 37.2 canonically — the canonical 30-negatives-per-item
+subsampling may be costing the LLaVA models several points. Worth one controlled run before the paper.
+
+### §21B  ⚠ WITHDRAWN: "the depth filter is high-frequency"
+Phase 180 found low-order Legendre kernels (K=3–8) significantly worse than 28 free weights (Qwen3 −8.9 to −4.2;
+LLaVA-NeXT −5.2; OneVision −4.7) with only 14–22% of filter energy in the first four modes, and I framed that as
+"the correction is layer-specific and high-frequency." **Phase 181 does not support it.** A second-difference
+roughness penalty — the correct continuous test — costs nothing significant on any model and *helps* LLaVA-NeXT
+(+2.1 at μ=1000); Qwen3 is best at μ=10 (+0.5). So the Legendre result was about **rank truncation**, not
+smoothness, and the alternating weight signs remain consistent with ordinary collinearity between adjacent
+layers. The filter is not rank-3, but it is smoothing-compatible. No high-frequency claim is exported.
+
+Scripts: phase180_depth_kernel.py, phase181_ridge_vs_tree.py.
