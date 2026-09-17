@@ -6276,3 +6276,76 @@ GUARD glocal−head on single **−10.4 [−16.5,−4.3] ✗** (fails significan
 are no better. `oracle_glocal` on relational = 65.8 = exactly the bar, i.e. even a perfect crop plus a global
 view cannot beat uniform there. Composition is not the fix; ninth failed adaptation design. Qwen2 leg pending.
 Script: phase178_glocal.py, phase178_analyze.py.
+
+### §20I  ★★ A VERIFIER GATE CLEARS POOLED ON BOTH MODELS (Phase 182)
+§20H's verifier used as a crop/skip decision. Composition is phase 150's; threshold is the
+training-fold **median**, out-of-fold, no free parameter (§20D is why: a fitted τ overfit at n=191).
+
+| router | crops | Qwen3 pooled − bar | Qwen2 pooled − bar |
+|---|---|---|---|
+| R0 always DPR (Table 1) | 100% | +7.9 [−0.5,+16.2] ✗ | +6.8 [−1.0,+14.1] ✗ |
+| R_disp — dispersion (§18E-style) | ~50% | +7.3 [+2.1,+13.1] ✔ | +4.2 [−1.6,+9.9] ✗ |
+| **R_vrh — VRH verifier** | ~50% | **+8.4 [+2.6,+14.1]** ✔ | **+6.3 [+1.0,+11.5]** ✔ |
+| R_cov (CEILING, uses the label) | ~48% | +14.1 [+8.9,+19.9] ✔ | +10.5 [+6.3,+15.2] ✔ |
+
+**The pre-registration passes.** R_vrh − bar clears on both models — the pooled contrast DPR has
+never cleared — and it captures **~60%** of the oracle gate's gain on both (8.4/14.1, 6.3/10.5). It
+also repairs the relational regression: **+2.6 / +1.3** where always-DPR is −3.9 / +0.0.
+
+⚠ **But the better verifier is not significantly better than the weaker one.** R_vrh − R_disp is
++1.0 [−4.7,+6.8] and +2.1 [−3.1,+7.3] — point estimates favour VRH, CIs do not separate. And the
+cost differs: **dispersion is label-free; VRH needs GT boxes on the training folds to select heads.**
+By §15C's own rule (a non-significant margin does not justify an annotation cost), *dispersion is the
+better deployable gate* unless a larger sample separates them.
+
+⚠ R_disp here is **not** an exact §18E reproduction — different statistic (gated-max top-1 share vs
+§18E's raw top1_frac) and different fold seeding; it reads +7.3/+4.2 against §18E's +5.8/+5.8. The
+comparison within this table is internally consistent; the cross-entry difference is not a failure to
+replicate.
+
+⚠ **Constraint 7 status is pending, inherited from §18E.** The gate uses no question text and no
+language classifier — it adapts from the attention map pass 1 already computed — but whether a
+map-derived skip counts as a "router" is the open ruling.
+
+#### §20I prior-art check (done before any claim)
+**Gating a second visual pass is taken.** *Look Again Before You Abstain: Budgeted Conformal Evidence
+Acquisition* (arXiv 2606.16667, RIKEN/SCUT/Columbia, 2026-06-15) turns answer/abstain into a
+three-way answer/abstain/**acquire-more-evidence** choice and explicitly *"run[s] the B crops only
+when the base grounding score is low"* — a gate on a second visual pass under a compute budget. Also
+*Learning to Look Again: Loss-Gap Supervision for Free-form Crop Routing* (2608.21762) — crop routing,
+but **trained**; and *RankGround* (2609.18690) — reranker-guided crop selection for GUI grounding.
+What is NOT anticipated by these: the gate signal being **attention-head verification computed for
+free from the localisation pass already run** (BCEA gates on a grounding likelihood and needs a
+conformal calibration set; 2608.21762 trains a router), and scoring it as **accuracy at matched
+compute against a uniform baseline** rather than as hallucination-rate control. The remaining claim
+is therefore narrow and must be written that way.
+
+## §23 ★★★ EQUAL-COMPUTE BASELINE TABLE (phase 179, Qwen3 leg; Qwen2 pending)
+
+Identical pipeline for every arm — localise@300 → crop at W=0.25 → answer@300 (total ~595) vs bar uniform@600
+(598). Arms differ **only in which cell the crop is centred on**; placements frozen offline (phase179_placements).
+n=190 (1 item dropped: no LASER placement, grid mismatch in the phase-173 maps).
+
+| stratum | u@300 | **u@600 (bar)** | vicrop_L14 | vicrop_block | LASER | gate-max | **head (ours)** | oracle |
+|---|---|---|---|---|---|---|---|---|
+| single | 48.2 | 62.3 | **24.6** | 64.0 | 64.0 | 72.8 | **78.1** | 96.5 |
+| relational | 68.4 | 65.8 | 57.9 | 59.2 | 65.8 | 63.2 | 65.8 | 75.0 |
+| ALL | 56.3 | 63.7 | 37.9 | 62.1 | 64.7 | 68.9 | **73.2** | 87.9 |
+
+**P1 (pre-registered): head − best published baseline (LASER) = +8.4 [+1.6,+15.3] ✔ pooled; +14.0 [+7.0,+21.9] ✔ single.**
+**P2: head − gate-max = +4.2 [−0.5,+9.5] pooled (n.s.); +5.3 [+0.0,+11.4] single (borderline).**
+
+### Three results here that outrank our own margin
+1. **Fixed-layer cropping is catastrophic: 24.6% on single-instance** — below uniform@300 (48.2) and below the
+   ~25% four-option chance rate. Reading attention at one hand-picked mid layer, the field's convention, does not
+   merely underperform: it destroys the task. Strongest direct evidence for the project's thesis.
+2. **Published methods barely beat equal compute**: vicrop_block 64.0 and LASER 64.0 vs a 62.3 bar (+1.7). This is
+   invisible in the literature because those papers do not budget-match. At equal tokens, attention-guided
+   cropping as practised is worth ~2pp.
+3. **§22's scope law is a FAMILY property, as §22B predicted.** On relational every arm is at or below the bar
+   (vicrop_block 59.2, vicrop_L14 57.9, gate-max 63.2, LASER 65.8, head 65.8, bar 65.8). The cross-instance
+   failure is not ours — it belongs to attention-guided cropping itself, and no paper in the family reports it.
+
+**Stated honestly:** the label-free gate-max rule (§16D) already beats every published baseline (68.9 vs 64.7);
+supervision adds +4.2 pooled and is not significant at n=190. Both numbers go in the paper.
+Scripts: phase179_placements.py, phase179_baselines.py, phase179_analyze.py.

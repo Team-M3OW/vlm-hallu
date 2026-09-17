@@ -1,9 +1,14 @@
 """Phase 179 analysis. P1: head - best published baseline (max of vicrop_block/vicrop_L14/laser), pooled, both models.
 P2: head - gatemax (what supervision buys over the best label-free rule)."""
 import json, sys, numpy as np
-f=sys.argv[1]; rows=[json.loads(l) for l in open(f)]; n=len(rows); cat=np.array([r["category"] for r in rows])
+f=sys.argv[1]; allrows=[json.loads(l) for l in open(f)]
+keys=set.union(*[set(r["probs"]) for r in allrows])          # keep every ARM; drop items missing one
+rows=[r for r in allrows if set(r["probs"])>=keys]; n=len(rows)
+dropped=len(allrows)-n
+if dropped: print(f"  note: dropped {dropped} item(s) missing an arm; {n} items x {len(keys)} arms")
+cat=np.array([r["category"] for r in rows])
 A=lambda k: np.array([float(int(np.argmax(r["probs"][k]))==r["label"]) for r in rows])
-arms=list(rows[0]["probs"].keys()); acc={k:A(k) for k in arms}
+arms=[k for k in allrows[0]["probs"] if k in keys]; acc={k:A(k) for k in arms}
 tok={k:np.mean([r["realized_tokens"][k] for r in rows])+(0 if k.startswith("uniform") else 300) for k in arms}
 rng=np.random.default_rng(179)
 def ci(d):
