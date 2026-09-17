@@ -4891,7 +4891,7 @@ inside it. Any coverage difference of that size anywhere in this project is nois
 read as signal.
 
 
-## §15A  ★★★ TOKEN-LEVEL PROOF OF THE CLIFF, and Orgad et al. does NOT port (Phase 109)
+## §15A  ⚠ REJECTED ON REPLICATION — the token-level cliff is single-model (Phase 109)
 
 Orgad et al., *LLMs Know More Than They Show* (ICLR'25), claim truthfulness information is
 **concentrated in the exact answer tokens**, and that probing the last position or a pooled mean
@@ -4935,7 +4935,31 @@ sides equally.
 informative about its own content immediately after the projector, and mixing washes it out — the
 same phenomenon that made attention rollout collapse to 12.6% (§14V/phase 104).
 
-⚠ Qwen2-VL is queued. `last` vs `evid` and the cliff split both need the second model.
+### ✗ REPLICATION FAILED (Qwen2-VL, phase 109 q2)
+
+| `evid` probe, best AUROC for `err` | below cliff | above cliff |
+|---|---|---|
+| Qwen3-VL-2B | **0.513 — chance** | **0.656** |
+| **Qwen2-VL-7B** | **0.623** | **0.633 — no gap** |
+
+On Qwen2-VL the evidence tokens are **equally informative on both sides of the cliff**, which is the
+opposite of the claim. **1 of 2 — REJECTED.** And the mandatory control fails there too: on the
+`encfail` target `evid` − `rand` = **+0.018**, i.e. not separable from region identity (Qwen3 gave
++0.084 / +0.158).
+
+**What DOES replicate: Orgad et al.'s headline fails in vision on both models.** `evid` − `last` =
+−0.127 / −0.085 (Qwen3) and −0.031 / −0.077 (Qwen2). Probing evidence tokens is consistently *worse*
+than probing the final position — 2 of 2.
+
+> **Consequence.** The "intervention-free proof of the cliff" is withdrawn. The cliff rests on the
+> intervention evidence alone: 87% / 84% of errors fixed by re-spending the same budget, with the
+> oracle arm flat across the threshold, both on two models. PAPER_FLOW §3's second pillar is removed.
+
+⚠ **Process note.** I described this as "the paper's best opening" and "the strongest single-model
+result in the project" before it had a second model. That was the fourth single-model result to fail
+under scrutiny in one session, after the window sizer (§14U), the LLaVA scope claim (§14Y) and CoRe's
+selection leakage (§15C). **Single-model results in this project fail replication often enough that
+none should be characterised as strong before the second model lands.**
 
 
 ## §15B  ✗✗ HARD SCOPE BOUNDARY: crop-based allocation is INVALID for existence questions (Phase 111)

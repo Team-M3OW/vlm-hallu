@@ -77,10 +77,11 @@ and fixing each is one line — so the baseline in every table is the fixed one,
 The oracle arm is **flat across the cliff** (95.8 / 100.0%), so items below it are not harder — they
 are invisible. Median confident-denial object: **0.4 merged tokens**.
 
-**And the same boundary appears with no intervention at all** (§15A): the visual tokens covering the
-target predict the model's own correctness at **0.656 above the cliff and 0.513 — chance — below it**,
-while the final prompt position is unaffected (0.725 / 0.693). Two independent routes to one
-threshold. *(Single-model; Qwen2 replication queued.)*
+⚠ **An intervention-free version of this was attempted and REJECTED.** Probing the visual tokens that
+cover the target gave 0.513 (chance) below the cliff and 0.656 above on Qwen3-VL — but 0.623 vs 0.633,
+no gap, on Qwen2-VL (§15A). **The cliff rests on the intervention evidence alone.** What survives from
+that experiment is a 2-of-2 negative: Orgad et al.'s "probe the exact answer tokens" does **not** port
+to vision — evidence tokens are worse than the final position on both models.
 
 **Seven internal interventions fail**, closed by the two that matter: aim attention perfectly and you
 recover **16%** of what the crop recovers, because the oracle amplification set is **one cell of 294**;
