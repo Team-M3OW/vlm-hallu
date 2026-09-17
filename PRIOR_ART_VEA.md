@@ -201,3 +201,45 @@ attention mass, while most documents receive minimal attention". That is our sin
 
 **Untried here:** their second fix, **entropy-based rescaling** — down-weight maps whose attention is
 overly narrow, up-weight broader ones. We have never applied an entropy correction to the map itself.
+
+---
+
+# Predecessor for the CLIFF: "The Last Visible Pixel" (2606.07861, Jun 2026)
+
+Li et al. (Luxembourg · Foyer · Paris-Saclay). **FineSightBench**: synthetic 448×448 canvases (plus
+TextWild overlays), targets rendered at 4/8/12/16/24/32/48 px, perception tasks (letter / animal /
+block / colour / shape / text recognition) separated from reasoning tasks (ordering, counting,
+comparison). 16 models incl. Qwen3-VL-2B/4B/8B/30B. Their threshold statistic **RT50** = smallest
+target size at which accuracy reaches 50%.
+
+**Headline:** *"perception saturates around 12 px, while reasoning remains limited even at larger
+scales."* Best RT50 7.3 px (Gemma-4-31B); Qwen3-VL-2B RT50 = 20.0 px.
+
+## Convergence, stated with the conversion
+Their unit is pixels on a fixed 448 canvas; ours is merged visual tokens. For Qwen3-VL (16 px
+patches, 2×2 merge): a 12 px target is 0.75 patch-side → ≈0.56 patch-area → **≈0.14 merged tokens**;
+their Qwen3-VL-2B RT50 of 20 px → ≈1.56 patches → **≈0.39 merged tokens**. Our cliff on the same
+checkpoint: **0.15–0.25 merged tokens**. Two benchmarks, synthetic vs natural, pixel vs token units,
+landing within a factor of ~2 of each other on the same model. Cite as independent corroboration of
+a sub-token perceptual floor; do not claim the floor as our discovery.
+
+## What we have that they do not (their own §5 says so)
+- **No oracle / crop control.** They report the size at which accuracy falls; they do not show the
+  evidence is *recoverable* from the same pixels at the same budget. Our 87% / 84% oracle-fixable and
+  the oracle-flat-across-the-cliff result are the causal half they lack.
+- **No budget matching, no intervention.** Their §5: *"offering only limited insight into the
+  internal mechanisms of attention"* and *"does not cover … adaptive visual processing"*. Our seven
+  nulls, the L21 result and the method are exactly that.
+- **Natural images, VQA.** Theirs is synthetic recognition of letters/shapes on white canvases; the
+  distribution gap is their first listed limitation.
+- **Below-chance regime.** Not reported there; ours is 19% on a 25%-chance task.
+
+## What they have that we should use
+- **RT50 as a per-model statistic** — a cleaner way to state "the cliff" than our stratum table.
+  Report our cliff as RT50-in-tokens per model.
+- **Perception vs reasoning split** — their reasoning-fails-even-when-perception-succeeds finding is
+  the *above-cliff* counterpart of our claim, and matches our relational-question boundary.
+
+Also filed: *Diagnosing Visual Ignorance* (2606.06890) — a "routing failure" account (model fails to
+USE available evidence), with a Gaussian-blur decay probe; sits on the VEA side of the sees-vs-saw
+distinction and is cited as such.
