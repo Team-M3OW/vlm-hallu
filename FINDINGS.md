@@ -5535,3 +5535,47 @@ Across V\*Bench + HR-Bench single-object: Qwen3-VL **+9.3 [+4.7,+14.0]** (n=515)
 ### Queued
 W4 latency (phase 152, both models) · W1 model-as-router (153) · W3/W6 HR-Bench 8K (155) · W6 Qwen3-VL-8B
 and Qwen2.5-VL-7B full pipeline (154).
+
+### §17D  W4 — wall-clock latency (Phase 152; batch 1, n=50, median ms/item, CUDA-synchronised)
+| | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| bar: uniform@600, one sdpa pass | 314 | 335 |
+| DPR: localise@300 (eager + `output_attentions`) + crop@300 | 577 = **1.84×** | 676 = **2.02×** |
+| DPR: localise@300 (sdpa + last-token hook at block layers) + crop@300 | 560 = **1.78×** | 467 = **1.40×** |
+
+Tokens match; wall-clock does not: DPR is $1.4$--$1.8\times$ the bar with a deployable localiser, $1.8$--$2.0\times$ with
+the naive one. The eager `output_attentions` path materialises every layer's full attention; a forward hook
+that computes only the last query row at the block layers removes most of that overhead on the 7B model.
+
+### §17E  ★ W1 — an UNTUNED router: the model itself, text-only, zero-shot (Phase 153)
+"Does answering this question require comparing, counting, or locating two or more objects relative to
+each other? Yes/No" — no image, ~60 tokens, no tuning on any evaluation set. Route to DPR iff No.
+
+| model | bench | routed | agreement w/ category | pooled − bar |
+|---|---|---|---|---|
+| Qwen3-VL | V\*Bench | 63.9% | 96.3% | **+10.5 [+4.2,+16.8]** ✔ |
+| Qwen2-VL | V\*Bench | 59.2% | 99.0% | **+6.8 [+1.0,+12.6]** ✔ |
+| Qwen3-VL | HR-Bench | 75.0% | 74.0% | +0.4 [−3.1,+3.9] ✗ |
+| Qwen2-VL | HR-Bench | 49.5% | 88.5% | **+2.8 [+0.4,+5.1]** ✔ |
+
+**3 of 4 cells clear pooled with an untuned, free router.** The one miss is the 2B model on HR-Bench, where
+it over-routes (75% vs 50% relational) — the weaker text classifier, not the method. With the oracle router
+all four clear (+9.4, +6.8, +3.8, +4.2). The composition is built and evaluated; it is not an oracle.
+
+### §17F  ★ W3/W6 — a THIRD benchmark: HR-Bench 8K (Phase 155, Qwen3-VL-2B head zero-shot, n=800)
+single: **head +10.5 [+5.2,+16.0]** ✔ (62.3% vs bar 51.7%); argmax +3.5 [−1.5,+8.8] ✗; random −15.5.
+cross: head −9.2; pooled +0.6 [−3.4,+4.6]. CircularEval: bar 33.5, argmax 33.0, head 36.5. Same pattern as
+V\*Bench and 4K: the head clears on single-object, the argmax does not, relational loses, pooled is null.
+
+### §17G  W6 — scale and generation (Phase 154, V\*Bench, W=0.25 transferred, block = same stack fraction)
+| model | NL | OOF coverage head / argmax | single head−bar | single argmax−bar | pooled head−bar |
+|---|---|---|---|---|---|
+| **Qwen2.5-VL-7B** (new generation) | 28 | 60.7 / 44.0 | **+14.8 [+4.3,+25.2]** ✔ | +7.8 [−1.7,+17.4] | +6.3 [−1.6,+14.1] |
+| **Qwen3-VL-8B** (4× scale) | 36 | 60.7 / **31.9** | +4.3 [−5.2,+13.9] ✗ | **−14.8 [−25.2,−4.3]** | −1.6 |
+
+Qwen2.5-VL-7B is a **third checkpoint** on which DPR clears the bar on single-object questions (now Q3-2B,
+Q2-7B, Q2.5-7B on V\*Bench; Q3-2B and Q2-7B on HR-Bench 4K; Q3-2B on 8K). Qwen3-VL-8B does **not** clear:
+its deployed argmax is far worse (31.9% coverage — the read-out defect grows with scale) and the head
+recovers +28.8pp of coverage and +19pp over the argmax end-task, but the 8B model at uniform@600 is strong
+enough (65.2% single) that the crop's gain no longer clears the bar. Honest reading: **the read-out
+defect is larger at scale; the allocation win is smaller**, because the bar rises faster than the crop.
