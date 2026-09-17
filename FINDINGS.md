@@ -5258,3 +5258,60 @@ augmentation, seed ensembles, GBT+CNN rank ensembles — all four models, folds 
 **Nothing clears on both Qwen models**; the CNN is significantly worse on Qwen2-VL at both windows
 (−8.9 / −9.4). With phases 45, 102 and 112 this is the fourth independent failure of a more expressive
 head: **the limit is 191 boxed items, not the model class.** Full table in `REPORT_track2.md`.
+
+
+## §16A  ★★ READ ATTENTION AT THE ANSWER POSITION — the 72b effect was the instruction line, not the options (Phase 121, Track 1)
+
+Localisation-prompt sweep, 5 variants × 191 items, both models, prior art checked first (ViCrop's
+locate-first prefix tested as V1; LookWise's noun queries not repeated — phase 48 already found noun
+attention at chance).
+
+| localisation prompt | Q3 argmax | Q3 head OOF | Q2 argmax | Q2 head OOF |
+|---|---|---|---|---|
+| **V0 question + options + answer-instruction (current)** | **46.1%** | **61.8%** | **39.8%** | **56.0%** |
+| V1 ViCrop locate-first prefix + V0 | 43.5% | 61.8% (+0.0) | 42.4% | 57.6% (+1.6) |
+| **V2 question + options, NO instruction** | **3.7%** | 45.5% (−16.2) | **0.5%** | 42.9% (−13.1) |
+| V3 question + options + "which region…?" | 4.2% | 40.8% (−20.9) | 0.5% | 36.6% (−19.4) |
+| V4 bare question (the 72b bug) | 9.4% | 44.5% (−17.3) | 4.2% | 40.8% (−15.2) |
+
+**No variant beats V0.** But V2 re-attributes §15D/§15I: with the options present and the
+instruction line absent, the argmax collapses to **3.7% / 0.5%** — *below* the ~2% chance of hitting
+the target cell, and worse than the bare question. **What matters is that the prompt ends at the
+answer-emission point.** The read-out is the final token's attention; when that token is the tail of
+option (D) instead of the answer slot, its attention is about that text.
+
+> **Scope condition for every attention-guided localiser:** read attention at the answer position.
+> Generalises phase 48 (final token best of seven query tokens). Plausibly explains published
+> "random beats attention" grounding nulls whose prompts end elsewhere (e.g. ACL Findings'25 on
+> RefCOCO). 2 models, V\*Bench; HR-Bench prompts in 72c already end with the instruction.
+
+⚠ §15D/§15I are corrected accordingly: 72b's `rows[0]["question"]` lacked *both* options and
+instruction; the sweep shows the instruction is the operative half. One variant not yet run —
+question + instruction, no options — would fully isolate it.
+
+Track 1's other levers — encfail up-weighting (118), alternative targets (122), top-k verification
+(120, argued) — are all negative on both models; the head is at a data-limited optimum on every axis
+(architecture, features, weighting, target, prompt). **Noise floor revised to 1–2.5pp** (the incumbent
+re-reads 63.9/57.1 and 61.8/56.0 across seedings vs 63.4/54.5). Full report: `REPORT_track1.md`.
+
+
+## §16C  ⚠ AN INTUITIVE HEAD: a 63-parameter log-linear loses to the tree on Qwen but is the most family-general (Phase 131)
+
+Three readable replacements, phase-70 folds, four models, two windows. Δ vs the GBT:
+
+| W=0.15 | GBT | A log-linear (Σ w_l·log A_l + Σ v_l·rank_l + geo, Lasso) | B additive GAM | C rank fusion |
+|---|---|---|---|---|
+| Qwen3-VL | 53.4 | 50.8 (−2.6 [−7.9,+2.6]) | 45.0 (**−8.4**) | 26.2 (**−27.2**) |
+| Qwen2-VL | 44.0 | 41.9 (−2.1 [−6.8,+2.6]) | 44.0 (+0.0) | 18.8 (**−25.1**) |
+| LLaVA-NeXT | 19.9 | 20.9 (+1.0) | 18.3 (−1.6) | 15.2 (−4.7) |
+| **LLaVA-OneVision** | 24.1 | **30.9 (+6.8 [+2.1,+11.5])** ✔ | 28.3 (+4.2) | 13.1 (−11.0) |
+
+W=0.25: log-linear −3.1 / **−6.8 [−11.5,−2.1]** on Qwen; +5.2 / +0.5 on LLaVA.
+
+- **No arm reaches non-inferiority (≥ GBT − 1.5pp) on both Qwen models.** The tree stays.
+- **Rank fusion is catastrophic (−25pp)**: ordinal information alone is insufficient — the magnitudes
+  carry the signal, consistent with norm weighting helping and rollout failing.
+- **The log-linear is the only head that works on LLaVA-OneVision** (+6.8 over the tree at W=0.15,
+  CI clear), the model where the tree, max-over-layers and everything else fail. Provisional: one
+  model, one window (W=0.25 is +0.5 n.s.). If it holds, the readable head is the more *portable* one
+  and the tree the more *accurate* one — a trade-off worth one paragraph, not a replacement.

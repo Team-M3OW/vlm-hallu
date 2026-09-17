@@ -59,4 +59,53 @@ parent's runs (same data, different fold seeds / extraction). The run-to-run flo
 closer to **1–2.5pp** than the 1pp stated in §14Z; every contrast above is judged against its own
 same-seed incumbent, so this does not affect the verdicts, but it should be stated in the paper.
 
-(phase 121 prompt sweep pending)
+## Phase 121 — the localisation prompt (GPU, both models, 5 variants × 191 items)
+
+Prior art checked first: ViCrop (2502.17422) localises with a "locate the relevant region first"
+prefix (tested as V1); LookWise uses extracted nouns as attention queries (phase 48: noun-token
+attention is at chance here, not repeated); ZoomEye prompts per tree node (different mechanism).
+
+| localisation prompt | Q3 argmax | Q3 head OOF | head vs V0 | Q2 argmax | Q2 head OOF | head vs V0 |
+|---|---|---|---|---|---|---|
+| **V0 question + options + answer-instruction (current)** | 46.1% | 61.8% | — | 39.8% | 56.0% | — |
+| V1 ViCrop locate-first prefix + V0 | 43.5% | 61.8% | +0.0 [−4.2,+4.2] | 42.4% | 57.6% | +1.6 [−3.7,+6.8] |
+| V2 question + options, **no instruction** | **3.7%** | 45.5% | −16.2 [−23.6,−8.9] | **0.5%** | 42.9% | −13.1 [−19.4,−7.3] |
+| V3 question + options + "which region…?" | 4.2% | 40.8% | −20.9 [−28.8,−13.1] | 0.5% | 36.6% | −19.4 [−26.7,−12.0] |
+| V4 bare question (72b's bug) | 9.4% | 44.5% | −17.3 [−23.6,−11.0] | 4.2% | 40.8% | −15.2 [−21.5,−9.4] |
+
+### No variant beats V0 — V0 stands. But the sweep re-attributes the 72b effect.
+The parent attributed the +19.3pp 4K swing to *restoring the options*. It is not the options: **V2 has
+the options and collapses harder than the bare question** (argmax 3.7% / 0.5% — below the ~2% chance
+rate of hitting the target cell). What matters is the **answer-instruction line**: the read-out is
+the final prompt token's attention, and it localises only when that token is the *answer-emission
+point*. Remove the instruction and the last token is the tail of option (D), whose attention is about
+that text. Adding a "which region?" question (V3) does not restore it — the model is then answering a
+different question.
+
+> **Read attention at the answer position.** This generalises phase 48 (final token best of seven)
+> and is a scope condition for every attention-guided localiser: a prompt that does not end at an
+> answer-emission point yields an attention map that is near-useless for placement (−36 to −42pp
+> on the argmax, both models). It plausibly explains published null results for attention-based
+> grounding whose prompts end elsewhere (e.g. ACL Findings'25's "random beats attention" on RefCOCO).
+
+Not run, worth one more variant: question + instruction **without** options, to confirm options
+contribute nothing on their own. HR-Bench prompts (phases 72c/116) already end with the instruction.
+
+## Verdict — single best deployable change: **none among those tested**
+
+| lever | outcome |
+|---|---|
+| encfail up-weighting (118) | worse, both models; significant at w=10 on Q2 |
+| alternative training targets (122) | none beat coverage@0.25 regression; classification −4.2 on Q3 |
+| top-k verification (120, argued) | predicted ≈0 net: +3–4pp accuracy vs a bar that moves ≈+4pp; top-2 is adjacent to top-1 on 67% of items |
+| localisation prompt (121) | V0 already optimal among 5; ViCrop's prefix null on both |
+
+The head at n=191 is at a data-limited optimum on every axis tried today (architecture: phase 102;
+features: phase 112; weighting: 118; target: 122; prompt: 121). **The one robust positive from this
+track is a scope/mechanism statement, not a gain: the attention read-out requires the prompt to end
+at the answer-emission point — worth a paragraph in the read-out section and an audit of every
+localising phase for its instruction line, not just its options.**
+
+Files: scripts/phase118_encfail_weighting.py (CI fix), phase120_topk_recovery.py,
+phase121_prompt_sweep.py, phase121_analyze.py, phase122_training_target.py; data/phase121_prompts_{qwen3,qwen2}.jsonl;
+logs/phase118.log, phase120.log, phase121_*.log, phase122.log. Nothing committed.
