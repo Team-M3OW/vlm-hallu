@@ -5726,3 +5726,21 @@ The map's dispersion is enough to decide *whether to crop at all*, even though t
 it into a *window size* failed (§18B, §18D). Whether a map-derived skip counts as a "router" under
 constraint 7 is a framing decision left to the user; it uses no question text and no labels, and the
 threshold is the fold median (no tuning).
+
+### §18F  (analysis, on disk) the self-calibrated dispersion ladder — only the 2-rung version clears (Phase 165)
+Dispersion $d$ = top-1 share of the raw gated map; per OOF fold, $d \to$ its quantile among training
+items; the quantile selects an action whose constant is already validated. Pooled − bar:
+
+| rule | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| always tight (head@0.25) | +7.9 [+0.0,+16.2] | +6.8 [−1.0,+14.7] |
+| **2-rung: tight / no crop (median)** | **+5.8 [+0.5,+11.0]** ✔ | **+5.8 [+0.5,+11.0]** ✔ |
+| 3-rung: tight / wide@0.5 / no crop (terciles) | +5.8 [+0.0,+12.0] | +4.7 [−1.1,+11.0] |
+| 4-rung: + @0.35 (quartiles) | +6.3 [+0.0,+12.6] | +5.8 [−1.0,+12.6] |
+
+Single-object median dispersion quantile 0.63 / 0.68; relational 0.32 / 0.31 — the map separates them
+without seeing the question. **Intermediate window sizes add nothing** (wide crops on middling maps are
+no better than no crop): the map can decide *whether* to crop, not *how large*. The mechanism that is
+question-agnostic and clears pooled on both models is therefore the simplest one — *crop tight when
+the model's own attention is concentrated, otherwise spend the budget on the whole image.* Whether
+that is admissible under constraint 7 is the pending ruling (§18E).
