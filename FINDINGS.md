@@ -4829,3 +4829,41 @@ scoping decision.
 > *significant on two checkpoints of the Qwen family; direction consistent but not significant on
 > two checkpoints of the LLaVA family, where the underlying proposal signal is roughly half as
 > strong.* This is the weakness a reviewer would find, stated by us instead.
+
+
+## §14Z  ✗ NEGATIVE: the fixes that rescue a SIMPLE read-out add nothing to a LEARNED one (Phase 112)
+
+Norm weighting (Kobayashi et al., EMNLP'20) and max aggregation (CLAA, 2602.16054) are each worth a
+lot against the deployed **block-mean argmax**: +4.7pp and +7.3pp alone, **+10.5pp** together (§14V,
+phase 104b). The head has never been given either — it reads raw per-layer attention and raw
+within-layer ranks, and a gradient-boosted tree cannot construct a max across 28 columns, nor
+`alpha·||v||` at all, since the value norms were never passed to it.
+
+Qwen3-VL, n=191, W=0.25, identical out-of-fold folds:
+
+| arm | features | coverage | vs incumbent |
+|---|---|---|---|
+| **raw65 (the deployed head)** | 65 | 62.3% | — |
+| + max over block and over all layers | 68 | 62.3% | +0.0 [−1.6,+1.6] |
+| + 28 norm-weighted layers and their ranks | 122 | 61.8% | −0.5 [−4.2,+2.6] |
+| + both | 128 | 63.9% | +1.6 [−1.0,+4.2] |
+| built entirely from norm-weighted attention | 65 | 63.4% | +1.0 [−1.6,+4.2] |
+
+**Nothing clears.** Given the raw depth profile and ranks, the head already recovers whatever those
+hand-designed corrections encode.
+
+> **The useful statement is conditional.** *If you train nothing*: take a max across layers and weight
+> by the value norm — **+10.5pp**, one line, two independent justifications from the LLM literature.
+> *If you train a head on the raw depth profile*: both are redundant. This also explains §14W(b) —
+> why the head beats max_win4 end-task on both models despite max_win4 being the better
+> hand-designed read-out.
+
+### ⚠ A noise floor, measured by accident, that applies retroactively
+
+`raw65` scores **62.3%** here against the **63.4%** quoted throughout, because this run uses phase
+104b's re-extracted attention (a separate forward pass under eager attention) rather than phase 30c's.
+Same quantity, same model, same items, two extractions: **~1pp apart.**
+
+**Our run-to-run noise floor on top-1 coverage is therefore about 1pp**, and the +1.6pp arm above sits
+inside it. Any coverage difference of that size anywhere in this project is noise and must not be
+read as signal.
