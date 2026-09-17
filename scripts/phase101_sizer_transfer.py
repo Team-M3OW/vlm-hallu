@@ -21,10 +21,10 @@ WHICH = sys.argv[1] if len(sys.argv) > 1 else "qwen3"
 D = "/home/kavinder/ARNABI_ARSH/vlm-hallu/data"
 CFG = {
     "qwen3": (f"{D}/phase78_w_sweep.jsonl",           f"{D}/phase32_conditional.jsonl", "feats_in_rows"),
-    "qwen2": (f"{D}/phase97_w_transfer_qwen2vl.jsonl", f"{D}/phase100_qwen2vl_feats.json", "feats_json"),
+    "qwen2": (f"{D}/phase97m_merged_qwen2vl.jsonl", f"{D}/phase100_qwen2vl_feats.json", "feats_json"),
 }
 SWEEP, FEATSRC, MODE = CFG[WHICH]
-WS = ["0.15", "0.25", "0.35"]          # common grid, both models
+WS = ["0.15","0.25","0.35","0.5","0.7"] if "--wide" in sys.argv else ["0.15","0.25","0.35"]
 FN = ["peak", "peak_over_median", "top1_frac", "top5_frac", "entropy", "entropy_norm"]
 K = 5
 

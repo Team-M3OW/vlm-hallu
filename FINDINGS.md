@@ -4595,3 +4595,33 @@ the model where it was discovered, before it reached the second one. A `top1_fra
 (+9.6pp [+2.0,+17.7]) is **not** substituted for it — `PREREG_DCR_SIZER.md` bars exactly that move.
 The two-pass confidence rule that rescued the *old* proposer is also null here (−0.5pp [−4.7,+3.1]):
 it was compensating for a bad proposer, and there is less to compensate for now.
+
+
+## §14U  ✗ THE PRE-REGISTERED SIZER TEST FAILS, AS WRITTEN (Phases 97b, 101)
+
+`PREREG_DCR_SIZER.md` froze one configuration before any Qwen2-VL data for it existed. Phase 97b
+supplied the two wide windows phase 97 omitted, so the pre-registered 5-value grid could actually be
+run rather than narrowed to what was on disk.
+
+| Qwen2-VL-7B, n=191 | acc | vs uniform@600 | vs fixed W=0.25 |
+|---|---|---|---|
+| uniform@600 (bar) | 58.1% | — | — |
+| fixed W=0.25 (incumbent) | 64.9% | +6.8pp [−1.0,+14.7] | — |
+| **SIZER, OOF, 5-value grid (PRIMARY)** | **61.8%** | **+3.7pp [−3.1,+10.5]** ✗ | **−3.1pp** [−9.4,+3.1] |
+
+**The decision rule was applied as written: the CI spans zero, so the claim stays rejected.** The
+sizer is worse than the constant it was meant to improve, and it sends **43 of 191** items to W=0.7,
+the worst window in the sweep. Combined with §14T's grid inversion on Qwen3-VL (+8.9pp → −1.0pp), the
+sizer is **dead on two models and two grids**.
+
+The `top1_frac` routing gate (+9.6pp [+2.0,+17.7] on Qwen3-VL) is **not** substituted. The
+pre-registration bars that move and the ban is the reason the file exists.
+
+> **What this leaves.** The method is the incumbent, unchanged: rank cells by the 28-layer attention
+> profile, crop once at a **fixed W=0.25**. Single-object questions **+15.7pp [+6.1,+25.2]** and
+> **+11.3pp [+1.7,+20.9]** over equal compute on two models; pooled **+7.9pp / +6.8pp**, neither
+> clearing. Phase 78's +11.0pp sizer headroom is closed as unreachable from free pass-1 signals.
+
+⚠ Note the sizer's category split on Qwen2-VL: `relative_position` falls to **−7.9pp**, worse than
+the incumbent's +0.0pp. Choosing a window per item actively hurts on questions no single window can
+cover, which is the coverage account applied to the sizer itself.

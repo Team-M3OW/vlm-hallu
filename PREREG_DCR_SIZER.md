@@ -53,8 +53,19 @@ reason (ties collapsing to W=0.15) rather than a failed hypothesis.
 4. The Qwen3-VL numbers above are frozen. They are what they are, including the non-significant
    +1.0pp.
 
-## Status
+## OUTCOME — the rule was applied as written (2026-09-17)
 
-- Phase 97 — Qwen2-VL W ∈ {0.15,0.25,0.35} end-task arms — **running**, n=41/191.
-- Phase 100 — Qwen2-VL pass-1 attention features — **to be written and run after 97**.
-- Phase 98 (gate) and 99 (sizer) on Qwen3-VL — done, numbers above.
+**The sizer FAILED its pre-registered primary.** Qwen2-VL, 5-value grid as specified:
+**+3.7pp [−3.1,+10.5]** against the bar, and **−3.1pp** against the fixed W=0.25 it was meant to
+improve. It sends 43/191 items to W=0.7, the worst window in the sweep.
+
+It had already inverted on Qwen3-VL when both models were put on a common grid (+8.9pp → −1.0pp vs
+the constant). **Dead on two models and two grids.**
+
+Per the decision rule: the claim **stays rejected**, and the `top1_frac` gate is **not** substituted.
+
+The method reverts to the incumbent — fixed W=0.25 — which is where §14T's two-model single-object
+result comes from. Phase 78's +11.0pp sizer headroom is closed.
+
+- Phase 97 (W transfer) · 97b (wide windows) · 98 (gates) · 99 (Qwen3 sizer) · 100 (Qwen2 features)
+  · 101 (frozen sizer, both models) — all complete.
