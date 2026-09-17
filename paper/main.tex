@@ -166,7 +166,7 @@ sink or a distractor (Fig.~\ref{fig:crops}).
 the method's total token count. Argmax $=$ the deployed block-mean read-out feeding the same crop
 pipeline. Pooled rows include relational questions. $95\%$ bootstrap CIs; \ok\ $=$ CI clear of zero.}
 \label{tab:method}
-\begin{tabular}{llrrrr}
+\resizebox{\textwidth}{!}{\begin{tabular}{llrrrr}
 \toprule
 & & \multicolumn{2}{c}{\vstar\ ($n{=}115$, $W{=}0.25$)} & \multicolumn{2}{c}{\hrb\ ($n{=}400$, $W{=}0.15$)} \\
 \cmidrule(lr){3-4}\cmidrule(lr){5-6}
@@ -181,7 +181,7 @@ DPR, pooled & & $+7.9$\ci{-0.5}{+16.2} & $+6.8$\ci{-1.0}{+14.7} & $-3.1$\ci{-7.0
 bar (uniform@600) & & $62.6\%$ & $57.4\%$ & $64.5\%$ & $62.3\%$ \\
 DPR absolute & & $78.3\%$ & $68.7\%$ & $72.0\%$ & $70.8\%$ \\
 \bottomrule
-\end{tabular}\\[2pt]
+\end{tabular}}\\[2pt]
 {\footnotesize $^\dagger$ best training-free read-out (max over a $4$-layer window, App.~\ref{app:trainfree}); the deployed mean-block argmax is lower.}
 \end{table}
 
@@ -257,7 +257,7 @@ Qwen2-VL's answer-formation layer.
 Fixed constants throughout unless marked OOF. The learned head leads the best training-free rule by
 $3.7/2.7\pp$, not the $17/15\pp$ it leads the deployed read-out by.}
 \label{tab:ladder}
-\begin{tabular}{lcrr}
+\resizebox{\textwidth}{!}{\begin{tabular}{lcrr}
 \toprule
 read-out & needs & Qwen3-VL-2B & Qwen2-VL-7B \\
 \midrule
@@ -278,7 +278,7 @@ attention rollout~\citep{abnar2020rollout} & --- & $12.6$ & --- \\
 gradient$\times$attention~\citep{chefer2021beyond} & --- & $15.7$ & --- \\
 ReAttn entropy rescaling~\citep{tian2026reattn} & --- & \multicolumn{2}{c}{$-19$ to $-27\pp$} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \paragraph{What does not transfer, and why that is a result.} Attention rollout and
@@ -308,7 +308,7 @@ together (\S\ref{sec:related}).
 Late $=$ mean over the deployed block. Layer-2 is below random selection in all six cells; late beats
 layer-2 with a clear CI in all six. ``Late is free'' holds on \vstar\ only.}
 \label{tab:prune}
-\begin{tabular}{llrrrr|rr}
+\resizebox{\textwidth}{!}{\begin{tabular}{llrrrr|rr}
 \toprule
 benchmark & model & none & random & layer-2 & late & late$-$layer-2 & layer-2$-$random \\
 \midrule
@@ -319,7 +319,7 @@ POPE & Qwen2-VL-7B & $88.0$ & $83.0$ & \bad{$72.0$} & $84.0$ & $+12.0$\ci{+5.0}{
 MMBench & Qwen3-VL-2B & $85.5$ & $78.5$ & \bad{$53.0$} & $80.0$ & $+27.0$ & $-25.5$ \\
 MMBench & Qwen2-VL-7B & $85.5$ & $80.5$ & \bad{$75.0$} & $83.0$ & $+8.0$\ci{+3.5}{+12.5} & $-5.5$\ci{-10.5}{-1.0} \\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 Table~\ref{tab:prune} is the paper's most widely replicated result: two models, three benchmarks,
@@ -597,7 +597,7 @@ and an arm contrast of exactly $+0.0\,[+0.0,+0.0]$ is treated as a pipeline faul
 \begin{table}[h]\centering\small
 \caption{Every claim by its replication level. Q3 $=$ Qwen3-VL-2B, Q2 $=$ Qwen2-VL-7B, NX $=$ LLaVA-NeXT-7B,
 OV $=$ LLaVA-OneVision-7B. V $=$ \vstar, H $=$ \hrb, P $=$ POPE, M $=$ MMBench.}
-\begin{tabular}{lll}
+\resizebox{\textwidth}{!}{\begin{tabular}{lll}
 \toprule
 claim & models & benchmarks \\
 \midrule
@@ -626,7 +626,7 @@ Attention quality / answer formation dissociated & Q3 & V \\
 \multicolumn{3}{l}{per-item sizer (2 models $\times$ 2 grids); depth-profile detector; token-level cliff; head beats}\\
 \multicolumn{3}{l}{CLAA on coverage (1 of 2); coverage interaction on \hrb\ (1 of 2); training-free rule clears the bar (1 of 2).}\\
 \bottomrule
-\end{tabular}
+\end{tabular}}
 \end{table}
 
 \section{Depth structure across architectures}\label{app:layers}
@@ -686,7 +686,7 @@ $-7.3$; without sink indicators $-0.0$; geometry-only $3.7$; shuffled labels $2.
 alone deliver $+11.5$ of the $+13.6$.
 \paragraph{Architecture search (four rounds, all OOF on identical folds).}
 \begin{table}[h]\centering\small
-\begin{tabular}{lrrrr}
+\resizebox{\textwidth}{!}{\begin{tabular}{lrrrr}
 \toprule
 head, $W{=}0.15$ & Q3 & Q2 & NX & OV \\
 \midrule
@@ -702,7 +702,7 @@ additive GAM & $-8.4$ & $+0.0$ & $-1.6$ & $+4.2$ \\
 rank fusion & $-27.2$ & $-25.1$ & $-4.7$ & $-11.0$ \\
 \textbf{log-linear + per-layer $3{\times}3$ means, $91$ params (ph.\,132)} & $\mathbf{+2.6}$ & $\mathbf{+1.6}$ & $\mathbf{+4.7}$ & $\mathbf{+6.3}$\ci{+1.6}{+11.5} \\
 \bottomrule
-\end{tabular}\\[2pt]
+\end{tabular}}\\[2pt]
 {\footnotesize Rows below the incumbent are $\Delta$ vs GBT. $^{*}$phase 102's incumbent was $47.1$ under its own seeding.}
 \end{table}
 Adding the max-aggregate and $\alpha\|v\|$ signals as features: $+0.0$, $-0.5$, $+1.6\ci{-1.0}{+4.2}$
