@@ -23,7 +23,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **The serialization sink** | **Q3, Q2, OV, NX** | 3.4–4.5× implicit, 2.0–2.3× on `image_newline` (§5) |
 | **No published crop policy beats the budget axis at matched tokens** | **Q3, Q2** | §9A/§9B |
 | **★★ DCR is the ONLY arm that clears the compute-matched bar — beating a training-free max-aggregated read-out on both models** | **Q3, Q2** | head−bar single-object +15.7 [+6.1,+25.2] / +11.3 [+1.7,+20.9] ✔; max_win4−bar +9.6 [+0.0,+19.1] / +6.1 [−3.5,+15.7] ✗; head−max_win4 +6.1 / +5.2, both lower bounds at zero (§14W(b)) |
-| **★ DCR beats the compute-matched baseline on SINGLE-OBJECT questions** | **Q3, Q2** | **+15.7pp [+6.1,+25.2]** / **+11.3pp [+1.7,+20.9]**, n=115 each, W transferred not selected. Null on relational (−3.9 / +0.0) exactly as §6D predicts. ⚠ pooled does not clear; both numbers must be reported (§14T) |
+| **★ DCR beats the compute-matched baseline on SINGLE-OBJECT questions — now on a SECOND BENCHMARK (Q3)**: HR-Bench 4k **+7.5 [+2.2,+12.5]**, n=400, W=0.15 unswept; argmax does not clear (§15E). Crossing (Q2 on HR-Bench) queued | **Q3, Q2** | **+15.7pp [+6.1,+25.2]** / **+11.3pp [+1.7,+20.9]**, n=115 each, W transferred not selected. Null on relational (−3.9 / +0.0) exactly as §6D predicts. ⚠ pooled does not clear; both numbers must be reported (§14T) |
 | **Oracle placement wants a tighter window than learned placement does** | **Q3, Q2** | oracle monotone decreasing in W (90.1→65.4 / 91.1→80.6); head peaks at 0.25 on both (§14T) |
 
 ---
@@ -50,7 +50,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | ~~DCR end-task gain vs vanilla~~ | **RESOLVED → ✅** | Survived on Q2 (+10.5pp). Moved above. |
 | **DCR vs the argmax proposer** | Q3 only | Q2 gives +4.7pp with CI spanning zero (n=191). Needs more power or a third model to settle. |
 | **Answer formation restored at L21 (§14I)** | Q3 | Needs the logit lens on Q2. The mechanism section rests on this. |
-| **Zero-shot transfer to HR-Bench (§14E)** | Q3 | Needs a Q2 head transferred to HR-Bench. |
+| ~~Zero-shot transfer to HR-Bench (§14E)~~ | — | **Superseded by §15E**: 72b's localiser stripped the options. With the full prompt the head beats the bar on single-region. |
 | **Depth profile worth +7.3pp; sink indicators worth +0.0pp (§14C(b))** | Q3 | Ablation must be re-run on Q2. |
 | **Evidence region is causally live (3.32×, −10.5pp) (§14H)** | Q3 | Masking experiment must be re-run on Q2. |
 | **Seven internal interventions null (§10, §14H)** | Q3 | The *pattern* is single-model. At minimum the decisive arms (attention amplification, contrastive decoding) need Q2. |

@@ -5104,3 +5104,32 @@ removing the options removes most of the text the localiser conditions on.
 where the method can work rested partly on 72b. Two diagnostics I proposed today to explain the 4K
 failure — the budget-axis slope and resolution matching — were each refuted by measurement (§115,
 §116); it now appears the failure they were trying to explain may not have been real.
+
+
+## §15E  ★★★ THE 4K NEGATIVE WAS AN ARTEFACT — the method wins at 4K with the correct localiser (Phase 72c)
+
+HR-Bench 4k, **n=800**, same rows as phase 72b. Both uniform arms agree with 72b on **100.0%** of
+predictions, so the only change is the localiser prompt (§15D: 72b stripped the answer options).
+
+| stratum | bar (uniform@600) | arm | 72b (bare question) | **72c (full prompt)** | 72c vs bar |
+|---|---|---|---|---|---|
+| **single** (n=400) | 64.5% | **head@0.15** | 58.2% | **72.0%** | **+7.5pp [+2.2,+12.5]** ✔ |
+| single | 64.5% | argmax@0.15 | 49.8% | 67.0% | +2.5 [−2.8,+7.8] ✗ |
+| cross (n=400) | 55.2% | head@0.15 | 36.8% | 41.5% | −13.8 [−19.5,−7.8] |
+| ALL (n=800) | 59.9% | head@0.15 | 47.5% | 56.8% | −3.1 [−7.0,+0.9] |
+
+CircularEval (all 4 cycles): uniform@600 46.0% · argmax 40.0% · head 44.0%.
+
+> **The V\*Bench pattern reproduces exactly on a second benchmark**: the learned head clears the
+> equal-compute bar on single-object questions, the plain argmax does not, relational questions
+> lose, pooled does not clear. And this is at **W=0.15, unswept** — the deployed window.
+
+### What is overturned
+"Allocation loses at 4K" (§5A, §9B, §14E, and today's scope statements) was carried for six weeks on
+a localiser that stripped the answer options. It is withdrawn. Two diagnostics proposed today to
+explain that failure — budget-axis slope (§115) and resolution matching (§116) — were refuted by
+measurement; they were explaining an artefact.
+
+### Status
+The method is now **2 benchmarks on Qwen3-VL** and **2 models on V\*Bench**. The crossing — Qwen2-VL
+head on HR-Bench — is queued (phase 72a/72c-qwen2). Until it lands the method is not 2 × 2.
