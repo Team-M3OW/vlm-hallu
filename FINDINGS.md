@@ -6178,3 +6178,88 @@ smoothness, and the alternating weight signs remain consistent with ordinary col
 layers. The filter is not rank-3, but it is smoothing-compatible. No high-frequency claim is exported.
 
 Scripts: phase180_depth_kernel.py, phase181_ridge_vs_tree.py.
+
+### §20H  ★ VRH WORKS AS A REGION VERIFIER — the first VRH role that clears on both models (Phase 181)
+§20A closed VRH as a *localiser input* to DPR (1 of 2). This tests the other function: given a region
+DPR already proposed, does VRH say whether the model is retrieving from it? Scoring one region, not
+ranking cells. Verifier score = attention mass inside the DPR W=0.25 window, summed over VRH-selected
+heads (top-25%/layer, selected fold-honestly on training items). AUROC, n=191, CPU only.
+
+| target | signal | Qwen3-VL | Qwen2-VL |
+|---|---|---|---|
+| **P1 window covers the evidence** | **VRH mass in window** | **0.762 [0.693,0.826]** ✔ | **0.755 [0.684,0.820]** ✔ |
+| | all-head mass in window | 0.717 [0.641,0.783] ✔ | 0.716 [0.643,0.787] ✔ |
+| | map dispersion (§18E signal) | 0.638 [0.558,0.714] ✔ | 0.636 [0.555,0.709] ✔ |
+| | shuffled CONTROL | 0.527 | 0.516 |
+| **P2 DPR crop answer correct** | VRH mass in window | 0.674 [0.589,0.756] ✔ | 0.694 [0.606,0.773] ✔ |
+| **P3 full-image answer correct** | VRH mass in window | **0.505** ✗ | 0.610 (shuffle 0.561) |
+
+**Paired test — does head SELECTION add anything over the naive all-head mass?**
+P1: **+0.045 [+0.024,+0.068]** and **+0.038 [+0.014,+0.064]** — clears on both. P2: +0.018 [−0.006,+0.045]
+and +0.035 [+0.005,+0.066] — 1 of 2.
+
+> **The hypothesis holds.** VRH is a better *verification* signal than a *localisation* map: as an input
+> to the re-ranker it was 1 of 2 and never beat a random head subset (§20A); as a region verifier it
+> clears on both models and beats the naive all-head baseline on both. It is also **free** — it reuses
+> the localisation pass DPR already runs — where §6E's two-pass confidence detector scores higher
+> (AUROC 0.885, Qwen2) but costs an extra forward pass.
+
+**✗ The detector application fails.** P3 — predicting whether the *unaided* model is right, the signal a
+selective-crop trigger would need — is **0.505 on Qwen3**, i.e. nothing. VRH verifies whether a proposed
+region is evidence; it does not know whether the model needed it.
+
+⚠ **Scope.** P1's target and the selection criterion share the notion "where the evidence is": heads are
+picked (on training items) for putting mass on referent cells, and P1 asks whether that mass lands in a
+window containing the referent. Fold-honest, so no item-level leakage, but structurally coupled — P2/P3
+are the less coupled targets. And P2 is largely P1 in disguise: when the crop covers, the model is right
+96–98% of the time (§20C run).
+
+## §22 ★★★ THE SCOPE LAW: allocation helps single-instance and HURTS cross-instance — 14/14 cells (3 benchmarks × 4 checkpoints × 2 strata)
+
+One cell per (benchmark, model, stratum), independent files. deficit = acc(uniform@600) − acc(uniform@300)
+(no method involved); gain = acc(head@W) − acc(uniform@600) (the equal-compute contrast).
+
+| cell | stratum | n | deficit | method gain |
+|---|---|---|---|---|
+| V* Qwen3-VL-2B | single | 115 | +13.9 | **+15.7** |
+| V* Qwen2-VL-7B | single | 115 | +12.2 | **+11.3** |
+| V* Qwen2.5-VL-7B | single | 115 | +11.3 | **+14.8** |
+| V* Qwen3-VL-8B | single | 115 | +13.9 | **+4.3** |
+| HR4K Qwen3-VL-2B | single | 400 | +10.8 | **+7.5** |
+| HR4K Qwen2-VL-7B | single | 400 | +8.8 | **+8.5** |
+| HR8K Qwen3-VL-2B | single | 400 | +9.2 | **+10.5** |
+| V* Qwen3-VL-2B | relational | 76 | −2.6 | −3.9 |
+| V* Qwen2-VL-7B | relational | 76 | +0.0 | +0.0 |
+| V* Qwen2.5-VL-7B | relational | 76 | +6.6 | −6.6 |
+| V* Qwen3-VL-8B | relational | 76 | +5.3 | −10.5 |
+| HR4K Qwen3-VL-2B | cross | 400 | +3.5 | **−13.8** |
+| HR4K Qwen2-VL-7B | cross | 400 | +0.0 | **−8.8** |
+| HR8K Qwen3-VL-2B | cross | 400 | +0.8 | **−9.2** |
+
+**Perfect sign separation: 7/7 positive on single-instance, 7/7 non-positive on cross-instance**, across three
+benchmarks and four checkpoints including the Qwen3-VL-8B "miss". On HR-Bench cross the method costs 9–14pp with
+CIs clear of zero — cropping does not merely fail there, it **destroys the relation being asked about**.
+
+### §22A ⚠ WITHDRAWN en route: "the gain tracks the RESOLUTION DEFICIT, not the question type"
+Overall r(deficit, gain) = +0.76 looked like a continuous, label-free precondition. It does not survive the
+control: within-stratum r = **+0.10** (single) and **−0.47** (cross/rel); partial r(deficit, gain | stratum) =
+**−0.27**; partial r(stratum, gain | deficit) = **+0.80**; stratum alone r = **+0.91**. The correlation was
+entirely between-strata. A deficit threshold of 7–8pp classifies 14/14, but it is post-hoc and, given the
+negative partial correlation, merely re-encodes the stratum. **No deficit-based precondition is claimed.**
+
+### §22B Consequence for the "question-type agnostic" programme — it is closed, and that is the result
+Nine designs have now failed to make allocation help cross-instance items (§14U sizer, §18B span, §18D mass,
+§18F ladder=gate, §18G (cell,W), §18H proportional, §18L utility-W, §18N/§178 global+local, plus the banned
+§18E gate). §22 says why in a form that is 14/14 rather than anecdotal: **a tight crop removes the second
+object.** This is almost certainly a property of attention-guided cropping AS A FAMILY (ViCrop, ZoomEye, VEA,
+LASER) and is unreported because those papers do not stratify. **Phase 179** puts all of them through the
+identical pipeline with per-stratum reporting and will decide whether the law is ours or the family's.
+
+Analysis inline (this section); source files listed in the table.
+
+## §18O — Global+local second pass (phase 178, Qwen3 leg): BOTH pre-registered criteria FAIL
+Budget-matched (bar 598, glocal 599). P1 glocal−bar on relational **−7.9 [−23.7,+7.9]** (fails);
+GUARD glocal−head on single **−10.4 [−16.5,−4.3] ✗** (fails significantly). Context arms 100/200 and 200/100
+are no better. `oracle_glocal` on relational = 65.8 = exactly the bar, i.e. even a perfect crop plus a global
+view cannot beat uniform there. Composition is not the fix; ninth failed adaptation design. Qwen2 leg pending.
+Script: phase178_glocal.py, phase178_analyze.py.
