@@ -132,6 +132,20 @@ own checks.
 venue, §4) · Qwen family end-task, LLaVA on proposals only (3 of 4).
 **§3/§5:** two models, except §15A and five of the seven nulls (single-model, replication queued).
 
+## Method-improvement round (2026-09-17, late) — three parallel tracks
+- **Accuracy (Track 1):** no deployable gain. Encfail weighting, alternative targets, top-k
+  verification, prompt variants — all negative on both models; the head is at a data-limited optimum
+  on every axis. **Finding:** the read-out requires the prompt to end at the answer-emission point
+  (§16A) — the 72b effect was the instruction line, not the options. Noise floor revised to 1–2.5pp.
+- **Architecture (Track 2 + phases 131/132):** spatial CNN, GAM, rank fusion, ensembles do not beat
+  the tree (four rounds now). **A readable ~91-parameter log-linear head with per-layer neighbourhood
+  means reaches parity at W=0.15 on both Qwen and is ahead on both LLaVA** (§16C) — the head to show;
+  the tree stays as the accuracy head.
+- **No-training (Track 3):** the sink fixes are not additive; the layer SET is the lever — max over
+  the divergence-gated (question-conditioned) layers reaches 59.7 / 51.8, 3.7 / 2.7pp from the head,
+  label-free. Clears the bar on Qwen3 only (1 of 2). The learned head remains the only arm clearing
+  on both (§16D).
+
 ## Crossed (2026-09-17, late)
 - **Method on single-object: 2 models × 2 benchmarks** (§15H). The 4K negative was an artefact (§15D/E).
 - **Layer-2 pruning below random: 2 models × 3 benchmarks** (§15H).
