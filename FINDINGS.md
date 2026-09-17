@@ -6042,3 +6042,102 @@ divergence locator and none improves on reading it with a fixed max. SLED-style 
 equal to gate max on both Qwen (its early-mean subtraction is nearly constant across cells). Rank-based
 aggregations (ASL, EMA) are the worst: within-layer ranks throw away the magnitude contrast the max relies on.
 Not adopted. Script: scripts/phase175_llm_layer_rules.py.
+
+### §20F  ⚠ Soft head pooling: criterion-proportional weighting is 1 of 2; a two-channel head is 0 of 2 (Phase 175)
+Hard subset-averaging (§20A) discards the unselected heads. Two softer forms, VRH criterion, fold-honest,
+learned head otherwise untouched. Top-1 coverage @W=0.25.
+
+| arm | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| all-head mean (λ=0) | 62.8% | 53.9% |
+| weighted λ=0.5 | 62.3% | 55.5% |
+| weighted λ=0.75 | 63.4% | 56.0% |
+| **weighted λ=1 (pure criterion-proportional)** | 63.4% (+0.5) | **58.1% (+4.2)** ✔ |
+| two-channel, all-head **and** selected means (93 feats) | 64.4% (+1.6) | **51.8% (−2.1)** |
+| *(ref)* hard vrh_q25 / vrh_top20 (§20A) | 62.8 / 62.3 | 55.5 / 58.1 |
+
+**A weighted mean is at least as good as hard selection and never worse.** On Qwen2 it is *monotone in λ*
+(53.9 → 55.5 → 56.0 → 58.1) — a dose-response, which is what distinguishes real signal from a lucky
+subset — and λ=1 matches the best hard arm (58.1) while beating hard top-25% by 2.6pp. It remains **1 of
+2**: Qwen3 is flat, as every head-axis arm has been.
+
+**The two-channel variant is refuted.** Giving the head both pooled maps so it could learn a *signed*
+`selected − all` per layer (the §19 subtraction mechanism ported to the head axis) was predicted here to
+be the stronger form. It is the best Qwen3 arm (+1.6, still under the floor) and the **worst** Qwen2 arm
+(−2.1): +28 features at n=191 costs more than the signed contrast buys. §16B's verdict — the limit is
+191 boxed items, not the model class — extends to the head axis.
+
+### §20G  ★ RECOVERED: phase 108's weighted head rules were computed and never reported
+`sv_weighted` / `core_w` (weights ∝ head score) sat unreported in `phase108_heads_*.jsonl`. Standalone
+read-out, W=0.25, no learning, ring-masked, n=191:
+
+| rule | labels? | Qwen3 (max layer rule) | Qwen2 (max layer rule) |
+|---|---|---|---|
+| all-heads | — | 40.8% | 26.2% |
+| **`sv_weighted`** | **no** | **52.4% (+11.5 [+6.3,+16.8])** ✔ | **45.0% (+18.8 [+13.1,+25.1])** ✔ |
+| `tau022` | no | 48.2% (+7.3) ✔ | 44.5% (+18.3) ✔ |
+| `core_w` | yes | 46.6% (+5.8) ✔ | 30.9% (+4.7) ✔ |
+
+⚠ `core25`/`core_w` used each item's own GT box for selection (the §15C leak); only the `S_v` arms are
+honest. **Label-free weighted head pooling clears on both models as a read-out** (+11.5 / +18.8), and is
+worth ~0 to the learned head (§20F). That is §14Z's conditional, now shown on the head axis: the same
+correction is large for an untrained argmax and absent for a head trained on the raw depth profile.
+
+## §20 ★★★ THE ANSWER POSITION DOES NOT READ THE IMAGE — evidence arrives via the text tokens (phases 176, 176b; PRELIMINARY, 176c pending)
+
+**Setup.** Forward-pre-hook on every decoder layer masks a chosen set of query rows from attending to the image
+token columns, at chosen layers only. Qwen3-VL-2B, V*Bench, 300 tokens, full V0 prompt. Two mask scopes:
+
+| mask scope, all 28 layers | KL at output | answers flipped | n |
+|---|---|---|---|
+| the **answer token's** row only (§176) | 0.025 | **3%** | 40 |
+| **all text rows** after the image (§176b control) | **1.931** | **58%** | 12 |
+
+The pre-registered sanity for §176 ("mask-all must give large KL and flip answers") **failed at 0.025/3%**; the
+176b control then showed the machinery is sound (77× KL, 19× flips). So §176's null is a *finding*, not a fault:
+**blocking the answer-emission token from seeing any image token, at every layer, changes almost nothing.**
+
+**Per-layer profile of the working mask (one layer at a time, all text rows, n=12):**
+```
+L6:0.056  L9:0.089  L11:0.708  L12:0.083  L13:0.160  L14:0.017
+L18:0.0009  L20:0.0025  L22:0.0002  L24:0.0004  L26:0.0005  L27:0.0002
+```
+Image→text transport lives in **L6–L14 (peak L11)** and is ~zero from L18 on.
+
+**Consequences (the causality gap §19 left open).**
+1. **The layers we read are not the layers that transport.** The read-out gate is L17–L20 — *after* consolidation
+   closes. Attention there reflects where the model already looked; it is a trace, not a channel.
+2. **§19's subtraction gets a mechanism.** The late layers the head subtracts (L20–26) have near-zero causal role
+   in reading the image (KL ≤ 0.0025). Their image attention is not evidence-seeking, so the block mean, which
+   adds them at +1, injects noise — exactly what the head learns to remove.
+3. **It explains the seven null internal interventions (§13/§14):** all intervened at or near the answer position,
+   downstream of where the evidence had already moved.
+
+**Limits, held explicitly.** n=12 for the control; one model; a single-layer mask conflates "bottleneck layer"
+with "position in the pipeline" (blocking early blocks everything downstream). **§176c** (40 items, both models,
+prefix L0..l and suffix Ll..27 masks) is queued to settle both. No claim is exported to the paper until it lands.
+Scripts: phase176_readout_sensitivity.py, phase176b_allrows_control.py, phase176c_transport.py.
+
+**Dead on arrival from the same run:** the RippleKV port (label-free layer weights from read-out sensitivity) is
+void — the answer-token sensitivity it was to be built from is at the noise floor (0.001–0.004 per layer). The
+derived read-out rules were never run.
+
+## §18N — Confident Layer Decoding on the ANSWER (phase 177, Qwen3 leg; arXiv 2606.21906): NEGATIVE
+
+Faithful port: lens_l = lm_head(final_norm(h_l)) at the answer position (final layer from model.logits per §12D);
+backward scan from the final layer, stop at the first entropy valley; decode there. **Primary = full-vocab entropy**
+(fixed before the run); letter-restricted entropy is the variant. **Anchor:** our `final layer` arm reproduces the
+stored sweeps — 57.6 vs 56.5 @300 (99% per-item agreement) and 63.9 vs 63.9 @600 (100%) — so this is a result.
+
+| rule | @300 vs final | @600 vs final |
+|---|---|---|
+| CLD entropy valley K=6 (primary) | **−4.7 [−8.4,−1.6]** ✗ | −3.7 [−7.3,+0.0] |
+| min letter-entropy, last 6 (variant) | −2.1 [−6.3,+2.1] | −0.5 [−4.7,+3.7] |
+| DoLa contrast (letters) | **−12.0 [−18.8,−5.8]** ✗ | **−11.0 [−17.3,−4.7]** ✗ |
+
+**Two positives from the negative.** (i) *The alignment-tax signature is present but inert in VLMs*: final-layer
+entropy rises on **54–58%** of items (CLD reports 16.2% for LLMs), yet per-layer lens accuracy climbs monotonically
+to the end (L21:54→L27:58 @300; L21:64→L27:64 @600). Rising entropy ≠ degradation here — there is no better layer
+to select, which is why every ported layer-selection rule (§18K, §18M) has failed. (ii) *The resolution deficit is
+localised to answer formation*: the 300-vs-600 lens-accuracy gap is ~0 through L20 and opens to ~+10pp at L21+,
+the depth §19 identifies. Qwen2 leg pending. Script: phase177_cld_answer.py, phase177_analyze.py.
