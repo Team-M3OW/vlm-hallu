@@ -5488,3 +5488,50 @@ trained on TextVQA learns to trust the mid layers; on V\*Bench those layers are 
 *task-dependent boundary bands*, measured with our label-free gt_pct on a second task: the band is
 not a property of the model alone but of (model, task). It also says what same-task data would have
 to be: same switch-on layer, not just same image domain.
+
+
+## §17  REVIEWER-DRIVEN EXPERIMENTS (2026-09-17, evening)
+
+### §17A  ★ W1 — routing by question type makes DPR clear the bar POOLED (Phase 150)
+Composition at exactly matched tokens: routed items get localise@300 + crop@300, unrouted items get
+uniform@600, scored against uniform@600 everywhere.
+
+| model | bench | router | routed | pooled − bar |
+|---|---|---|---|---|
+| Qwen3-VL | V\*Bench | none (always DPR) | 100% | +7.9 [−0.5,+16.2] ✗ |
+| Qwen3-VL | V\*Bench | **free keyword rule** | 60.2% | **+9.4 [+3.1,+15.2]** ✔ |
+| Qwen2-VL | V\*Bench | **free keyword rule** | 60.2% | **+6.8 [+1.0,+12.6]** ✔ |
+| Qwen3-VL | HR-Bench | free keyword rule | 84.5% | −1.6 [−5.5,+2.1] ✗ |
+| Qwen3-VL | HR-Bench | oracle category | 50.0% | **+3.8 [+1.1,+6.5]** ✔ |
+| Qwen2-VL | HR-Bench | oracle category | 50.0% | **+4.2 [+1.9,+6.8]** ✔ |
+
+The keyword rule (left/right/above/below/next to/between/behind/…) matches V\*Bench's category
+labels on **100%** of items and lifts the pooled contrast over the bar on both models. On HR-Bench its
+agreement is 51.5% — that benchmark's relational questions read "relative position of X compared to
+Y", "how many", "where is" — so pooled is null there with the keyword rule and clears with an oracle
+router. **The composition works when the router works.** Phase 153 (queued) tests a router that is not
+tuned on any evaluation set: the model itself, text-only, zero-shot.
+
+### §17B  ★ W2 — fifty boxed items suffice (Phase 151)
+Train on k items, evaluate on the rest, 10 random draws, both models, W=0.25:
+
+| k | Qwen3-VL head − argmax | Qwen2-VL |
+|---|---|---|
+| 10 | +0.4 (sd 7.3) | +2.1 (sd 5.3) |
+| 25 | +7.6 (sd 4.4) | +8.2 (sd 3.9) |
+| **50** | **+11.9 (sd 2.3)** | **+11.4 (sd 2.8)** |
+| 100 | +10.3 | +12.3 |
+| 191 (OOF) | +16.8 | +16.2 |
+
+Fifty boxed items recover ${\approx}70\%$ of the full gain with tight spread. Together with §15E/§15H
+(zero-shot to HR-Bench) and §16E (task-specific), the supervision requirement is: **~50 boxes from
+one benchmark of the target question type, once.**
+
+### §17C  W3 — pooled single-object n
+Across V\*Bench + HR-Bench single-object: Qwen3-VL **+9.3 [+4.7,+14.0]** (n=515), Qwen2-VL
+**+9.1 [+4.9,+13.4]** (n=515); both models **+9.2 [+6.1,+12.4]** (n=1030). The per-cell lower bounds of
++1.7/+2.2 were the smallest cells; the pooled estimate is not thin.
+
+### Queued
+W4 latency (phase 152, both models) · W1 model-as-router (153) · W3/W6 HR-Bench 8K (155) · W6 Qwen3-VL-8B
+and Qwen2.5-VL-7B full pipeline (154).
