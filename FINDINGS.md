@@ -5825,3 +5825,26 @@ Qwen3-VL. Cropping at a cell raises support for the teacher's answer for reasons
 the evidence (a crop of anything sharpens the prior), so the target is dominated by a confound. **Two
 pre-registered label-free targets, 0 of 2 each. The head needs boxes**; the practical mitigation is
 §17B — ~50 of them, once per question type.
+
+## §18I — Label-free signed layer weighting from sink contamination: NEGATIVE (analysis, 4 architectures)
+
+**Question.** §19 says the head *subtracts* late layers the block mean adds; the subtraction is learned from boxes.
+§14F measured sink mass (attention on the trailing column) correlating +0.52 with a layer being a bad ranker.
+Sink mass is structural and label-free — so can a signed weighting w_l = −z(sink share_l) replace the learned
+subtraction? Two fixed rules, OOF (sink shares estimated on the training fold): (a) Σ w_l·A_l; (b) max over
+positive-weight layers − max over negative-weight layers. Reference: gate max (§16D) and the learned head.
+
+| rule | Qwen3 | Qwen2 | LLaVA-NeXT | OneVision |
+|---|---|---|---|---|
+| block mean (deployed) | 46.6 | 39.3 | 23.0 | 35.6 |
+| gate max (§16D) | 56.0 [+4.2,+14.7] | 51.8 [+7.9,+17.8] | 25.7 [−1.6,+7.3] | 20.9 [−20.4,−9.4] |
+| sink-weighted signed sum | 50.3 [+0.0,+7.3] | 49.7 [+5.8,+15.7] | 28.3 [+0.5,+9.9] | 23.0 [−19.4,−5.8] |
+| sink-gated ±max | 53.4 [+2.1,+12.0] | 49.2 [+5.2,+14.7] | 22.5 [−5.8,+4.7] | 13.6 [−28.8,−15.2] |
+| learned head | 63.4 | 54.5 | 28.3 | 37.2 |
+
+**Verdict.** Below gate max on both Qwen; matches the learned head on LLaVA-NeXT only (28.3 = 28.3); everything
+is worse on OneVision (no layer disagreement, §14Y). Not adopted. **Why it fails:** the most sink-contaminated
+layers are L0–L3 (Qwen3) and L4–L8 (Qwen2) — *early* layers — whereas the layers the head subtracts are late
+(L20–L26, §19). §14F's correlation was carried by early layers every rule already ignores; sink contamination
+and "anti-evidence late layer" are different properties. The head's subtraction still has no label-free proxy.
+Training-free status unchanged: gate max, 1 of 2 on the end task (§16D). Script inline; no GPU.
