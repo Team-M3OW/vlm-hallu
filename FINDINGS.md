@@ -5060,3 +5060,47 @@ three first-pass numbers shrinking under a proper protocol in one session.
 > deployed baseline.** Every number in this project was measured against a baseline that averages
 > indiscriminately over heads and layers. The paper must report the strong baseline, not the deployed
 > one — this is the reviewer's first question and it should be answered before it is asked.
+
+
+## §15D  ⛔ CORRECTION: phase 72b's HR-Bench negative used a CRIPPLED LOCALISER (Phases 116, 117)
+
+Phase 72b has been this project's evidence that "allocation loses at 4K" since §5A, cited in every
+scope statement including today's. Re-running the same arm on the same rows exposed a defect in it.
+
+**The two runs are identical except for one line.** Joining phase 72b and phase 116 on HR-Bench
+`index`, n=150 rows present in both:
+
+| arm | phase 72b | phase 116 | predictions agree |
+|---|---|---|---|
+| uniform@300 | 55.3% | 55.3% | **100.0%** |
+| uniform@600 | 62.0% | 62.0% | **100.0%** |
+| **argmax@0.15** | **42.7%** | **62.0%** | 76.7% |
+
+Labels agree 100%. Both uniform arms agree on **every prediction**, so images, prompt assembly,
+budget, fit() and scoring are identical. Only the crop arm differs — and the **argmax cell is
+identical on just 44.7% of items**, median displacement 0.118 of the image.
+
+### The cause
+Phase 72b localises with `rows[0]["question"]` — the **bare question, options stripped**. Every other
+phase passes the full prompt (phase 71 uses `ex["text"]`, options included). Attention is
+question-conditioned (§14R) and the read-out depends on which query token is read (phase 48), so
+removing the options removes most of the text the localiser conditions on.
+
+**Including the options is worth +19.3pp on the crop arm**, on identical rows.
+
+### What it invalidates
+
+| HR-Bench single-region, argmax@0.15 vs uniform@600 | |
+|---|---|
+| phase 72b, bare-question localiser, n=400 | **−14.8pp [−20.5,−8.8]** |
+| phase 116, full-prompt localiser, n=83 | **+9.6pp [−1.2,+21.7]** |
+
+> **"Allocation loses at 4K" is withdrawn pending re-measurement.** It was measured with a localiser
+> we do not use anywhere else. Phase 72c re-runs the full n=800 with the corrected prompt; until it
+> lands, neither sign may be claimed — the corrected number does not clear zero at n=83, and the
+> unambiguous part is only the 21pp swing in the crop arm from a prompt change.
+
+⚠ This also puts §14T/§15B's scope statements under review: the claim that V\*Bench is the only venue
+where the method can work rested partly on 72b. Two diagnostics I proposed today to explain the 4K
+failure — the budget-axis slope and resolution matching — were each refuted by measurement (§115,
+§116); it now appears the failure they were trying to explain may not have been real.
