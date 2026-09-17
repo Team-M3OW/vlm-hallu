@@ -5407,3 +5407,14 @@ W=0.25: A+nb −2.6 [−7.3,+2.1] on Qwen3 (fails the −1.5 rule, inside the CI
 > The per-layer neighbourhood is the ingredient: it turns the tree's one 3×3 feature (on the block
 > mean) into 28, one per layer, which is the spatial structure phase 130's CNN tried to learn from
 > scratch and could not at n=191.
+
+### §16C addendum 4 — what the parity head reads (A+nb, W=0.15; per-layer weight = point + neighbourhood)
+| | strongest + | strongest − | nb mass / point mass | sink flags |
+|---|---|---|---|---|
+| Qwen3-VL | **L19** +.112, L5, L17, L24, L8 | **L10** −.101, **L26** −.096, L3, L22, L23 | **2.30** | ≈0 |
+| Qwen2-VL | **L19** +.079, **L21** +.071, L16 | L17 −.062, L7, L11, L20 | **1.46** | ≈0 |
+
+The head reads mostly *locally-smoothed* log-attention (neighbourhood weights carry 1.5–2.3× the
+mass of point weights), led by **L19 on both models** and **L21 on Qwen2** (its answer-formation
+layer), with late layers L26/L22/L23 subtracted on Qwen3 and mid layers L7/L11/L17 on Qwen2. Sink
+indicators ≈0 on both. That is the complete description of a head at parity with the tree.
