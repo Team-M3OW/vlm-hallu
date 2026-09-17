@@ -5810,3 +5810,18 @@ head assigns **negative** weight to 6 of 11 (Qwen3-VL: L16, L20, L21, L22, L23, 
 Qwen3-VL the head-to-head flip is weak ($0.26\to0.53$) even though its coverage rises $46.1\to63.4$,
 so most of its Qwen3 gain comes from promoting a *different* covering cell rather than beating that
 specific distractor.
+
+### §18C (final)  ✗ Fix 3 — the box-free line is closed (Phases 162, 162b)
+Second pre-registered target: agreement with the model's own 600-token answer (self-distillation from
+the bar) instead of raw confidence gain.
+
+| box-free target | OOF coverage vs deployed argmax | single-object vs bar |
+|---|---|---|
+| confidence gain (162) | 45.0 vs 46.6 · **47.1 vs 39.3** | −5.2 · +4.3 |
+| **teacher agreement (162b)** | **30.9 vs 46.6** · **33.0 vs 39.3** | **−13.0 [−24.3,−0.9]** · −7.0 |
+
+The second variant is *worse than the first on both models*, and both are below the deployed argmax on
+Qwen3-VL. Cropping at a cell raises support for the teacher's answer for reasons unrelated to covering
+the evidence (a crop of anything sharpens the prior), so the target is dominated by a confound. **Two
+pre-registered label-free targets, 0 of 2 each. The head needs boxes**; the practical mitigation is
+§17B — ~50 of them, once per question type.
