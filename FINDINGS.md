@@ -5472,3 +5472,19 @@ V\*Bench head significantly. **The data route is closed unless the data is same-
 attention profile could be prompt-format-conditioned rather than task-conditioned. Phase 121b showed
 options change nothing *within* V\*Bench, which argues against it, but a V\*Bench-style MCQ source
 with different content (Visual7W, gated) would settle it.
+
+### §16E addendum — why it fails: the switch-on layer is task-dependent
+Median gt_pct per layer (0.500 = chance, lower = the layer ranks the target higher), Qwen3-VL:
+
+| | L11 | L12 | L13 | L14 | L15 | **L16** | L17 | L19 | L21 | L24 | L27 |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| V\*Bench (191) | .279 | .282 | .218 | .296 | .269 | **.068** | **.023** | .040 | .058 | .071 | .377 |
+| TextVQA (3,000) | **.136** | **.133** | **.043** | **.043** | .053 | .024 | .023 | .017 | .017 | .017 | .230 |
+
+Spearman between the two profiles 0.71; best-5 layers overlap (19, 20, 21). But **question-conditioned
+localisation switches on at L11–13 for text reading and at L16 for small-object attributes.** A head
+trained on TextVQA learns to trust the mid layers; on V\*Bench those layers are still question-blind
+(§14R), so it ranks on noise — below the deployed argmax. This is Lu et al.'s (2510.10285) Obs. 5,
+*task-dependent boundary bands*, measured with our label-free gt_pct on a second task: the band is
+not a property of the model alone but of (model, task). It also says what same-task data would have
+to be: same switch-on layer, not just same image domain.
