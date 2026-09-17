@@ -4936,3 +4936,53 @@ informative about its own content immediately after the projector, and mixing wa
 same phenomenon that made attention rollout collapse to 12.6% (§14V/phase 104).
 
 ⚠ Qwen2-VL is queued. `last` vs `evid` and the cliff split both need the second model.
+
+
+## §15B  ✗✗ HARD SCOPE BOUNDARY: crop-based allocation is INVALID for existence questions (Phase 111)
+
+POPE, RePOPE-clean (482 items relabelled, 812 dropped as ambiguous), joined to COCO boxes,
+**stratified** to over-represent the below-cliff band (overall numbers are therefore NOT comparable to
+published POPE). Qwen3-VL-2B, n=688, budget drift **0.1%**.
+
+| stratum | n | uniform@300 | uniform@600 | **crop@0.25** | random crop | oracle crop |
+|---|---|---|---|---|---|---|
+| below cliff | 90 | 76.7% | 70.0% | **13.3%** | 6.7% | 93.3% |
+| cliff zone | 198 | 84.8% | 89.4% | **12.1%** | 16.7% | 97.0% |
+| above cliff | 200 | 100.0% | 98.5% | **35.5%** | 44.5% | 89.5% |
+| negatives | 200 | 88.5% | 89.5% | 93.5% | 94.0% | — |
+
+crop − bar: **−56.7 [−66.7,−46.7]**, **−77.3 [−83.3,−71.2]**, **−63.0 [−69.5,−56.0]**.
+
+### The cause is structural, not a localisation failure
+
+The crop arm answers **"no" to almost everything** — 13% on present-object items, 93.5% on absent ones.
+POPE asks *"Is there an X **in the image**?"*. A window showing 6% of the area is genuine evidence of
+**absence** for that question: the model answers the crop correctly and the image incorrectly.
+
+> **V\*Bench questions presuppose the target exists** ("what colour is the X"), so discarding scene
+> context is safe. **POPE asks whether it exists**, and cropping destroys the evidence base a negative
+> answer requires. Crop-based allocation is **invalid** for existence questions, not merely unhelpful.
+
+### ⚠ And POPE cannot supply a ceiling: the oracle arm is CIRCULAR here
+
+The oracle crop scores 93.3 / 97.0 / 89.5% — but on POPE, **knowing the GT box is knowing the object
+is present**. The oracle leaks the label. Every other venue in this project uses the oracle arm as the
+control that makes the contrast interpretable (§13, §14T); on POPE it cannot. That rules POPE out as a
+venue rather than placing the method behind on it.
+
+### The pre-registered prediction about negatives was WRONG, in an informative direction
+
+Pre-registered: cropping might **raise** false positives, since there is no target to crop to. It
+**lowered** them — 6.5% vs the bar's 10.5%, **−4.0pp [−9.0,+1.0]**. Same cause: the crop biases the
+model toward "no". It looks like a benefit and is the identical defect, measured on the side where it
+happens to help. Recorded as a failed prediction, per §14M and §14L(b).
+
+### What it establishes
+
+The **second hard boundary** of the method, both found by our own controls:
+1. **Relational questions** (§14T) — one window cannot cover an evidence set 7.9× larger in area.
+2. **Existence questions** (here) — removing scene context removes the basis for a negative answer.
+
+It also converts this project's early move from POPE to V\*Bench from a pragmatic choice into a
+measured one, and it means **MMBench is not worth running**: 512px images leave no budget axis, and
+its general-VQA questions carry the same presupposition problem in milder form.

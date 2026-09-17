@@ -61,6 +61,15 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 
 ---
 
+## 🛑 HARD SCOPE BOUNDARIES (measured, not assumed)
+
+| boundary | evidence |
+|---|---|
+| **Relational questions** — one window cannot cover a union 7.9× larger in area | −3.9 / +0.0pp vs the bar on both models (§14T) |
+| **Existence questions — crop-based allocation is INVALID** | POPE: crop −56.7 / −77.3 / −63.0pp vs the bar; the crop answers "no" to everything because a 6%-area window is evidence of absence. The oracle arm is **circular** there (knowing the box = knowing presence), so POPE cannot even provide a ceiling (§15B) |
+| **LLaVA-OneVision** — no layer disagreement to exploit | head −1.0pp; its best single layer equals its block mean (§14N, §14Y) |
+| **MMBench** — 512px, no budget axis | not run; reported as NO AXIS, as in phases 25/28 |
+
 ## 🚧 BLOCKED
 
 | item | blocker |
