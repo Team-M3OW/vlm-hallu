@@ -4986,3 +4986,53 @@ The **second hard boundary** of the method, both found by our own controls:
 It also converts this project's early move from POPE to V\*Bench from a pragmatic choice into a
 measured one, and it means **MMBench is not worth running**: 512px images leave no budget axis, and
 its general-VQA questions carry the same presupposition problem in milder form.
+
+
+## §15C  ⚠ HEAD SELECTION WORKS; CoRe's CONTRASTIVE CRITERION DOES NOT REPLICATE (Phases 108, 108b, 108c)
+
+Lu et al. (2510.10285) select heads by the **absolute** share of their attention on visual tokens.
+CoRe (2510.02219) prove that criterion is flawed in text — it cannot penalise heads that also flood
+irrelevant content, and they measure top-8 such heads dropping **below** the all-heads baseline — and
+replace it with a head-level **contrastive** score. Both ported here. Qwen3-VL, n=191, 16 heads,
+W=0.25.
+
+| rule | needs labels? | coverage | vs all-heads mean (43.5%) |
+|---|---|---|---|
+| **`S_v` top-10% + max** (Lu et al., absolute) | **no** | **55.0%** | **+11.5 [+5.8,+17.8]** ✔ |
+| `S_v` top-25% + max | no | 51.3% | +7.9 ✔ |
+| CoRe top-10% + max, **IN-SAMPLE (leaky)** | — | 60.7% | +17.3 — **not a result** |
+| **CoRe top-10% + max, OUT-OF-FOLD** | yes | **58.1%** | **+14.7 [+8.9,+20.4]** ✔ |
+| CoRe top-25% + max, out-of-fold | yes | 54.5% | +11.0 ✔ |
+
+### ✅ Head selection is real, and label-free
+Keeping **1–2 heads of 16** and taking a max across layers is worth **+11.5pp** with no annotations
+anywhere. Combined with §14V (the layer rule) this is the second axis of the same idea: the deployed
+read-out averages indiscriminately over both heads and layers, and both averages destroy signal.
+
+### ✗ CoRe's specific claim does not replicate
+**CoRe − `S_v` = +3.1pp [−1.0,+7.3]** — direction consistent, significance absent. In text the
+absolute criterion *fails*; here it works fine. And the practical verdict is sharper than the
+statistical one: `S_v` needs **no labels at all** while CoRe needs boxes on the selection set, so a
+non-significant +3.1pp does not justify the annotation cost.
+
+### ⚠ The leakage was worth 2.6pp, and this is the third such correction today
+Phase 108's first implementation scored heads on **each item's own GT box**: 60.7%. Fold-honest
+selection, CoRe's actual protocol: **58.1%**. Reporting the first would have claimed near-parity with
+the learned head (63.4%) on a number that was partly label leakage. Alongside the sizer (+8.9 → −1.0
+across grids, §14U) and the LLaVA scope claim (which inverted at the other window, §14Y), that is
+three first-pass numbers shrinking under a proper protocol in one session.
+
+### The training-free ladder, and what it does to the method's margin
+
+| locator | coverage |
+|---|---|
+| deployed block-mean argmax | 43.5% |
+| `S_v` top-10% heads + max over layers | 55.0% |
+| norm-weighted × max | 56.5% |
+| CoRe OOF heads + max *(needs boxes)* | 58.1% |
+| **learned head** | **63.4%** |
+
+> **The head's lead over the best training-free locator is 5.3pp, not the 17pp it holds over the
+> deployed baseline.** Every number in this project was measured against a baseline that averages
+> indiscriminately over heads and layers. The paper must report the strong baseline, not the deployed
+> one — this is the reviewer's first question and it should be answered before it is asked.
