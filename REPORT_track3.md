@@ -77,4 +77,31 @@ remains 3 of 4 across families; the best training-free rule is Qwen-only as far 
 
 Down from 17 / 15 against the deployed rule, and from 6.9 / 5.8 against norm-weighted max.
 
-## 5. End-task (phase 141) — PENDING
+## 5. End-task (phase 141): does any training-free rule clear the equal-compute bar?
+
+V\*Bench, n=191 each, W=0.25, budget drift 1.2% / 0.7%. `head@0.25` re-run as pipeline control:
+matches the stored value on **100%** of items on both models. Bar = uniform@600.
+
+| single-object vs bar | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| **learned head** | **+15.7 [+6.1,+25.2]*** | **+11.3 [+1.7,+20.9]*** |
+| raw div-gated max (label-free) | **+10.4 [+0.9,+20.9]*** | +7.0 [−2.6,+16.5] |
+| composite div-gated max (pre-registered primary) | +9.6 [−0.9,+20.0] | +7.8 [−1.7,+17.4] |
+| CLAA max_win4 (phase 106, reference) | +9.6 [+0.0,+19.1] | +6.1 [−3.5,+15.7] |
+
+Pooled: rawdiv +6.8 / +3.1, compdiv +5.8 / +4.2, head +7.9 / +6.8 — none clears. Relational: all null.
+head − rawdiv on single: +5.2 [−0.9,+11.3] / +4.3 [−0.9,+9.6]; head − compdiv: +6.1 [+0.9,+12.2]* / +3.5 [−2.6,+9.6].
+
+**Verdict.** No fixed-constant training-free rule clears the equal-compute bar on both models. The best
+label-free rule (max over the divergence-gated layer set, raw maps, no boxes, no per-head maps) clears
+on Qwen3 only — 1 of 2, rejected under the standing rule. The pre-registered composite clears on
+neither. The learned head remains the only arm clearing on both, by ~4–5pp on single-object, with
+lower bounds just under zero.
+
+**What the training-free counterpart is worth stating as:** a one-line, label-free rule — *max over the
+layers where attention is question-conditioned* — that recovers **+10.4 / +7.0pp** over equal compute on
+single-object questions and closes the coverage gap to the head to 3.7 / 2.7pp, but does not
+significantly clear the bar on the second model. Its advantage over CLAA's max_win4 is that the layer
+set comes from a label-free measurement rather than out-of-fold selection on boxes.
+
+## 6. LLaVA divergence gate (phase 142) — PENDING

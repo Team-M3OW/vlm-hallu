@@ -5337,3 +5337,51 @@ observation of §14F, Qwen3-specific as §14K found; the neighbourhood term domi
 sink indicators are ≈0, matching the ablation (§14C(b): profile +7.3, sink +0.0). This is the tree's
 mechanism stated in 63 numbers. Queued: phase 121b (question + instruction, no options) to finish
 isolating the answer-position effect.
+
+
+## §16D  ★★ THE NO-TRAINING COUNTERPART: max over the question-conditioned layers (Phases 140–141, Track 3)
+
+All rules fixed-constant, label-free, no OOF selection. W=0.25, ring-masked top-1 coverage.
+
+| rule | needs | Qwen3-VL | Qwen2-VL |
+|---|---|---|---|
+| deployed: mean over block | — | 46.1 | 39.8 |
+| max over block (CLAA) | — | 53.4 | 46.6 |
+| norm-weighted max | ‖v‖ | 56.5 | 48.7 |
+| heads + ‖v‖ + max (composite) | per-head | 56.5 | 49.7 |
+| **max over the divergence-gated layer set** (raw maps) | phase-95 curve | 56.0 | **52.4** |
+| composite, divergence-gated | all | **59.7** | 51.8 |
+| *learned head* | boxes | *63.4* | *54.5* |
+
+**The three sink fixes are not additive** — norm weighting, head selection and max each beat the
+deployed rule, but stacked they land on the same ~56 / ~49 (composite − nw-max: +0.0 / +1.0). **The
+layer SET is the lever that was left.** Replacing the hand-set block with the layers where attention
+is question-conditioned (phase 95, label-free) is the only component that adds on top: +3.1 / +3.1
+over nw-max, and on raw maps alone **+3.7 [+1.0,+6.8]** on Qwen2. The gate is threshold-robust
+(0.3/0.5/0.7 select the same layers: **L17–20** on Qwen3, **L19–22** on Qwen2 — independently
+re-finding Qwen2's L21). Gap to the learned head: **3.7 / 2.7pp**, down from 17 / 15.
+
+**Do not ship:** ReAttn entropy rescaling (−19 to −27pp on norm-weighted maps — early layers are
+diffuse, any entropy reweighting promotes them); VEA denoising (−1 to −3pp on Qwen — isolated
+high-value cells on V\*Bench are usually the *target*, the opposite of document VQA); phase-30d
+background normalisation (null-to-negative once max/heads are present).
+
+### End-task (phase 141): no training-free rule clears the bar on both models
+`head@0.25` re-run matches the stored value on **100%** of items on both models.
+
+| single-object vs uniform@600 | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| learned head | **+15.7 [+6.1,+25.2]** ✔ | **+11.3 [+1.7,+20.9]** ✔ |
+| **max over divergence-gated layers, raw, label-free** | **+10.4 [+0.9,+20.9]** ✔ | +7.0 [−2.6,+16.5] ✗ |
+| composite, divergence-gated (pre-registered primary) | +9.6 [−0.9,+20.0] ✗ | +7.8 [−1.7,+17.4] ✗ |
+| CLAA max_win4 (§14W) | +9.6 [+0.0,+19.1] ✗ | +6.1 [−3.5,+15.7] ✗ |
+
+**1 of 2 for the best label-free rule — rejected under the standing rule.** The learned head remains
+the only arm clearing on both. The training-free counterpart is stated as: *a one-line, label-free
+rule — max over the layers where attention is question-conditioned — recovering +10.4 / +7.0pp over
+equal compute on single-object questions, closing the coverage gap to 3.7 / 2.7pp, and not
+significantly clearing the bar on the second model.* Its advantage over CLAA's max_win4: the layer
+set comes from a label-free measurement, not out-of-fold selection on boxes.
+
+Cross-family: no training-free rule helps LLaVA; max hurts OneVision (−4.2). The divergence gate on
+LLaVA (phase 142) is the one open test. Full report: `REPORT_track3.md`.
