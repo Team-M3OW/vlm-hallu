@@ -5599,3 +5599,12 @@ proxy for $s$ (first layer whose ring-masked max share doubles the early-layer m
 wrong layer. **The read-out remains task-specific under depth alignment.** Recorded as a negative
 with a mechanism confirmation inside it; the head's supervision must come from the target question
 type (§17B: ~50 boxes).
+
+### §18B  ✗ (interim, Qwen3-VL) Fix 2 — the peaks-spanning window as specified fails (Phase 161)
+Rule: window = bbox of the top-2 peaks of the OOF head score map if peak2 ≥ 0.5·peak1 (NMS 3 cells).
+**k=2 fired on 90% of single-object items** — the GBT map is a smooth coverage regression and its
+second peak is routinely comparable — so the span window costs **−11.3 [−20.0,−2.6]** on single-object
+vs the fixed W=0.25 head, and does not help relational (−2.6 [−15.8,+9.2] vs the bar; head +0.0).
+Median span area 0.100 vs 0.0625. The criterion is wrong, not necessarily the idea; a diagnostic of
+which untuned map statistics separate the two question types follows. Qwen2-VL leg and the
+threshold-free mass-containment variant (163) pending.
