@@ -4625,3 +4625,54 @@ pre-registration bars that move and the ban is the reason the file exists.
 ⚠ Note the sizer's category split on Qwen2-VL: `relative_position` falls to **−7.9pp**, worse than
 the incumbent's +0.0pp. Choosing a window per item actively hurts on questions no single window can
 cover, which is the coverage account applied to the sizer itself.
+
+
+## §14V  ★★★ MAX, NOT MEAN: an LLM prefill paper's aggregation rule beats our read-out (Phase 105)
+
+**CLAA** (McDanel, Li & Khaitan, arXiv 2602.16054, Feb 2026) diagnoses our depth problem on the LLM
+side, independently and with a different oracle. They build an *Answer-Informed Oracle* — true token
+importance measured as attention from the **generated answer** back to the prompt — score ranking
+heuristics layer by layer against it, and find **"layer-wise ranking instability": rankings "degrade
+sharply at specific layers, a failure mode invisible to end-to-end benchmarks"**, with early layers
+(0–4) consistently worst. Their fix: *do not trust any single layer* — aggregate over a window of
+consecutive layers, **by MAX rather than mean**, "to preserve tokens deemed important by any recent
+layer while filtering layer-specific noise".
+
+Our deployed read-out takes the **mean**. Applied to VLM localisation, on disk, W=0.25, n=191 each:
+
+| aggregation rule | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| **mean over block (the incumbent)** | 46.6% | 39.3% |
+| mean over all layers | 42.4% (−4.2) ✗ | 22.5% (−16.8) ✗ |
+| median over block | 41.9% (−4.7) ✗ | 26.2% (−13.1) ✗ |
+| **max over block** | **53.9% (+7.3 [+2.6,+12.6])** ✔ | **46.1% (+6.8 [+3.1,+11.0])** ✔ |
+| max over all layers | 52.4% (+5.8) ✔ | 44.5% (+5.2) ✔ |
+| **max over a 4-layer window (CLAA as specified, window OOF)** | **55.0% (+8.4 [+3.1,+13.6])** ✔ | **51.3% (+12.0 [+6.8,+17.3])** ✔ |
+
+> **Replacing the mean with a max is a one-line, training-free change worth +8.4 / +12.0pp of
+> evidence coverage on two architectures.** The deployed convention is not merely suboptimal in its
+> *range* (§14F) — it is suboptimal in its *rule*, and the better rule was published for LLM prefill
+> acceleration in a literature this field does not cite.
+
+### ⚠ And it takes most of the learned head's margin
+
+| contrast | Qwen3-VL | Qwen2-VL |
+|---|---|---|
+| learned head − deployed argmax | +16.8pp [+11.0,+23.0] ✔ | +15.2pp [+9.4,+21.5] ✔ |
+| learned head − max over block | +9.4pp [+4.2,+15.2] ✔ | +8.4pp [+4.2,+13.1] ✔ |
+| **learned head − max_win4 (CLAA)** | **+8.4pp [+3.1,+13.6]** ✔ | **+3.1pp [−1.0,+7.3]** ✗ |
+
+**"The learned head beats a properly aggregated training-free baseline" is 1 of 2, and therefore
+REJECTED** under the standing rule. The head survives against max-over-the-deployed-block on both
+models, but against CLAA's OOF window-max its margin halves and loses significance on Qwen2-VL —
+the same direction-preserved, magnitude-halved pattern §14K and §80 found twice before.
+
+> **What this means for the method.** Our reported gains have been measured against a baseline that
+> is weak for a reason nobody had named. A one-line rule recovers **50% (Qwen3) to 79% (Qwen2)** of
+> what a 65-feature learned head buys, at zero training cost, with an independent justification from
+> the LLM literature. The honest paper reports both, and may well *prefer the simpler proposer*.
+
+### What has not been run yet
+Every end-task number in this project uses the head's proposals. Whether max_win4 converts as well
+as the head does is an open GPU run — and if it does, the method becomes: **crop at the argmax of a
+max-aggregated attention map, W=0.25, no training at all.**

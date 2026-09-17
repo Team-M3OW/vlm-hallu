@@ -15,7 +15,8 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 |---|---|---|
 | **Averaging across depth dilutes the read-out** | **Q3, Q2** | fixing it is worth +6.2pp (Q3) / +8.4pp (Q2); averaging all layers → 36.6% / 21.5% |
 | **Some layers are anti-correlated with the target, and averaging them in is what hurts** | **Q3, Q2** | Q3 final layer 0.529; Q2 early 0.620 / mid 0.515 — 15/28 layers worse than 0.45 |
-| **A learned re-ranking head improves proposals** | **Q3, Q2** | 39.3→52.9% (+13.6) / 35.1→44.0% (+8.9) |
+| **A learned re-ranking head improves proposals** | **Q3, Q2** | 39.3→52.9% (+13.6) / 35.1→44.0% (+8.9) — ⚠ vs the *deployed* argmax; see §14V for the stronger baseline |
+| **★ MAX beats MEAN as the cross-layer aggregation rule** | **Q3, Q2** | max over block **+7.3 [+2.6,+12.6]** / **+6.8 [+3.1,+11.0]**; CLAA 4-layer window-max **+8.4 [+3.1,+13.6]** / **+12.0 [+6.8,+17.3]**. Training-free, one line (§14V) |
 | **DCR beats the vanilla VLM** | **Q3, Q2** | **+12.0pp [+4.2,+19.9]** / **+10.5pp [+2.6,+18.3]** — both CIs clear |
 | **DCR beats random placement** | **Q3, Q2** | +28.3pp / +20.9pp [+11.5,+30.4] |
 | **The encoding cliff** | **Q3, Q2** | step at 0.15–0.25 merged tokens, oracle flat across it (§13C) |
@@ -37,6 +38,7 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **"No single layer is a good localiser"** | False on Q2 — L21 alone beats the block mean by 8.4pp and all 5 folds pick it. Cut. |
 | ~~**"DCR beats the compute-matched budget baseline"** (pooled)~~ | **Reworded, not un-rejected.** At the transferred W=0.25 it is Q3 **+7.9pp [−0.5,+16.2]**, Q2 **+6.8pp [−1.0,+14.7]** — two positive estimates with lower bounds inside a point of zero. That is **NOT DEMONSTRATED at n=191**, not refuted. The old numbers compared Q3 at a held-out W against Q2 at a window never swept on it (§14T). Pooled still may not be claimed. |
 | **"DCR beats the argmax proposer it replaces"** | Q3 **+8.4pp [+2.6,+14.7]** ✔, Q2 **+4.7pp [−1.0,+11.0]** ✗. Direction consistent, magnitude halved, significance lost. Demoted to provisional; cannot be claimed pooled. |
+| **"The learned head beats a properly aggregated training-free baseline"** | Q3 **+8.4pp [+3.1,+13.6]** ✔, Q2 **+3.1pp [−1.0,+7.3]** ✗ against CLAA's 4-layer window-max. **1 of 2 — rejected.** The head still beats max-over-block on both (+9.4 / +8.4). §14V |
 
 ---
 
