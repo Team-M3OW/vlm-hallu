@@ -71,6 +71,10 @@ Models: **Q3** = Qwen3-VL-2B · **Q2** = Qwen2-VL-7B · **OV** = LLaVA-OneVision
 | **LLaVA-OneVision** — no layer disagreement to exploit | head −1.0pp; its best single layer equals its block mean (§14N, §14Y) |
 | **MMBench** — 512px, no budget axis | not run; reported as NO AXIS, as in phases 25/28 |
 
+## ⛔ INVALIDATED BY THE BARE-QUESTION LOCALISER (§15I) — do not cite
+
+§5A/§5B (ph 33) · §8A 4K gating (ph 46) · §9B *our* arm only (ph 53; prior-art losses stand) · §9C all four 4K attempts (53–56) · §9D scale sweep (57) · §11B multi-crop at 4K (59) · §14E (72b). Replaced by §15E/§15H.
+
 ## 🚧 BLOCKED
 
 | item | blocker |

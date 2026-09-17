@@ -5213,3 +5213,39 @@ Before today no claim in the project had been replicated across both axes. Now t
 - **the method beats equal compute on single-object questions** — 2 × 2
 plus one boundary (relational questions lose under cropping, 2 × 2, §15G). Both findings survive;
 neither had to be demoted to make room for the other.
+
+
+## §15I  ⛔ SYSTEMIC CORRECTION: every HR-Bench phase before 72c localised on the BARE QUESTION
+
+Audit of every script that calls `localize()` / `propose()`:
+
+| localiser text | phases | benchmark |
+|---|---|---|
+| full prompt (`ex["text"]`, options included) | 31, 32, 42, 45, 47, 58, 71, 80b, 111, 116, **72c**, 72c-q2 | V\*Bench, POPE, HR-Bench (72c only) |
+| **bare question** (`grp["question"].iloc[0]` / `rows[0]["question"]`) | **33, 46, 53, 54, 56, 57, 59, 72b** | **every HR-Bench phase except 72c** |
+
+Phase 33 even annotates it: *"question text only; options irrelevant"*. §15D measured what that
+costs on identical rows: **+19.3pp on the crop arm** when the options are restored, with both uniform
+arms agreeing on 100% of predictions.
+
+### What this invalidates (all HR-Bench-based)
+- **§5A/§5B** (phase 33): the 4K transfer negative and the +13.6pp attn−rand control — the *sign* of
+  the control likely survives (random placement is worse still), its magnitude does not.
+- **§8A** (phase 46): gating at 4K.
+- **§9B** (phase 53): *our* arm's −0.2pp break-even. The prior-art arms (Zoom Eye, grounding) run
+  their own localisation and are **unaffected** — their losses at matched budget stand.
+- **§9C** (phases 53–56): "four attempts to win at 4K, all negative" — all four crippled.
+- **§9D** (phase 57): the scale sweep and the "coverage absorbs the boundary" account.
+- **§11B** (phase 59): multi-crop at 4K, "the win does not transfer".
+- **§14E** (72b): already superseded by §15E.
+
+### What replaces them
+Phase 72c / 72c-qwen2 with the full-prompt localiser: the head clears the equal-compute bar on
+single-object at 4K on **both** models (+7.5 / +8.5). The "scale boundary" this project spent five
+phases explaining (§9C, §9D, §115, §116) **was a prompt bug**. The V\*Bench half of the project is
+untouched — every V\*Bench phase used the full text.
+
+### Process
+The bug survived six weeks and eight phases because each new HR-Bench script was cloned from phase
+33. It was found only when the multi-benchmark standard was applied and a fresh script (116) was
+written from the V\*Bench template instead. **Rule: never clone a localiser; import one.**
