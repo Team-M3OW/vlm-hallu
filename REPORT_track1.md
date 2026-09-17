@@ -27,4 +27,36 @@ coverage), which is 6 passes → bar uniform@1800, and the argmax top-k is nearl
 top-k there — i.e. the ranking advantage of the head is concentrated at k=1–3 and evaporates by k=10
 on Qwen2 (78.0 vs 79.0). Multi-crop (4 crops, one pass) already failed −3.1pp (§14M).
 
-(remaining sections filled as phases 118 / 121 / 122 land)
+## Phase 118 — up-weight the items where placement matters (encfail): NEGATIVE, both models
+
+Sample-weight w on items with uniform@300 wrong AND oracle@0.25 right (72 / 79 of 191). Primary w=3.
+
+| weight | Q3 cov all | Q3 cov encfail | vs w=1 (all) | Q2 cov all | Q2 cov encfail | vs w=1 (all) |
+|---|---|---|---|---|---|---|
+| 1 (incumbent) | 63.9% | 61.1% | — | 57.1% | 50.6% | — |
+| **3** | 62.3% | 59.7% | −1.6 [−5.2,+2.1] | 54.5% | 46.8% | −2.6 [−6.3,+0.5] |
+| 10 | 60.7% | 56.9% | −3.1 [−7.9,+1.6] | 50.3% | 41.8% | **−6.8 [−11.5,−2.6]** |
+
+Monotonically worse with weight, on both models, and worse on the very items being up-weighted
+(encfail −1.4 / −3.8 at w=3). Reading: the encfail subset is ~40% of items, so up-weighting it
+mostly reduces effective sample size at n=191 — the constraint phase 102 already identified.
+
+## Phase 122 — alternative training targets: NEGATIVE, both models
+
+| target | Q3 | vs T0 | Q2 | vs T0 |
+|---|---|---|---|---|
+| T0 regress coverage@0.25 (incumbent) | 63.9% | — | 57.1% | — |
+| T1 classify covers@0.25, balanced | 59.7% | **−4.2 [−7.9,−1.0]** | 56.5% | −0.5 [−3.7,+2.6] |
+| T2 regress mean coverage@{0.15,0.25,0.35} | 60.7% | −3.1 [−6.8,+0.5] | 56.5% | −0.5 [−4.2,+3.1] |
+| T3 regress coverage@0.15 | 63.4% | −0.5 [−5.2,+3.7] | 54.5% | −2.6 [−6.8,+1.6] |
+| T4 regress coverage@0.25² | 60.7% | −3.1 [−6.8,+0.0] | 55.5% | −1.6 [−5.2,+1.6] |
+
+Nothing beats the incumbent target on either model; the graded regression target is the right one
+(classification throws away the partial-coverage signal and loses 4.2pp on Qwen3).
+
+**Calibration note:** the incumbent's OOF coverage reads 63.9 / 57.1 here vs 63.4 / 54.5 in the
+parent's runs (same data, different fold seeds / extraction). The run-to-run floor on this metric is
+closer to **1–2.5pp** than the 1pp stated in §14Z; every contrast above is judged against its own
+same-seed incumbent, so this does not affect the verdicts, but it should be stated in the paper.
+
+(phase 121 prompt sweep pending)

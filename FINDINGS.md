@@ -5249,3 +5249,12 @@ untouched — every V\*Bench phase used the full text.
 The bug survived six weeks and eight phases because each new HR-Bench script was cloned from phase
 33. It was found only when the multi-benchmark standard was applied and a fresh script (116) was
 written from the V\*Bench template instead. **Rule: never clone a localiser; import one.**
+
+
+## §16B  ✗ ARCHITECTURE SEARCH, ROUND FOUR: a spatial CNN does not beat the tree (Phase 130, Track 2)
+
+Spatial 3×3 CNN over the 28-channel map (+ ranks + geometry), MSE and pairwise losses, flip
+augmentation, seed ensembles, GBT+CNN rank ensembles — all four models, folds identical to phase 70.
+**Nothing clears on both Qwen models**; the CNN is significantly worse on Qwen2-VL at both windows
+(−8.9 / −9.4). With phases 45, 102 and 112 this is the fourth independent failure of a more expressive
+head: **the limit is 191 boxed items, not the model class.** Full table in `REPORT_track2.md`.
