@@ -6566,3 +6566,23 @@ Diagnostic arms, over budget and ineligible as the method: uniform@900 (no pruni
 tsr900 ≈ uniform@900, pruning makes resolution affordable; if tsr900 > uniform@900, pruning itself raises accuracy.
 Prior art (PyramidDrop 2410.17247, FastV 2403.06764, HiRED 2408.10945) stated in the script header.
 Scripts: phase185_tsr.py, phase185_analyze.py, phase185b_diag.py.
+
+### §26B ✗ Qwen2 leg — P1 FAILS (1 of 2); TSR is not adopted as an accuracy method
+| Qwen2, n=191 | bar | tsr900 | tsr900 atP | tsr900 rand | fastv900 | tsr600 |
+|---|---|---|---|---|---|---|
+| single | 58.3 | 61.7 | 62.6 | 61.7 | **65.2** | 58.3 |
+| relational | 60.5 | 61.8 | 59.2 | 59.2 | 61.8 | 60.5 |
+| ALL | 59.2 | 61.8 | 61.3 | 60.7 | **63.9** | 59.2 |
+
+P1 tsr900 − bar **+2.6 [−2.6,+7.9] n.s.** → **1 of 2 → rejected.** The Qwen3 relational win (+10.5) does not
+replicate (+1.3 n.s.). **S1 inverts**: FastV at equal compute beats TSR on Qwen2 single (−3.5 [−7.0,−0.9] ✗) —
+on this model the extra resolution is the active ingredient and mild early pruning preserves it better than
+aggressive late pruning. **S2 holds 2 of 2**: tsr600 = bar (+0.0 / −0.5) at 65% of the compute.
+
+**What survives on both models.** (i) Pruning 90% of visual tokens at the causally-derived depth (L16) costs
+nothing at 600 tokens — the pruning-side restatement of §20B, now at two budgets (300: §14L; 600: here).
+(ii) At L16 the ranking used to choose the survivors barely matters (rand ≈ TSR on both). (iii) "Encode at 900
+and prune to fit the bar" beats the bar on both models — but the *best schedule differs by model* (TSR on Qwen3,
+FastV-style on Qwen2), so any single fixed schedule is 1 of 2 and choosing per model is post-hoc. Not claimed.
+**Diagnostic 185b (uniform@900, k sweep) pending** to decompose the Qwen3 gain into resolution vs pruning; it
+cannot revive P1.
