@@ -7088,3 +7088,29 @@ single-instance by ~+14 and loses cross-instance by ~−8; resolution wins cross
 single-instance by ~−11. Choosing per item is a router (constraint 7). No composition recovers both — §32 (scene
 dilutes the crop, −5 to −9 at oracle placement) and §35 (two full-res crops still −2.6 on cross) show the two
 mechanisms interfere rather than add.
+
+## §37 ✗ FUNDED MULTI-CROP (phase 194): composes correctly, does not clear — P1 0 of 2
+
+Design: `localise@300 exit at L20` (§29, exiting is free) + `two full-300-token ridge crops pruned 90% at L16`
+(§26C, pruning is free) = **17,160 token-layers, 101–104% of the bar** — §29 pays for §26C pays for §35's second crop.
+
+| | bar | ridge1@300 | **mc2p** | mc2p no-exit (114–117%) | oracle |
+|---|---|---|---|---|---|
+| **Qwen3** single | 62.6 | 77.4 | **80.9** | 83.5 | 96.5 |
+| **Qwen3** cross | 65.8 | 64.5 | **68.4** | 64.5 | 75.0 |
+| **Qwen3** ALL | 63.9 | 72.3 | **75.9** | 75.9 | 88.0 |
+| **Qwen2** single | 58.3 | 69.6 | 69.6 | 71.3 | 94.8 |
+| **Qwen2** cross | 60.5 | 65.8 | 59.2 | 65.8 | 78.9 |
+| **Qwen2** ALL | 59.2 | 68.1 | 65.4 | 69.1 | 88.5 |
+
+**P1 (mc2p − ridge1@300):** Qwen3 **+3.5 / +3.7** (positive on every stratum, CI spans zero); Qwen2 **+0.0 single,
+−6.6 cross, −2.6 pooled**. **0 of 2 → not adopted.** vs the bar: Qwen3 **+18.3 ✔ single, +12.0 ✔ pooled** (the
+project's best pooled number); Qwen2 **+11.3 ✔ single**, +6.3 pooled n.s.
+**S1 (cost of the L20 early exit at the end task):** Qwen3 −2.6 single / +0.0 pooled; Qwen2 −1.7 single / **−3.7
+pooled, −6.6 cross**. §29 measured the exit as free *in coverage*; at the end task it costs a few points on Qwen2 —
+another coverage→accuracy gap (§14W, §24, §30B). The no-exit arm is better on Qwen2 (69.1 vs 65.4) but 117% of budget.
+
+⇒ **The composition is mechanically sound** (budgets land at 101–104%, all three component results hold) **but the
+second crop is worth +3.7 on one model and −2.6 on the other.** Multi-crop in every form tested — 2×150 matched
+(§35), 3×100 (§35), 2×300 funded (§37) — is now 0 of 2. **The incumbent single ridge crop stands as the method.**
+Scripts: phase194_funded_multicrop.py, phase194_analyze.py.
