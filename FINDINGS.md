@@ -6833,3 +6833,34 @@ one cut at the boundary on both models.** Also on record: on Qwen2-VL-7B **unifo
 its resolution curve is flat beyond 600 tokens on V*Bench, which is why no compute reinvestment converted on this model
 (§26C, §27, §30B). The single L16 cut (tsr900) is the best pruning arm on both models (+5.7 / +3.6 vs bar, n.s. on Qwen2).
 **§28 final: the schedule is one cut at the transport boundary; nothing finer helps.**
+
+## §31 ★★ A LEARNED PRUNING HEAD FROM EARLY HIDDEN STATES IS AN OBJECTNESS PRIOR: it prunes better than attention at any depth and cannot localise (phases 189a–c)
+
+**Question.** §26C: at/after L16 pruning needs no ranking (random = attention). §29: attention cannot rank before ~L14
+(question-blind). Can a *learned* head read something attention cannot — the residual stream — early enough to prune
+where it saves compute? Dump: image-token hidden states at L4/8/12/16 for the 191 V*Bench items at 300 tokens (both
+models). Probe: logistic ridge, GroupKFold(5) by item, target = token centre inside the GT box (0.8% positives).
+
+| metric | variant | Qwen3 L4 / L8 / L12 / L16 | Qwen2 L4 / L8 / L12 / L16 |
+|---|---|---|---|
+| box-hit@25% (keep top 25%, retain ≥50% of the box) | attention (same depth) | 67 / 55 / 39 / **72** | 13 / 9 / 20 / **59** |
+| | geometry-only | 48 | 47 |
+| | **token-only probe [h]** | **87 / 89 / 85 / 85** | **75 / 66 / 68 / 71** |
+| | full probe [h ; h·q] | 84 / 84 / 86 / 79 | 72 / 62 / 67 / 68 |
+| top-1 coverage@0.25 (placement) | attention | 18 / 19 / 5 / 45 | 0 / 1 / 1 / 19 |
+| | token-only probe | 34 / 34 / 39 / 35 | 28 / 23 / 22 / 22 |
+| | **ridge, 28 layers (§21)** | **63.9** | **55.0** |
+| | random keep | 15 | 18 |
+
+**Three facts, both models.** (1) **A linear read of the layer-4 residual stream retains the evidence box better than
+attention at any depth, including the L16 reference** (Qwen3 87 vs 72, +11.8 [+1.2,+22.4]; Qwen2 75 vs 59, +12.9
+[+1.2,+24.7]; probe AUC 0.78–0.87). (2) **It is not geometry (48%) and not question-conditioned** — the token-only
+probe beats the [h ; h·q] probe on both models: what layer 4 knows is *objectness*, which patches look like a small
+distinct thing, independent of the question. (3) **It cannot localise**: top-1 coverage 22–39% vs the ridge's 64/55 — it
+knows the *set* of candidate objects, not which one the question wants.
+⇒ **Division of labour, derived not assumed:** prune early by objectness (residual stream, L4, ~75% of tokens droppable
+while retaining the box 75–89% of the time), place late by the question-conditioned read-out (L17–20, ridge). Prior art
+(MAP 2608.06411) trains a pre-LLM pruner to *imitate mid-layer attention*; the residual stream is a better teacher than
+the attention it would imitate. Pending: cross-resolution transfer (189d/e); end task (189f) — the payoff is bounded by
+each model's resolution curve (flat beyond 600 on Qwen2/V*Bench, §28B), so a 2-of-2 accuracy claim needs a benchmark
+where both models have a deficit (HR-Bench). Scripts: phase189a_hidden_probe_dump.py, phase189b_probe.py, phase189c_probe_controls.py.
