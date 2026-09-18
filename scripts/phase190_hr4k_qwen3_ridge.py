@@ -97,7 +97,7 @@ def _ridge_feats(A, gh, gw):
                 np.minimum(np.minimum(fx, 1 - fx), np.minimum(fy, 1 - fy)), (xx.ravel() == gw - 1).astype(float), (yy.ravel() == gh - 1).astype(float)]
     return np.c_[LA, R, geo]
 def _fit_ridge(lam=1.0):
-    import phase70_rerank_head as _P70; _P70.W = 0.25
+    import phase70_rerank_head as _P70; _P70.W = W   # fit at the DEPLOYED window (0.15 on HR-Bench), not 0.25
     X = []; Y = []
     for l in open(_RSRC[0]):
         r = json.loads(l); gh, gw = r["grid"]; n = r["n_img_tokens"]
@@ -108,7 +108,7 @@ def _fit_ridge(lam=1.0):
         X.append(_ridge_feats(A, gh, gw)); Y.append(np.array([_P70.coverage(float(fx[i]), float(fy[i]), r["gt_box_frac"]) for i in range(n)]))
     X = np.vstack(X); Y = np.concatenate(Y); mu, sd = X.mean(0), X.std(0) + 1e-9; Xt = np.c_[(X - mu) / sd, np.ones(len(X))]
     A_ = Xt.T @ Xt + lam * np.eye(Xt.shape[1]); A_[-1, -1] -= lam; w = np.linalg.solve(A_, Xt.T @ Y)
-    print(f"ridge fit on {len(np.unique(Y))} V*Bench cells x {X.shape[1]} features (transfer, no refit)", flush=True)
+    print(f"ridge fit on {len(Y)} V*Bench cells x {X.shape[1]} features at W={_P70.W} (TRANSFER: fit on all V*Bench items, applied to HR-Bench, nothing refit)", flush=True)
     return lambda A, gh, gw: np.c_[(_ridge_feats(A, gh, gw) - mu) / sd, np.ones(gh * gw)] @ w
 ridge_score = _fit_ridge()
 
