@@ -7028,9 +7028,23 @@ about integration. Phase 193 supplies the confound-free test: **two crops at ful
 **§32's original reading stands: the model does not integrate across two images for cross-instance questions.**
 Cross-instance is **not a coverage problem**; covering both objects changes nothing.
 
-⇒ **Live follow-up (phase 194):** the second crop is worth **+7.0 on single-instance** at full magnification, and
-§26C's free L16 pruning funds exactly that: two 300-token crops + 300-token localiser, pruned 90% at L16 =
-900×17 + 90×11 = **16,290 token-layers ≤ the 16,800 bar**. Qwen2 leg of 193 pending.
+### §35B Qwen2 leg — P1 fails again (0 of 2); the tax is smaller here but so is the gain
+| Qwen2, n=191 | single | cross | ALL |
+|---|---|---|---|
+| ridge1@300 | 71.3 | 68.4 | 70.2 |
+| ridge1@150 | 67.0 | 67.1 | 67.0 |
+| ridge2@150 | 69.6 | 67.1 | 68.6 |
+| ridge3@100 | 61.7 | 57.9 | 60.2 |
+| ridge2@300 (152%, diag) | 74.8 | 64.5 | 70.7 |
+
+S2 tax −4.3 single / −3.1 pooled (vs Qwen3's −11.3 / −7.3). S1 gain +2.6 single (vs +7.8). **P1 −1.7 / −1.6, n.s.
+→ 0 of 2, multi-crop at matched budget is rejected.** k=3 is significantly worse on both models (−9.6 ✗ single here,
+−9.9 ✗ pooled). Token curve: 100→61.8, 150→67.0, 300→70.2 — same shape as Qwen3, shallower.
+**Cross-instance again unmoved**: ridge2@150 +0.0, ridge2@300 (full resolution, both objects far above the cliff)
+**−3.9**. With Qwen3's −2.6 that is 2 of 2 confirming §36B — cross-instance is not a coverage problem.
+⇒ **Live follow-up (phase 194):** the second crop at FULL magnification is worth +7.0 (Qwen3) / +3.5 (Qwen2) on
+single-instance, both n.s. alone but same-signed; §26C's free L16 pruning plus §29's L20 early exit fund exactly that
+inside the bar (17,160 TL = 102%). That is the only multi-crop form still open.
 Scripts: phase193_multicrop.py, phase193_analyze.py.
 
 ## §36 ★★★ WHY CROSS-INSTANCE CANNOT BE FIXED BY ALLOCATION: the oracle ceiling, and a tenth failed design
