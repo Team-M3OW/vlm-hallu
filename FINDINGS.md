@@ -6538,3 +6538,31 @@ fold control and single-run baseline set were both specified before any of its n
 ⇒ **Paper consequence.** The method-led framing is restored, with a better and simpler method than the one it was
 built on. Headline table = phase 184. §23's tree-based table is superseded and kept only as the record of why the
 ridge was tested.
+
+## §26 ★★★ TRANSPORT-SCHEDULED RESOLUTION (phase 185) — depth-wise pruning that buys accuracy; Qwen3 leg (Qwen2 pending)
+
+**Method.** Encode at 900 tokens; full width through L0–L16 (the transport window, §20B); at L16 keep the top 10%
+of visual tokens by the last-prompt-token attention (mean L12–L16, label-free); run L17–L27 narrow. Token-layers
+16,111 vs 16,743 for uniform@600 (**96% of the bar**). No crop. Prune depth is *derived* from §20B, not tuned.
+Controls at equal compute: FastV (prune at L2, keep 63%), random-keep at L16, tsr600 (65% of the bar's compute).
+
+| Qwen3, n=191 | u@300 | **bar** | **tsr900** | tsr900 atP | tsr900 rand | fastv900 | tsr600 |
+|---|---|---|---|---|---|---|---|
+| token-layers, % of bar | 49 | 100 | **96** | 96 | 96 | 99 | 65 |
+| single | 49.6 | 62.6 | **66.1** | 64.3 | 63.5 | 60.0 | 62.6 |
+| relational | 67.1 | 65.8 | **76.3** | 75.0 | 76.3 | 73.7 | 64.5 |
+| ALL | 56.5 | 63.9 | **70.2** | 68.6 | 68.6 | 65.4 | 63.4 |
+
+**P1** tsr900 − bar **+6.3 [+2.1,+11.0] ✔** pooled; **relational +10.5 [+2.6,+18.4] ✔** (GUARD passes — the first
+method in this project to *win* the cross-instance stratum); single +3.5 [−1.7,+8.7] n.s.
+**S1** tsr900 − fastv900 (equal compute) **+4.7 [+1.0,+8.9] ✔** — the prune depth is the variable.
+**S2** tsr600 − bar −0.5 [−1.6,+0.0]: equal accuracy at 65% of the compute.
+tsr900 − random-keep +1.6 [−0.5,+3.7] n.s.: at L16 *which* tokens are kept barely matters (consistent with §20B —
+the tokens are inert after transport).
+
+**Open before any claim (phase 185b, queued):** relational is non-monotone in resolution (67.1 @300 → 65.8 @600 →
+76.3 TSR@900), so the gain may be the *pruning* (removing inert late-layer visual tokens) rather than the resolution.
+Diagnostic arms, over budget and ineligible as the method: uniform@900 (no pruning) and k=0.25/0.50. If
+tsr900 ≈ uniform@900, pruning makes resolution affordable; if tsr900 > uniform@900, pruning itself raises accuracy.
+Prior art (PyramidDrop 2410.17247, FastV 2403.06764, HiRED 2408.10945) stated in the script header.
+Scripts: phase185_tsr.py, phase185_analyze.py, phase185b_diag.py.
