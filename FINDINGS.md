@@ -6773,3 +6773,17 @@ L17–20 read-out ranks — pruning and reading cannot share a boundary; **exiti
 **Design that follows (188b, pending Qwen2):** loc@400 tokens, exit at L20 (400×21 = 8,400) + crop@300 (8,400) = **16,800
 = the bar exactly**, at 1.33× the localisation resolution. 400-token maps queued (188d). Scripts: phase188a_hires_loc_maps.py,
 phase188a_analyze.py, phase188c_earlyexit_ridge.py.
+
+### §29B  Qwen2 leg — the boundary facts replicate; the resolution gain is borderline in coverage
+| claim | Qwen3 | Qwen2 | |
+|---|---|---|---|
+| read-out needs layers ≤ L20 only (exit at L20 vs all 28, 300 tokens) | −0.5 | +1.6 | **2 of 2** |
+| exit at L16 destroys the read-out | −9.4 ✗ | −22.0 ✗ | **2 of 2** |
+| pruning the localiser at L16 destroys the read-out | −3.1 | −12.6 ✗ | **2 of 2** |
+| 450-token localisation, all layers, vs 300 | +6.8 ✔ | +3.7 [−2.6,+9.9] | 1 of 2 |
+| 450-token localisation, exit L20, vs 300/all | +5.8 [−0.5,+12.1] | +6.3 [+0.0,+12.6] (relational +11.8 ✔) | borderline, both |
+
+Sharpening of §19/§20B, now 2 of 2: **the useful read-out ends at L20** — the gate band L17–20 is indispensable
+(exit at L16: −9 to −22), the layers the head subtracts beyond L20 are worth ≤1.6pp, and the read-out cannot share its
+boundary with pruning. **Launch gate for 188b (pre-specified, automated):** ridge coverage with layers ≤ 20 on the
+400-token maps ≥ the 300/all-layer reference on both models (point estimates); phase188_gate.py decides when 188d lands.
