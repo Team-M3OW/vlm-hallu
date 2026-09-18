@@ -6885,9 +6885,22 @@ Cheap control: ctx−uniform@300 on relational **−10.5 [−23.7,+2.6]** — wo
 
 > **Cause, from the oracle arm: context dilutes the crop.** `oracle_ctx − oracle300` on single = **−8.7
 > [−13.9,−4.3] ✗** — with a *perfect* crop, merely having the scene in context costs 8.7pp. It is not a placement
-> failure and not a budget split. And on relational the same contrast is **+0.0**: **the model does not use the scene
-> to answer relational questions even when the second object is in context.** One cause for three failed compositions
-> (§20C thumbnail, §178 split, §191 continuation).
+> failure and not a budget split. One cause for three failed compositions (§20C thumbnail, §178 split, §191 continuation).
+
+⚠ **§32C CORRECTION to the relational reading (made before phase 193, from the cliff arithmetic).** I originally wrote
+that the +0.0 on relational shows "the model does not use the scene even when the second object is in context." That is
+wrong. At 300 tokens for the **whole image**, a relational object (median 0.071% of image area) occupies **0.21 merged
+tokens — below the ~0.25-token cliff (§13)**. The second object was never perceptible in the scene, so +0.0 is evidence
+about *encoding*, not about cross-image integration. The scene arm could not have worked whatever the model does.
+**Consequence:** §32 shows composition-with-a-low-res-scene fails; it says nothing about **two crops**, where each
+object gets 1.4–1.7 merged tokens at 150 tokens per crop — 6–7× above the cliff. Multi-crop (§33, phase 193) is a
+different proposition and is not pre-judged by §32.
+
+**Predicted magnification tax for phase 193, stated before the run:** a W=0.25 crop holds the target at ~1% of its area,
+so 300→150 tokens moves the target from 2.9–3.4 to 1.4–1.7 merged tokens, both far above the cliff → tax expected
+**≈1–2pp**. Independent check: §178's `glocal_150_150` lost 9.6pp vs `ridge300` on Qwen3 single, of which §32 attributes
+**−8.7** to the scene, leaving ~1pp for halving the crop. If §33's +17.1/+15.8pp relational coverage gain converts at
+the project's measured ~0.62pp accuracy per pp coverage, `ridge2@150 − ridge1@300` should be **≈ +8pp on relational**.
 
 **Consequence for "make it work on relational".** Composition is closed: the scene cannot be added to a crop, at any
 budget split, because the crop loses more than the scene gives and the scene is not integrated. The only design that
