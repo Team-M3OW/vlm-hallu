@@ -6787,3 +6787,20 @@ Sharpening of §19/§20B, now 2 of 2: **the useful read-out ends at L20** — th
 (exit at L16: −9 to −22), the layers the head subtracts beyond L20 are worth ≤1.6pp, and the read-out cannot share its
 boundary with pruning. **Launch gate for 188b (pre-specified, automated):** ridge coverage with layers ≤ 20 on the
 400-token maps ≥ the 300/all-layer reference on both models (point estimates); phase188_gate.py decides when 188d lands.
+
+## §30 — Early-exit, higher-resolution localiser at the bar (phase 188b; Qwen3 leg, Qwen2 pending)
+Design: localise at **400 tokens, exit at L20** (ridge on layers ≤ 20; 400×21 = 8,400 TL) + ridge crop@300 (8,400) =
+16,800 = the bar. Gate (pre-specified, automated): 400/L≤20 ridge coverage ≥ 300/all on both models → **PASS**
+(63.9 vs 63.4 Qwen3; 58.6 vs 54.5 Qwen2).
+
+| Qwen3, n=191 (budgets 99% of bar) | bar | ridge300 (incumbent) | **ridge400×20** | ridge400 all layers (116%, diag) | oracle |
+|---|---|---|---|---|---|
+| single | 62.6 | 77.4 | **80.0** | 77.4 | 96.5 |
+| relational | 65.8 | 65.8 | 67.1 | 63.2 | 75.0 |
+| ALL | 63.9 | 72.8 | **74.9** | 71.7 | 88.0 |
+
+P1 400×20 − 300: **+2.1 [−3.1,+7.9]** n.s. (single +2.6, relational +1.3 — better on every stratum, not significantly).
+P2 vs bar: **+11.0 [+3.1,+18.8] ✔** — the method's highest pooled margin so far. Diagnostic: all 28 layers at 400 is
+*worse* than exiting at L20 (−3.1 [−6.8,+0.5]) — at this resolution the late layers add noise to the read-out; the
+exit is the better read, not merely the cheaper one. Qwen2 leg pending (coverage gain there +4.2). Scripts:
+phase188b_hiresloc.py, phase188b_analyze.py, phase188_gate.py.
