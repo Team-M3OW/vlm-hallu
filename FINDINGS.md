@@ -6864,3 +6864,35 @@ while retaining the box 75–89% of the time), place late by the question-condit
 the attention it would imitate. Pending: cross-resolution transfer (189d/e); end task (189f) — the payoff is bounded by
 each model's resolution curve (flat beyond 600 on Qwen2/V*Bench, §28B), so a 2-of-2 accuracy claim needs a benchmark
 where both models have a deficit (HR-Bench). Scripts: phase189a_hidden_probe_dump.py, phase189b_probe.py, phase189c_probe_controls.py.
+
+## §32 ✗ Context-continued crop (phase 191, Qwen3 leg): FAILS — and the oracle arm names the cause
+
+Design: the localiser pass already encodes the full scene at 300 tokens; **keep it and continue the sequence with the
+crop** — `[global@300, q][crop@300, q]` — so the answer sees scene + magnified crop. Prefix is bit-identical to the
+localiser pass, so deployment caches its KV: 600 image tokens = the bar (+38 text tokens for the repeated question,
+measured 84 vs 46). Unlike §20C (64-token thumbnail) and §178 (150/150 split), **the crop keeps its full 300 tokens**,
+so this isolates composition from budget.
+
+| Qwen3, n=191 | bar@600 | u@300 (half compute) | ridge300 | **ridge_ctx** | oracle300 | oracle_ctx |
+|---|---|---|---|---|---|---|
+| single | 62.6 | 48.7 | **77.4** | 71.3 | **96.5** | 87.8 |
+| relational | 65.8 | **68.4** | 65.8 | 57.9 | 75.0 | 75.0 |
+| ALL | 63.9 | 56.5 | **72.8** | 66.0 | 88.0 | 82.7 |
+
+P1 ctx−bar relational **−7.9 [−21.1,+5.3]** ✗fails. GUARD ctx−ridge300 pooled **−6.8 [−12.6,−1.6] ✗ breached**.
+Cheap control: ctx−uniform@300 on relational **−10.5 [−23.7,+2.6]** — worse than half the compute. Anchor clean
+(our bar 63.9 = stored 63.9, 100% per-item).
+
+> **Cause, from the oracle arm: context dilutes the crop.** `oracle_ctx − oracle300` on single = **−8.7
+> [−13.9,−4.3] ✗** — with a *perfect* crop, merely having the scene in context costs 8.7pp. It is not a placement
+> failure and not a budget split. And on relational the same contrast is **+0.0**: **the model does not use the scene
+> to answer relational questions even when the second object is in context.** One cause for three failed compositions
+> (§20C thumbnail, §178 split, §191 continuation).
+
+**Consequence for "make it work on relational".** Composition is closed: the scene cannot be added to a crop, at any
+budget split, because the crop loses more than the scene gives and the scene is not integrated. The only design that
+has ever won relational is **§26 TSR** — no crop at all: prune 90% at L16 (free, 2/2) and spend it on 900-token
+resolution (Qwen3 relational **76.3 vs bar 65.8, +10.5 ✔**). It is 1 of 2 because **Qwen2-VL-7B has no relational
+resolution headroom**: V*Bench relational u@300→u@600→u@1250 = 59.2→59.2→59.2, HR-Bench 4K cross 51.0→51.0. That is a
+property of the checkpoint, not of the method. Qwen2 leg of 191 queued for the record; it cannot revive P1.
+Scripts: phase191_ctxcrop.py, phase191_analyze.py.
