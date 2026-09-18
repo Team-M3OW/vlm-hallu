@@ -12,7 +12,7 @@ import json, os, sys, time, numpy as np, torch
 from PIL import Image
 os.environ.setdefault("HF_HUB_CACHE","/media/kavinder/hdd2/hf_cache"); os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF","expandable_segments:True")
 from transformers import AutoProcessor, AutoModelForImageTextToText
-D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; LAYERS=[4,8,12,16]; B0=300
+D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; LAYERS=[4,8,12,16]; B0=int(sys.argv[2]) if len(sys.argv)>2 else 300
 MODEL_ID={"qwen3":"Qwen/Qwen3-VL-2B-Instruct","qwen2":"Qwen/Qwen2-VL-7B-Instruct"}[WHICH]; Image.MAX_IMAGE_PIXELS=None
 def main():
     from huggingface_hub import snapshot_download; from datasets import load_dataset
@@ -48,7 +48,7 @@ def main():
         meta.append({"question_id_full":f"{ex['category']}/{ex['question_id']}","category":ex["category"],"grid":[gh,gw],"n":nt,"gt_box_frac":gt})
         del o; torch.cuda.empty_cache(); n+=1
         if n%25==0: print(f"  [{n}] {n/(time.time()-t0):.2f} it/s",flush=True)
-    np.savez_compressed(f"{D}/data/phase189a_hidden_{WHICH}.npz",**{f"h_{k}_{i}":v for k,vs in H.items() for i,v in enumerate(vs)},
+    np.savez_compressed(f"{D}/data/phase189a_hidden_{WHICH}"+("" if B0==300 else f"_{B0}")+".npz",**{f"h_{k}_{i}":v for k,vs in H.items() for i,v in enumerate(vs)},
                         **{f"q_{k}_{i}":v for k,vs in Q.items() for i,v in enumerate(vs)},**{f"a_{k}_{i}":v for k,vs in ATT.items() for i,v in enumerate(vs)})
-    json.dump(meta,open(f"{D}/data/phase189a_hidden_{WHICH}_meta.json","w")); print(f"wrote {n} items",flush=True)
+    json.dump(meta,open(f"{D}/data/phase189a_hidden_{WHICH}"+("" if B0==300 else f"_{B0}")+"_meta.json","w")); print(f"wrote {n} items",flush=True)
 main()
