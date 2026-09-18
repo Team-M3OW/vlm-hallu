@@ -6722,5 +6722,11 @@ oracle 96.5 → 97.4 n.s. **Resolution inside the crop does not convert** — th
 ~1200-token-equivalent density, i.e. above the encoding cliff (§13), so further magnification is wasted. The
 phase-115 slope (~+7pp/doubling) belongs to the whole-image regime *below* the cliff and was wrongly extrapolated
 into the crop when this run was designed. **Consequence:** the L16 pruning saving has no productive sink on the
-answer side of the method; the remaining 16pp (72 → 88 oracle) is placement, not pixels. Qwen2 leg pending for the
-record; the verdict cannot flip on it. Scripts: phase186_ridgetsr.py, phase186_analyze.py.
+answer side of the method; the remaining 16pp (72 → 88 oracle) is placement, not pixels.
+
+**Qwen2 leg — same verdict, 0 of 2.** ridge450p − ridge300 **+0.0 [−2.6,+3.1]**; 600-token crop +0.0 [−3.1,+2.6];
+oracle 96.5 at 450p. (ridge300 reads 68.1 here vs 70.2 in phase 184 on identical placements — the two runs differ
+only in attention kernel (eager, required for the prune bias, vs sdpa); a ~2pp kernel-dependent floor on the 7B,
+inside the stated 1–2.5pp noise floor, noted for the paper's reproducibility paragraph.)
+**Closed:** crop-side resolution is not a sink for the pruning saving on either model. Scripts: phase186_ridgetsr.py,
+phase186_analyze.py.
