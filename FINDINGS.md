@@ -6908,3 +6908,19 @@ P1 ctx−bar relational **+5.3 [−6.6,+17.1]** n.s. → **0 of 2, rejected.** G
 `oracle_ctx − oracle300` = −8.7 (Qwen3) / −5.2 (Qwen2) on single, −4.7 pooled here; and ctx is **below ridge300 on
 every stratum of both models**. The scene never pays for what it costs the crop, at any placement quality.
 Scripts: phase191_ctxcrop.py, phase191_analyze.py.
+
+### §31B  The objectness probe transfers UP in resolution without refitting (phase 189e, Qwen3; Qwen2 pending)
+Probe fit on the 300-token hidden-state dump, applied unchanged to 600- and 900-token encodings of the same items:
+
+| encode@900 | probe (fit@300) | probe within-900 OOF | attention @ same depth | compute if pruned there |
+|---|---|---|---|---|
+| L4 | **93.4%** | 89.3% | 73.6% | **58% of bar** |
+| L8 | 93.4% | 89.3% | 66.1% | 74% |
+| L12 | 95.9% | 92.6% | 52.9% | 90% |
+| L16 | **100.0%** | 94.2% | 79.3% | 106% |
+
+(@600: L4 94.9 / 88.0 / 76.9, 38% of bar.) The objectness signal is **resolution-invariant** — a pruner fit once on
+300-token maps works at 3× the resolution — and beats attention at every depth at matched resolution and keep fraction.
+⚠ **Metric caveat, stated not buried:** box-hit@25% is easier at higher resolution (the box spans more tokens, so 25%
+retains more of it absolutely). The probe-vs-attention comparison *within* a resolution is clean; no claim is made that
+the probe improves *with* resolution. Script: phase189e_transfer.py.
