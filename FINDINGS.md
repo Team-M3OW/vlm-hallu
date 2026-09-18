@@ -6998,3 +6998,37 @@ deployed window W=0.15** and transferred with nothing refit, exactly as the tree
 ⇒ **The paper's breadth table is now ridge-based end to end**, and its headline shape is unchanged: allocation helps
 single-instance perception and costs up to 8.8 points on cross-instance perception, for the best placement rule we have.
 The cross-instance cell remains the open problem (phase 193, multi-crop). Scripts: phase190_*.py, phase190_analyze.py.
+
+## §35 MULTI-CROP ON THE RIDGE (phase 193, Qwen3 leg): the second crop CONVERTS, the magnification tax kills it — and cross-instance is not a coverage problem
+
+| Qwen3, n=191 | single | cross | ALL |
+|---|---|---|---|
+| ridge1@300 (incumbent) | 77.4 | 65.8 | 72.8 |
+| ridge1@150 | 66.1 | 64.5 | 65.4 |
+| ridge2@150 | 73.9 | 65.8 | 70.7 |
+| ridge3@100 | 71.3 | 67.1 | 69.6 |
+| ridge2@300 (149% of bar, diagnostic) | 84.3 | 63.2 | 75.9 |
+| oracle1@300 | 96.5 | 75.0 | 88.0 |
+
+**S2 magnification tax** ridge1@150−ridge1@300 = **−11.3 [−18.3,−4.3] ✗** single, **−7.3 ✗** pooled.
+**S1 coverage gain** ridge2@150−ridge1@150 = **+7.8 [+1.7,+13.9] ✔** single.  **P1 net** −3.5 / −2.1, n.s.
+**Diagnostic** ridge2@300−ridge1@300 = **+7.0 [+0.0,+13.9]** single, −2.6 cross.
+Token-count curve (single crop): **100→64.4, 150→65.4, 300→72.8**.
+
+⚠ **PREDICTION REFUTED (§32C).** I predicted a ~1–2pp tax from the cliff arithmetic (target stays 6–7× above the
+0.25-token threshold at 150 tokens). Measured: **−11.3pp**, six times larger. **The cliff is a floor, not a saturation
+point** — accuracy keeps rising well above it, and §27's flat 300→450 places saturation between 150 and 300. The
+§178 cross-check that seemed to corroborate ~1pp was coincidence. Any future budget-split design must use this curve,
+not the cliff.
+
+⚠ **§32C ITSELF OVER-CORRECTED — reverted.** §32C argued that the context arm's +0.0 on cross-instance was an encoding
+artefact (the second object sits at 0.21 merged tokens in a 300-token scene, below the cliff) and therefore said nothing
+about integration. Phase 193 supplies the confound-free test: **two crops at full 300 tokens each** put both objects
+11–14× above the cliff and raise all-boxes object coverage by +17pp (§33) — and still give **−2.6** on cross-instance.
+**§32's original reading stands: the model does not integrate across two images for cross-instance questions.**
+Cross-instance is **not a coverage problem**; covering both objects changes nothing.
+
+⇒ **Live follow-up (phase 194):** the second crop is worth **+7.0 on single-instance** at full magnification, and
+§26C's free L16 pruning funds exactly that: two 300-token crops + 300-token localiser, pruned 90% at L16 =
+900×17 + 90×11 = **16,290 token-layers ≤ the 16,800 bar**. Qwen2 leg of 193 pending.
+Scripts: phase193_multicrop.py, phase193_analyze.py.
