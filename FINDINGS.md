@@ -6730,3 +6730,20 @@ only in attention kernel (eager, required for the prune bias, vs sdpa); a ~2pp k
 inside the stated 1–2.5pp noise floor, noted for the paper's reproducibility paragraph.)
 **Closed:** crop-side resolution is not a sink for the pruning saving on either model. Scripts: phase186_ridgetsr.py,
 phase186_analyze.py.
+
+## §28 ✗ Layer-wise (pyramid) pruning with a causal schedule (phase 187, Qwen3 leg): REJECTED; the single L16 cut is the schedule
+
+| Qwen3, n=191 | bar | tsr900 (single cut, 96%) | **pyr causal 1250** (98%) | pyr fixed 1250 = PyramidDrop (105%) | uniform@1250 (209%, diag) |
+|---|---|---|---|---|---|
+| single | 62.6 | 64.3 | 65.2 | **68.7** | 68.7 |
+| relational | 65.8 | 77.6 | 73.7 | 71.1 | 73.7 |
+| ALL | 63.9 | 69.6 | 68.6 | 69.6 | 70.7 |
+
+P1 causal − bar +4.7 [−1.0,+10.5] n.s. (cannot reach 2 of 2). S1 causal − tsr900 −1.0 [−6.3,+4.2]: tapering earlier to
+afford 1,250 tokens buys nothing over one cut at 900. **S2 inverts on single-object: PyramidDrop's fixed schedule beats
+the causal one +3.5 [+0.9,+7.0] ✗.** Diagnostic: causal − unpruned@1250 = **−3.5 [−7.0,−0.9] ✗** on single —
+**pruning 50% at L9–12 costs**, as §20B's prefix masks predict (L8→L12 carries half the transport); the "causal"
+schedule cut inside the window it was meant to respect. Third independent confirmation of the L16 boundary (single-
+layer masks, prefix/suffix masks, pruning cost), and a clean negative: **how** you prune extracts no accuracy; the
+single L16 cut (tsr900: 69.6 at 96% of the bar ≈ unpruned 1,250 tokens at 209%) is the schedule. Qwen2 leg re-queued
+behind 188a for the two-model record; it cannot revive P1. Scripts: phase187_pyramid.py, phase187_analyze.py.
