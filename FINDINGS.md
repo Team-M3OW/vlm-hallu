@@ -6819,3 +6819,17 @@ ridge → crop@300 → answer** (§25). What §29/§30 leave standing (2 of 2): 
 further; exiting or pruning at L16 destroys it; and at 400 tokens the late layers are noise (all-layer read worse than
 the L20 exit on Qwen3, equal on Qwen2). **The depth-wise pruning / layer-selection line is closed**: one 2-of-2
 efficiency result (§26C: 90% of visual tokens droppable at L16 for free) and no 2-of-2 accuracy result.
+
+### §28B ✗ Qwen2 leg — causal pyramid loses on every contrast; the single L16 cut dominates on both models
+| Qwen2, n=191 | bar | uniform@1250 (209%) | tsr900 (96%) | pyr causal 1250 (98%) | pyr fixed 1250 (104%) |
+|---|---|---|---|---|---|
+| single | 58.3 | 58.3 | **63.5** | 55.7 | 58.3 |
+| relational | 60.5 | 60.5 | 61.8 | 59.2 | 61.8 |
+| ALL | 59.2 | 59.2 | **62.8** | 57.1 | 59.7 |
+
+P1 causal − bar −2.1 [−8.4,+4.7]; **S1 causal − single-cut −5.8 [−11.0,−0.5] ✗**; S2 causal − PyramidDrop −2.6 n.s.;
+in-window pruning cost (vs unpruned 1250) −2.1. **0 of 2: layer-wise pruning with a causally-derived taper is worse than
+one cut at the boundary on both models.** Also on record: on Qwen2-VL-7B **uniform@1250 = uniform@600 exactly (59.2)** —
+its resolution curve is flat beyond 600 tokens on V*Bench, which is why no compute reinvestment converted on this model
+(§26C, §27, §30B). The single L16 cut (tsr900) is the best pruning arm on both models (+5.7 / +3.6 vs bar, n.s. on Qwen2).
+**§28 final: the schedule is one cut at the transport boundary; nothing finer helps.**
