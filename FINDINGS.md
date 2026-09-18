@@ -6970,3 +6970,31 @@ question, now decomposed in phase 193 (`ridge2@150 − ridge1@150` = coverage ga
 `ridge1@150 − ridge1@300` = the tax), with `ridge2@300` added as an over-budget diagnostic. **If the tax is what kills
 it, the deployable form already exists:** two 300-token crops pruned 90% at L16 = 900×17 + 90×11 = **16,290 token-layers
 ≤ the 16,800 bar** — i.e. §26C's free pruning funds the second crop at full magnification. Analysis inline.
+
+## §34 ★★★ §22's SCOPE TABLE REBUILT ON RIDGE PLACEMENTS (phase 190, 7 cells x 2 strata; every prior breadth number used the tree)
+
+Every replication in the paper had used **tree** placements. Phase 190 re-ran them with the ridge (§25): on V*Bench the
+tree and ridge cells were answered **in the same run**; on HR-Bench the ridge was fit on all V*Bench items **at the
+deployed window W=0.15** and transferred with nothing refit, exactly as the tree was.
+
+| cell | n/stratum | single: ridge − bar | cross: ridge − bar | ridge − tree (pooled) |
+|---|---|---|---|---|
+| V* Qwen3-VL-2B | 115 / 76 | **+14.9 ✔** | +0.0 | −0.5 |
+| V* Qwen2-VL-7B | 115 / 76 | **+13.9 ✔** | +9.2 | **+7.3 ✔** |
+| V* Qwen2.5-VL-7B | 115 / 76 | **+12.2 ✔** | −2.6 | +0.0 |
+| V* Qwen3-VL-8B | 115 / 76 | +6.1 | −3.9 | +3.7 |
+| HR-Bench 4K Qwen3-VL-2B | 400 / 400 | **+10.2 ✔** | **−8.8 ✗** | **+3.9 ✔** |
+| HR-Bench 4K Qwen2-VL-7B | 400 / 400 | **+9.2 ✔** | **−6.0 ✗** | +1.8 |
+| HR-Bench 8K Qwen3-VL-2B | 400 / 400 | **+8.8 ✔** | **−8.8 ✗** | −0.6 |
+
+### Two results
+1. **Ridge ≥ tree everywhere: 2 significant wins, 5 ties, 0 losses.** Adoption is safe on every benchmark and
+   checkpoint, and strictly better on two. (Largest gains where the tree was weakest: Qwen2-VL +7.3, HR4K-Qwen3 +3.9.)
+2. **The scope law survives, slightly softened.** Single-instance **7/7 positive** (6 with CIs clear). Cross-instance
+   **6/7 non-positive**, three of them significantly negative at n=400 (−8.8, −8.8, −6.0); the one exception is
+   V* Qwen2-VL **+9.2, n.s. at n=76**. Under the tree it was 7/7 non-positive, so the ridge repairs cross-instance on
+   every cell (+3.9, +10.5, +3.9, +6.6, +5.0, +2.8, +0.5) without ever making it a win.
+
+⇒ **The paper's breadth table is now ridge-based end to end**, and its headline shape is unchanged: allocation helps
+single-instance perception and costs up to 8.8 points on cross-instance perception, for the best placement rule we have.
+The cross-instance cell remains the open problem (phase 193, multi-crop). Scripts: phase190_*.py, phase190_analyze.py.
