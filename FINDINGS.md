@@ -6924,3 +6924,36 @@ Probe fit on the 300-token hidden-state dump, applied unchanged to 600- and 900-
 ⚠ **Metric caveat, stated not buried:** box-hit@25% is easier at higher resolution (the box spans more tokens, so 25%
 retains more of it absolutely). The probe-vs-attention comparison *within* a resolution is clean; no claim is made that
 the probe improves *with* resolution. Script: phase189e_transfer.py.
+
+## §33 ★★ A SECOND CROP RECOVERS THE RELATIONAL GAP IN OBJECT COVERAGE — and the ridge needs no retraining (on disk, both models)
+
+**Correcting §22's explanation.** V*Bench relational items carry **1.71 boxes** (k≥2 on 71%), each ~0.14% of image
+area, union 1.9%. A W=0.25 window spans 6.25%, so **a single crop CAN contain both objects on 93% of relational items**
+— "the crop removes the second object" is not the mechanism. What actually happens:
+
+| | Qwen3 relational | Qwen2 relational |
+|---|---|---|
+| ridge crop covers **some** box | 71.1% | 57.9% |
+| ridge crop covers **all** boxes | **44.7%** | **31.6%** |
+| 1-crop oracle (union) | 93.4% | 93.4% |
+| 2-crop ceiling (one crop per box) | 100% | 100% |
+
+The ridge finds **one** object and stops. The union-covering cell lies *between* the objects, where attention is low
+(39% of cells outscore it), while the ridge is structurally drawn to attention peaks (its own picks sit at rank ~6%).
+
+**ALL boxes covered by the union of k crops (ridge top-k, NMS ≥3 cells):**
+
+| target | stratum | k=1 | k=2 | k=3 | k2−k1 |
+|---|---|---|---|---|---|
+| union (deployed) | Qwen3 relational | 44.7 | **61.8** | 73.7 | **+17.1 [+9.2,+26.3] ✔** |
+| union (deployed) | Qwen2 relational | 31.6 | **47.4** | 55.3 | **+15.8 [+7.9,+23.7] ✔** |
+| union (deployed) | Qwen3 / Qwen2 single | 70.4 / 64.3 | 85.2 / 74.8 | 87.0 / 76.5 | +14.8 / +10.4 ✔ |
+| **max-over-boxes (retargeted)** | all four cells | — | — | — | **within ±2.6, n.s. everywhere** |
+
+**Two conclusions.** (1) **No retraining.** Fitting the ridge on per-object coverage instead of union coverage changes
+nothing; the deployed ridge already ranks objects correctly — it is only ever *asked* for one. (2) **The second crop is
+the fix**, worth +16–17pp of relational object coverage on both models. Whether it converts is the magnification-tax
+question, now decomposed in phase 193 (`ridge2@150 − ridge1@150` = coverage gain at fixed magnification;
+`ridge1@150 − ridge1@300` = the tax), with `ridge2@300` added as an over-budget diagnostic. **If the tax is what kills
+it, the deployable form already exists:** two 300-token crops pruned 90% at L16 = 900×17 + 90×11 = **16,290 token-layers
+≤ the 16,800 bar** — i.e. §26C's free pruning funds the second crop at full magnification. Analysis inline.

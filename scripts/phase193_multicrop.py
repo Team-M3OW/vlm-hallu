@@ -5,11 +5,17 @@ WHY IT IS OPEN. Multi-crop won with a weak proposer (§14M/phase 58: argmax + 4 
 exactly what the ridge single crop reaches there). It has never been run on the RIDGE, and the quantity that decides it
 has never been measured: what does a crop at 150 or 100 tokens cost versus 300? §27 showed 450 buys nothing over 300,
 but says nothing about going down.
+§33 (on disk, both models): the ridge's top-2 NMS cells raise ALL-BOXES object coverage on RELATIONAL by +17.1
+[+9.2,+26.3] (Qwen3) and +15.8 [+7.9,+23.7] (Qwen2), and on single by +14.8/+10.4 -- all CIs clear. Re-targeting the
+ridge to per-object coverage instead of union coverage changes nothing (within +-2.6pp, n.s.), so no retraining is
+needed. The open question is CONVERSION: does that coverage survive the magnification tax of 2x150?
 DECOMPOSITION (every arm: localise@300 with the ridge, answer pass totals 300 tokens, total 600 = the bar)
     ridge1@300   incumbent (§25)
     ridge1@150   ONE crop, half the tokens        -> isolates the MAGNIFICATION TAX
     ridge2@150   TWO crops (NMS-separated top-2)  -> tax + COVERAGE GAIN;  (ridge2@150 - ridge1@150) = the gain alone
     ridge1@100 / ridge3@100   same at k=3
+    ridge2@300   DIAGNOSTIC, 900 tokens (150% of bar): is the coverage gain worth having if the tax were removed?
+                 If yes, the deployable form is the same two crops pruned 90% at L16 -> 16,290 TL <= the bar (§26C).
     oracle1@300  ceiling
 Also relevant to §32: two crops are both high-resolution and both plausibly relevant, unlike the low-res scene that
 diluted the crop by 8.7pp at oracle placement. ridge2@150 - ridge1@150 tests whether that dilution generalises.
@@ -95,6 +101,8 @@ def main():
                   "ridge2@150":[fit(crops[0],150),fit(crops[1],150)],
                   "ridge1@100":[fit(crops[0],100)],
                   "ridge3@100":[fit(c,100) for c in crops],
+                  "ridge2@300":[fit(crops[0],300),fit(crops[1],300)],   # DIAGNOSTIC: 900 total (150% of bar) -- the
+                  # deployable form is this pruned 90% at L16: 900*17 + 90*11 = 16,290 TL <= 16,800 (§26C, free 2/2)
                   "oracle1@300":[fit(ocrop,300)]}
             rec={"question_id_full":qid,"category":ex["category"],"label":"ABCD".index(ex["label"]) if isinstance(ex["label"],str) else int(ex["label"]),
                  "cells":C,"probs":{},"realized_tokens":{}}

@@ -14,7 +14,7 @@ for t,m in S: print(f"  {t:>11} "+" ".join(f"{acc[k][m].mean()*100:11.1f}%" for 
 for t,m in S:
     out=[]
     for nm,a,b in [("P1 2x150-1x300",acc["ridge2@150"],acc["ridge1@300"]),("S1 2x150-1x150",acc["ridge2@150"],acc["ridge1@150"]),
-                   ("S2 1x150-1x300",acc["ridge1@150"],acc["ridge1@300"]),("3x100-1x300",acc["ridge3@100"],acc["ridge1@300"])]:
+                   ("S2 1x150-1x300",acc["ridge1@150"],acc["ridge1@300"]),("3x100-1x300",acc["ridge3@100"],acc["ridge1@300"]),("diag 2x300-1x300",acc["ridge2@300"],acc["ridge1@300"])]:
         d,lo,hi=ci((a-b)[m]); out.append(f"{nm} {d:+5.1f}[{lo:+5.1f},{hi:+5.1f}]{'✔' if lo>0 else ('✗' if hi<0 else ' ')}")
     print(f"  {t:>11}  "+"   ".join(out))
 print("  token-count curve (single crop): "+"  ".join(f"{k} {acc[k].mean()*100:.1f}%" for k in ("ridge1@100","ridge1@150","ridge1@300")))
