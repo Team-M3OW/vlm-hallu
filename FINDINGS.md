@@ -6804,3 +6804,18 @@ P2 vs bar: **+11.0 [+3.1,+18.8] ✔** — the method's highest pooled margin so 
 *worse* than exiting at L20 (−3.1 [−6.8,+0.5]) — at this resolution the late layers add noise to the read-out; the
 exit is the better read, not merely the cheaper one. Qwen2 leg pending (coverage gain there +4.2). Scripts:
 phase188b_hiresloc.py, phase188b_analyze.py, phase188_gate.py.
+
+### §30B ✗ Qwen2 leg — P1 fails, 0 of 2; the incumbent localiser stands
+| Qwen2, n=191 | bar | ridge300 (incumbent) | ridge400×20 | ridge400 all (118%) | oracle |
+|---|---|---|---|---|---|
+| single | 57.4 | **71.3** | 66.1 | 67.8 | 93.9 |
+| relational | 59.2 | **68.4** | 67.1 | 65.8 | 77.6 |
+| ALL | 58.1 | **70.2** | 66.5 | 67.0 | 87.4 |
+
+P1 400×20 − 300: **−3.7 [−10.5,+2.6]**; P2 vs bar +8.4 [+0.0,+16.8]. With Qwen3's +2.1 n.s.: **0 of 2 → not adopted.**
+The +4.2 coverage gain on Qwen2 (gate) did not convert — the coverage→accuracy gap again (§14W, §24), which is exactly
+why the gate was set on coverage but the claim on the end task. **The method remains: localise@300 (all 28 layers) →
+ridge → crop@300 → answer** (§25). What §29/§30 leave standing (2 of 2): the read-out needs layers through L20 and no
+further; exiting or pruning at L16 destroys it; and at 400 tokens the late layers are noise (all-layer read worse than
+the L20 exit on Qwen3, equal on Qwen2). **The depth-wise pruning / layer-selection line is closed**: one 2-of-2
+efficiency result (§26C: 90% of visual tokens droppable at L16 for free) and no 2-of-2 accuracy result.
