@@ -7032,3 +7032,45 @@ Cross-instance is **not a coverage problem**; covering both objects changes noth
 §26C's free L16 pruning funds exactly that: two 300-token crops + 300-token localiser, pruned 90% at L16 =
 900×17 + 90×11 = **16,290 token-layers ≤ the 16,800 bar**. Qwen2 leg of 193 pending.
 Scripts: phase193_multicrop.py, phase193_analyze.py.
+
+## §36 ★★★ WHY CROSS-INSTANCE CANNOT BE FIXED BY ALLOCATION: the oracle ceiling, and a tenth failed design
+
+### §36A ✗ Centroid placement (on disk, both models): rejected
+Keep W=0.25, move the centre from the ridge's argmax to a centroid of its top-k cells. Rationale (§33): the
+union-covering cell lies *between* the objects where attention is low (39% of cells outscore it), so an
+attention-driven ranker cannot reach it; a centroid should, and on single-object items the top-2 are adjacent
+(67% within 1.5 cells) so nothing should change there.
+
+| coverage@0.25 (union) | Qwen3 cross | Qwen2 cross | Qwen3 single | Qwen2 single |
+|---|---|---|---|---|
+| argmax (incumbent) | 53.9 | 40.8 | 70.4 | 64.3 |
+| midpoint of top-2 | 44.7 | 31.6 | **34.8 ✗** | **32.2 ✗** |
+| soft (score-weighted) centroid top-2 | 56.6 | 40.8 | 67.8 | 63.5 |
+| soft centroid top-3 | 53.9 | 42.1 | **64.3 ✗** | **57.4 ✗** |
+
+Hard midpoint is catastrophic on single-object (−35.7 / −32.2); the soft version buys nothing on cross-instance
+(+2.6 / +0.0, n.s.). **Tenth failed cross-instance design.**
+
+### §36B ★★★ The reason: cross-instance is not perception-limited
+| | oracle crop (perfect placement) | error REMAINING at oracle |
+|---|---|---|
+| single-instance | 96.5 / 93.9 | **3.5% / 6.1%** |
+| cross-instance | 75.0 / 77.6 | **25.0% / 22.4%** |
+
+**With perfect placement cross-instance still fails a quarter of the time — 7× the irreducible error of
+single-instance.** Allocation methods repair *perception*; the residual cross-instance error is reasoning about
+spatial relations, which no crop, multi-crop, centroid, composition or pruning schedule can reach. This is the
+single explanation for all ten failed designs (§14U, §18B, §18D, §18F, §18G, §18H, §18L, §32, §35, §36A) and for why
+§33's +17pp of object coverage converted to −2.6: the coverage was never the binding constraint.
+
+### §36C What does move cross-instance, and its limit
+Only **resolution without cropping**: §26 TSR (prune 90% at L16, spend it on 900 tokens, no crop) gives Qwen3
+cross-instance **76.3 vs bar 65.8, +10.5 ✔** — the best cross-instance result in the project. It is checkpoint-limited:
+Qwen2-VL-7B has **no** cross-instance resolution headroom (V* 59.2 → 59.2 → 59.2 at 300/600/1250; HR-Bench cross
+51.0 → 51.0), so nothing can win there. Phase 192 tests the two checkpoints that do (+6.6, +5.3).
+
+⇒ **The standing trade-off, stated for the paper.** Within one question-agnostic method: cropping wins
+single-instance by ~+14 and loses cross-instance by ~−8; resolution wins cross-instance by ~+10 and loses
+single-instance by ~−11. Choosing per item is a router (constraint 7). No composition recovers both — §32 (scene
+dilutes the crop, −5 to −9 at oracle placement) and §35 (two full-res crops still −2.6 on cross) show the two
+mechanisms interfere rather than add.
