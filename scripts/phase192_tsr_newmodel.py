@@ -22,7 +22,7 @@ os.environ.setdefault("HF_HUB_CACHE","/media/kavinder/hdd2/hf_cache"); os.enviro
 import transformers.models.qwen3_vl.modeling_qwen3_vl as QM3
 import transformers.models.qwen2_vl.modeling_qwen2_vl as QM2
 from transformers import AutoProcessor, AutoModelForImageTextToText
-D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]
+D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; MODEL_ARG=sys.argv[2]
 MODEL_ID=MODEL_ARG
 OUT=f"{D}/data/phase192_tsr_{WHICH}.jsonl"; NL=28; P=16; Image.MAX_IMAGE_PIXELS=None
 ARMS={"tsr900":(900,16,0.10,"win")}
