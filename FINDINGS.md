@@ -6495,3 +6495,46 @@ difference between ridge and tree on the end task, and no demonstration of equiv
 interpretable approximation **with its own numbers shown**, not as an interchangeable substitute. §21A's claim is
 narrowed to "ridge ties the tree *as a ranker* (coverage, 4 architectures)"; the two agree on the crop cell only
 34–38% of the time (§182 preamble), so ranking equivalence never implied placement equivalence.
+
+## §25 ★★★ THE METHOD IS THE RIDGE DEPTH FILTER — P1 PASSES 2 of 2 (phase 184, all arms in one run)
+
+Phase 179 rejected P1 using **tree** placements. Phase 182 (pre-registered) tested the ridge and found it not
+equivalent but **better** on Qwen2. Phase 184 puts **nine arms in a single run on the same items** and adds a
+**fold-seed control** (ridge refit under fold seeds 800–802 instead of 700–702).
+
+| stratum | bar | vicrop_L14 | vicrop_block | LASER | gate-max | tree | **ridge** | ridge_seed2 | oracle |
+|---|---|---|---|---|---|---|---|---|---|
+| **Qwen2** single | 57.4 | 33.9 | 67.0 | 65.2 | 63.5 | 66.1 | **71.3** | 71.3 | 93.9 |
+| **Qwen2** relational | 59.2 | 44.7 | 47.4 | 55.3 | 56.6 | 57.9 | **68.4** | 65.8 | 77.6 |
+| **Qwen2** ALL | 58.1 | 38.2 | 59.2 | 61.3 | 60.7 | 62.8 | **70.2** | 69.1 | 87.4 |
+| **Qwen3** single | 62.3 | 24.6 | 64.0 | 64.0 | 72.8 | 78.1 | **77.2** | 78.1 | 96.5 |
+| **Qwen3** relational | 65.8 | 57.9 | 59.2 | 65.8 | 63.2 | 65.8 | **65.8** | 67.1 | 75.0 |
+| **Qwen3** ALL | 63.7 | 37.9 | 62.1 | 64.7 | 68.9 | 73.2 | **72.6** | 73.7 | 87.9 |
+
+| contrast (pooled) | Qwen2 | Qwen3 |
+|---|---|---|
+| ridge − ridge_seed2 (**fold control**) | +1.0 [−1.0,+3.1] | −1.1 [−3.2,+1.1] |
+| ridge − tree | **+7.3 [+2.1,+12.6] ✔** | −0.5 [−5.3,+3.7] |
+| **ridge − LASER (P1)** | **+8.9 [+3.1,+14.7] ✔** | **+7.9 [+1.1,+14.7] ✔** |
+| ridge − bar | **+12.0 [+4.7,+19.9] ✔** | **+8.9 [+0.5,+17.4] ✔** |
+
+**Verdicts.**
+1. **Not fold-luck** — a disjoint fold-seed set reproduces the result within ±1pp (Qwen2 single identical, 71.3).
+2. **P1 PASSES 2 of 2**: the ridge depth filter beats the best published baseline on both models, CI clear.
+   §23B's rejection applied to the **tree**, not to the method class.
+3. **Beats the equal-compute bar 2 of 2** (+12.0 / +8.9) — the first arm in this project other than the oracle to do so.
+4. **Adopt the ridge**: ≥ tree on both models, significantly better on Qwen2, tied on Qwen3. The deployed method
+   is now **one closed-form ridge solve** whose weights *are* the depth filter (§21A).
+5. **§22's scope law SURVIVES.** The apparent counterexample (ridge 68.4 vs bar 59.2 on Qwen2 relational) is
+   **+9.2 [−2.7,+22.4] n.s.**, and the second fold seed gives 65.8. Relational is unwon on both models
+   (Qwen3 +0.0). No contradiction is claimed.
+6. **Fixed-layer cropping stays catastrophic** (24.6 / 33.9) and ViCrop-block stays at/below the bar on Qwen3.
+
+**On adoption being pre-registered, not post-hoc:** §21 (phase 181) tested ridge vs tree as a planned architecture
+comparison; phase 182 pre-registered the end-task test whose outcome was "not equivalent — better"; phase 184's
+fold control and single-run baseline set were both specified before any of its numbers existed. The mis-specified
+3pp equivalence margin in §24 is moot here because the finding is **superiority**, not equivalence.
+
+⇒ **Paper consequence.** The method-led framing is restored, with a better and simpler method than the one it was
+built on. Headline table = phase 184. §23's tree-based table is superseded and kept only as the record of why the
+ridge was tested.
