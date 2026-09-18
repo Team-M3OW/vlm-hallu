@@ -14,6 +14,9 @@ PRE-REGISTERED
     Prediction from the headroom above: a gain on SINGLE, ~nothing on CROSS -- the mirror of V*Bench-Qwen3.
 usage: phase195_tsr_hrbench.py <4k|8k> <qwen3|qwen2>
 """
+import base64
+import hashlib
+import io
 import json, sys
 import os
 import random
