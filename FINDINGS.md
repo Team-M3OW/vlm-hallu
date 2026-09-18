@@ -6293,10 +6293,21 @@ never cleared — and it captures **~60%** of the oracle gate's gain on both (8.
 also repairs the relational regression: **+2.6 / +1.3** where always-DPR is −3.9 / +0.0.
 
 ⚠ **But the better verifier is not significantly better than the weaker one.** R_vrh − R_disp is
-+1.0 [−4.7,+6.8] and +2.1 [−3.1,+7.3] — point estimates favour VRH, CIs do not separate. And the
-cost differs: **dispersion is label-free; VRH needs GT boxes on the training folds to select heads.**
-By §15C's own rule (a non-significant margin does not justify an annotation cost), *dispersion is the
-better deployable gate* unless a larger sample separates them.
++1.0 [−4.7,+6.8] and +2.1 [−3.1,+7.3] — point estimates favour VRH, CIs do not separate.
+
+⚠ **CORRECTED (the first reading of this was wrong).** The annotation argument does not apply here.
+VRH head selection is a **one-time, input-independent** step: the set is chosen once offline and
+reused for every image. VRH reports 5–10 annotated examples suffice, and §20K independently confirms
+the set is stable (inter-item Jaccard 0.70/0.66 on the per-item term, chance 0.144). Meanwhile the
+pipeline **already** pays ~50 boxes for the re-ranker itself (§17B), so the marginal cost of head
+selection is negligible — it is strictly smaller than a cost already accepted. §15C's "labels are not
+worth a non-significant margin" applies to a *training-free read-out* where the comparison is zero
+labels vs some; it does not transfer to a pipeline that is already supervised.
+
+**On the repo's own two-model rule, R_vrh is the better gate:** R_vrh clears on both (+8.4, +6.3);
+this run's R_disp is **1 of 2** (Qwen2 +4.2 [−1.6,+9.9] does not clear). §18E's own dispersion variant
+did clear on both in their run (+5.8/+5.8) with a slightly different statistic, so the fair statement
+is: *within one consistent run, the VRH gate cleared both models and this dispersion variant did not.*
 
 ⚠ R_disp here is **not** an exact §18E reproduction — different statistic (gated-max top-1 share vs
 §18E's raw top1_frac) and different fold seeding; it reads +7.3/+4.2 against §18E's +5.8/+5.8. The
@@ -6611,3 +6622,105 @@ boundary (~L16) at zero accuracy cost, on two models, at 300 and 600 tokens, wit
 deployable efficiency rule — 35% of prefill compute at 600 tokens, more at higher resolution — and lets a fixed budget
 buy 1.5× resolution; whether that resolution converts into accuracy is a property of the model, not of the pruning.*
 Not claimed: TSR as an accuracy method (P1 1 of 2). Scripts: phase185_tsr.py, phase185b_diag.py.
+
+### §20L  ✗ FOUR ROLE-OPTIMISED HEAD SCORES DO NOT BEAT THE ORIGINAL — the verifier is rank-invariant to head selection (Phase 185)
+VRH scores heads by mass on the GT referent; §20H/§20I use them to judge whether DPR's *proposal*
+deserves the crop. Four scores optimised for that role instead, same verifier function throughout
+(mass inside the DPR window over selected heads), selection fold-honest, hard top-25%/layer, no
+weighting. Two selection targets: `y_cov` (window covers evidence — needs boxes) and `y_acc` (the crop
+arm answered correctly — **needs only answer labels**).
+
+ΔAUROC (predicting `y_cov`) against the original VRH score:
+
+| rule | Qwen3 (sel. y_cov) | Qwen2 (sel. y_cov) | Qwen3 (sel. y_acc) | Qwen2 (sel. y_acc) |
+|---|---|---|---|---|
+| dvrh_z | −0.013 [−0.024,−0.002] | +0.002 [−0.006,+0.009] | −0.005 | +0.006 [−0.006,+0.018] |
+| auc_dvrh | −0.005 | +0.006 [−0.002,+0.015] | −0.012 | +0.007 [−0.004,+0.018] |
+| margin | −0.003 | +0.003 | −0.005 | +0.003 |
+| entvrh (label-free) | +0.000 | −0.002 | +0.000 | −0.002 |
+
+**Nothing clears on either model. The pre-registered selector says the original VRH score stays and
+nothing is promoted to the gate**, so §20I's contrast remains a confirmation rather than a search.
+
+**★ The reason is structural, and it is the useful part.** Every rule produces verifier scores that are
+**rank-identical** to the original: Spearman ρ = 0.993–1.000 on both models. `entvrh` on Qwen3 gives
+ρ = **1.0000** while selecting a head set that differs by Jaccard 0.59 — a 41%-different set of heads
+yields the same item ordering, which is why its bootstrap Δ is exactly zero. **The verifier measures
+what fraction of attention mass lands in the window, and that fraction is set by map-level structure,
+not by which heads are averaged.** Head selection matters against the *naive all-head* baseline
+(§20H: +0.045 / +0.038, because all-heads includes text-focused heads that dilute) and is immaterial
+among any criterion that picks visually active heads.
+
+**★ Practical corollary — head selection needs no boxes.** Selecting on `y_acc` (answer correctness
+only) matches box-supervised selection: Qwen2 auc_dvrh 0.762 vs vrh 0.755; Qwen3 0.750 vs 0.762.
+Given the rank-invariance this is expected, and it settles the annotation question raised in §20I: the
+gate can be built with **no box annotation at all**.
+
+### §20M  ⚠ 1 of 2 — the entropy-penalised verifier is the only non-monotone variant, and it does not clear both models (Phase 186)
+Of the proposed verifier-score normalisations, four are **provably inert here**: AUROC and a
+median threshold are both rank-based, so log-odds `log(V/(1−V))` is an exact no-op, and key-set-size
+normalisation, lift, and the contrastive form all divide by a near-constant (the W=0.25 window is a
+fixed 6.25% of image area, so `|K| ≈ 0.0625·n`). Only `V·(1−H/log n)` is non-monotone in V.
+
+| arm | Qwen3 AUROC | Qwen2 AUROC | ΔAUROC vs V (Qwen3 / Qwen2) |
+|---|---|---|---|
+| V (incumbent) | 0.762 | 0.755 | — |
+| 1−H/log n (concentration alone) | **0.798** | 0.763 | +0.035 [−0.010,+0.081] / +0.008 [−0.029,+0.046] |
+| **focused = V·(1−H/log n)** | 0.786 | 0.764 | **+0.024 [+0.006,+0.042]** ✔ / +0.010 [−0.005,+0.025] ✗ |
+| ratio = V/H | 0.773 | 0.758 | +0.011 [+0.004,+0.019] ✔ / +0.003 [−0.005,+0.012] ✗ |
+
+**Pre-registration required clearing on both models; it is 1 of 2, so nothing is promoted and the gate
+is NOT re-run** — §20I's contrast stays a confirmation rather than a search.
+
+**Why the fusion adds so little:** `corr(V, 1−H)` is **+0.860 / +0.894**. Window mass and spatial
+concentration are largely the same signal — a map concentrated somewhere is usually concentrated *in
+the window DPR picked from it*. Combining two views of one signal cannot buy much, which bounds this
+whole family. Worth noting separately: on Qwen3 **concentration alone (0.798) outranks window mass
+(0.762)**, though not significantly — i.e. the label-free half may be doing most of the work.
+
+### §20N  ✗ THREE NEW VERIFIER FUNCTIONALS — none promotes; the verifier is at a local optimum (Phase 187)
+Not reweightings: three different functionals on the same fold-honest VRH head set. Three tests, so
+both 95% and Bonferroni intervals; promotion required clearing on BOTH models at the corrected level.
+
+| functional | Qwen3 AUROC | Qwen2 AUROC | Δ vs V (Qwen3) | Δ vs V (Qwen2) | corr with V |
+|---|---|---|---|---|---|
+| V (incumbent) | 0.762 | 0.755 | — | — | — |
+| **A signed depth-contrast** | **0.776** | **0.775** | +0.014 [−0.006,+0.035] | +0.020 [−0.010,+0.049] | +0.97 / +0.92 |
+| B head consensus vote | 0.738 | 0.743 | −0.025 | −0.012 | +0.90 / +0.93 |
+| C item-level margin | 0.693 | 0.718 | −0.069 [−0.132,−0.007] | −0.036 | +0.72 / +0.76 |
+
+**None promotes.** A is the only one that improves AUROC on **both** models and the only one whose sign
+is consistent, but neither CI clears even at 95%. B (do the retrieval heads corroborate each other?)
+and C (is the map decisive?) are both **worse** than pooled mass.
+
+**★ Two things worth keeping.**
+1. **A is a directional, underpowered replication of §19's mechanism in a new role.** Subtracting the
+   anti-correlated late layers (L26–27) from the gate band helps verification on both models, the same
+   operation that drives the re-ranker's gain on cell ranking — but at n=191 the effect is ~0.015–0.020
+   AUROC, below what this sample can resolve. Stated as a direction, not a claim.
+2. **Orthogonality bought noise, not signal.** C is the *least* correlated with V (+0.72/+0.76) and the
+   *worst* performer; A is the most correlated (+0.97/+0.92) and the best. What little headroom exists
+   is a small correction to the same statistic, not new information elsewhere in the map.
+
+> **Cumulative verdict on the verifier.** Across §20L (5 head-scoring rules), §20M (4 score
+> normalisations, 3 of them provably inert) and §20N (3 functionals), **nothing beats mass-inside-the-
+> window on both models.** The verifier is at a local optimum for this data, and the ~40% gap to the
+> oracle gate (+8.4 vs +14.1; +6.3 vs +10.5) is not reachable by any function of this attention map that
+> we have found. The remaining headroom, if it exists, is in a signal the localisation pass does not
+> contain — e.g. §6E's two-pass confidence (AUROC 0.885 on Qwen2), which costs a forward pass.
+
+## §27 — Ridge × TSR (phase 186): spending the pruning saving on crop resolution buys NOTHING (Qwen3 leg; Qwen2 pending)
+
+| Qwen3, n=191 | bar | ridge crop@300 (incumbent) | **ridge crop@450, pruned L16 k=.10** | crop@600 pruned (113%, diag) | oracle crop@450p |
+|---|---|---|---|---|---|
+| single | 62.6 | 77.4 | 76.5 | 75.7 | 97.4 |
+| relational | 65.8 | 64.5 | 64.5 | 65.8 | 75.0 |
+| ALL | 63.9 | 72.3 | 71.7 | 71.7 | 88.5 |
+
+**P1** ridge450p − ridge300 **−0.5 [−3.7,+2.6]** (fails); the over-budget 600-token crop is also −0.5 [−3.7,+3.1];
+oracle 96.5 → 97.4 n.s. **Resolution inside the crop does not convert** — the W=0.25 window at 300 tokens is already
+~1200-token-equivalent density, i.e. above the encoding cliff (§13), so further magnification is wasted. The
+phase-115 slope (~+7pp/doubling) belongs to the whole-image regime *below* the cliff and was wrongly extrapolated
+into the crop when this run was designed. **Consequence:** the L16 pruning saving has no productive sink on the
+answer side of the method; the remaining 16pp (72 → 88 oracle) is placement, not pixels. Qwen2 leg pending for the
+record; the verdict cannot flip on it. Scripts: phase186_ridgetsr.py, phase186_analyze.py.
