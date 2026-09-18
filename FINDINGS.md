@@ -6586,3 +6586,28 @@ and prune to fit the bar" beats the bar on both models — but the *best schedul
 FastV-style on Qwen2), so any single fixed schedule is 1 of 2 and choosing per model is post-hoc. Not claimed.
 **Diagnostic 185b (uniform@900, k sweep) pending** to decompose the Qwen3 gain into resolution vs pruning; it
 cannot revive P1.
+
+### §26C (final) — Decomposition on both models: the pruning is FREE (2 of 2); the accuracy is the resolution's
+
+| pooled, vs uniform@900 (unpruned, 149% of bar) | Qwen3 | Qwen2 |
+|---|---|---|
+| tsr900 keep 10% at L16 (96% of bar) | +0.5 [−1.0,+2.6] | −0.5 [−3.1,+2.1] |
+| keep 25% at L16 | +0.0 | −0.5 [−1.6,+0.0] |
+| keep 50% at L16 | +0.0 [−1.6,+1.6] | +0.5 [−1.0,+2.1] |
+| keep 10% at L24 | +0.0 | +1.6 [−0.5,+4.2] |
+| **resolution alone: uniform@900 − uniform@600** | **+5.8 [+1.6,+10.5] ✔** | **+3.1 [−2.1,+8.4]** n.s. |
+
+**Verdict.** Dropping 90% of visual tokens at the transport boundary changes accuracy by 0.0–0.5pp on **both** models at
+**every** keep ratio tried (10/25/50%) and at both L16 and L24: the tokens are inert after transport, exactly as §20B's
+suffix masks say. That is the technique's contribution, and it is 2 of 2. What the freed compute buys is whatever the
+model's resolution curve gives at 900 tokens — +5.8 ✔ on Qwen3, +3.1 n.s. on Qwen2 — so **the accuracy claim is
+inherited from the resolution curve, not produced by the pruning**, and it is 1 of 2 because Qwen2-VL-7B's curve is
+flatter. (The Qwen3 relational +10.5 is likewise resolution: uniform@900 relational +9.2 ✔; the 300→600 relational dip
+that motivated "no deficit on relational" in §22A was an unlucky pair — relational responds to *pixels*, not to *crops*,
+which is consistent with §22's mechanism.)
+
+**Paper statement (method-neutral, 2 of 2):** *Visual tokens can be pruned to 10% at the causally-measured transport
+boundary (~L16) at zero accuracy cost, on two models, at 300 and 600 tokens, with any ranking. This turns §20B into a
+deployable efficiency rule — 35% of prefill compute at 600 tokens, more at higher resolution — and lets a fixed budget
+buy 1.5× resolution; whether that resolution converts into accuracy is a property of the model, not of the pruning.*
+Not claimed: TSR as an accuracy method (P1 1 of 2). Scripts: phase185_tsr.py, phase185b_diag.py.
