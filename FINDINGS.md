@@ -6894,5 +6894,17 @@ budget split, because the crop loses more than the scene gives and the scene is 
 has ever won relational is **§26 TSR** — no crop at all: prune 90% at L16 (free, 2/2) and spend it on 900-token
 resolution (Qwen3 relational **76.3 vs bar 65.8, +10.5 ✔**). It is 1 of 2 because **Qwen2-VL-7B has no relational
 resolution headroom**: V*Bench relational u@300→u@600→u@1250 = 59.2→59.2→59.2, HR-Bench 4K cross 51.0→51.0. That is a
-property of the checkpoint, not of the method. Qwen2 leg of 191 queued for the record; it cannot revive P1.
+property of the checkpoint, not of the method.
+
+### §32B Qwen2 leg — same verdict, 0 of 2, and the dilution replicates
+| Qwen2, n=191 | bar@600 | u@300 | ridge300 | ridge_ctx | oracle300 | oracle_ctx |
+|---|---|---|---|---|---|---|
+| single | 57.4 | 45.2 | **71.3** | 66.1 | **93.9** | 88.7 |
+| relational | 59.2 | 59.2 | **68.4** | 64.5 | **77.6** | 73.7 |
+| ALL | 58.1 | 50.8 | **70.2** | 65.4 | **87.4** | 82.7 |
+
+P1 ctx−bar relational **+5.3 [−6.6,+17.1]** n.s. → **0 of 2, rejected.** GUARD breached on single
+**−5.2 [−10.4,−0.9] ✗**. Anchor clean (58.1 = 58.1, 100%). The dilution is the same sign and size on both models:
+`oracle_ctx − oracle300` = −8.7 (Qwen3) / −5.2 (Qwen2) on single, −4.7 pooled here; and ctx is **below ridge300 on
+every stratum of both models**. The scene never pays for what it costs the crop, at any placement quality.
 Scripts: phase191_ctxcrop.py, phase191_analyze.py.
