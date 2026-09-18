@@ -17,8 +17,8 @@ os.environ.setdefault("HF_HUB_CACHE","/media/kavinder/hdd2/hf_cache"); os.enviro
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; sys.path.insert(0,f"{D}/scripts")
 import phase70_rerank_head as P70, phase80a_qwen2vl_head as P80
 from sklearn.model_selection import GroupKFold
-NL=28; BLK=(16,27) if WHICH=='qwen3' else (15,27)
 WHICH=sys.argv[1]; MODEL_ID={"qwen3":"Qwen/Qwen3-VL-2B-Instruct","qwen2":"Qwen/Qwen2-VL-7B-Instruct"}[WHICH]
+NL=28; BLK=(16,27) if WHICH=='qwen3' else (15,27)
 OUT=f"{D}/data/phase188b_hiresloc_{WHICH}.jsonl"; B0,W=300,0.25; Image.MAX_IMAGE_PIXELS=None
 NL,BLK=(28,(16,27)) if WHICH=="qwen3" else (28,(15,27))
 def ridge_cells(rows,NL_used,lam=1.0):
