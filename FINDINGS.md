@@ -6747,3 +6747,29 @@ schedule cut inside the window it was meant to respect. Third independent confir
 layer masks, prefix/suffix masks, pruning cost), and a clean negative: **how** you prune extracts no accuracy; the
 single L16 cut (tsr900: 69.6 at 96% of the bar ≈ unpruned 1,250 tokens at 209%) is the schedule. Qwen2 leg re-queued
 behind 188a for the two-model record; it cannot revive P1. Scripts: phase187_pyramid.py, phase187_analyze.py.
+
+## §29 ★ HIGHER-RESOLUTION LOCALISATION PLACES BETTER — and the early-exit budget makes it affordable (phases 188a/188c, Qwen3 leg; Qwen2 pending)
+
+§27 left one sink for compute: the localisation pass (the 16–21pp gap to the oracle is placement). Ridge OOF coverage@0.25
+on maps of the same 191 items at different localisation budgets; "Lmax" = ridge features restricted to layers ≤ Lmax,
+i.e. the localisation pass EXITS at Lmax (late layers not computed). Total TL = loc + crop@300 (8,400); bar 16,800.
+
+| localisation maps | Lmax | total TL | ridge coverage | vs 300/all-layers (ALL) | single |
+|---|---|---|---|---|---|
+| 300 (all results so far) | 27 | 16,800 | 63.4 | — | — |
+| 300 | 20 | 14,700 | 62.8 | −0.5 [−4.2,+3.1] | −2.6 |
+| 300 | 16 | 13,500 | 53.9 | **−9.4 ✗** | −9.6 |
+| 450 | 27 | 21,000 (over) | **70.2** | **+6.8 [+1.0,+12.6] ✔** | **+8.7 ✔** |
+| **450** | **20** | 17,850 (106%) | **69.1** | +5.8 [−0.5,+12.1] | +7.8 [+0.0,+15.7] |
+| 450 | 16 | 16,050 | 60.7 | −2.6 | +0.0 |
+| 450, **pruned at L16** (k=.10) | 27 | 16,545 | 60.7 | −3.1 | +3.5; relational −13.2 |
+
+**Three facts.** (1) **Resolution improves placement**: 300→450 tokens lifts ridge coverage +6.8 ✔ (+8.7 single). This is
+the first lever in the pruning line that moves the placement gap. (2) **The read-out needs layers through L20, not
+beyond**: exiting at L20 costs −0.5 (300) / −1.1 (450); exiting at L16 costs −9.4 — the gate band L17–20 is essential,
+the subtracted layers L21–26 are worth ≤1pp. This sharpens §19: the head's *useful* signal ends at ~L20. (3) **Pruning
+the localisation pass at L16 destroys the read-out** (−3.1; gate-max 56.0 → 47.6) because it removes the very cells the
+L17–20 read-out ranks — pruning and reading cannot share a boundary; **exiting** is the right primitive for the localiser.
+**Design that follows (188b, pending Qwen2):** loc@400 tokens, exit at L20 (400×21 = 8,400) + crop@300 (8,400) = **16,800
+= the bar exactly**, at 1.33× the localisation resolution. 400-token maps queued (188d). Scripts: phase188a_hires_loc_maps.py,
+phase188a_analyze.py, phase188c_earlyexit_ridge.py.

@@ -13,7 +13,7 @@ os.environ.setdefault("HF_HUB_CACHE","/media/kavinder/hdd2/hf_cache"); os.enviro
 import transformers.models.qwen3_vl.modeling_qwen3_vl as QM3
 import transformers.models.qwen2_vl.modeling_qwen2_vl as QM2
 from transformers import AutoProcessor, AutoModelForImageTextToText
-D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; E=450; P=16; K=0.10; NL=28
+D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; E=int(sys.argv[2]) if len(sys.argv)>2 else 450; PRUNED=len(sys.argv)<=3 or sys.argv[3]!="nopruned"; P=16; K=0.10; NL=28
 MODEL_ID={"qwen3":"Qwen/Qwen3-VL-2B-Instruct","qwen2":"Qwen/Qwen2-VL-7B-Instruct"}[WHICH]; Image.MAX_IMAGE_PIXELS=None
 def make_patched(QM):
     def patched(module, query, key, value, attention_mask, scaling, dropout=0.0, **kw):
@@ -53,7 +53,7 @@ def main():
         with torch.no_grad(): o=model(**inp,output_attentions=True)
         A=np.stack([o.attentions[L][0,:,-1,base:base+nt].float().mean(0).cpu().numpy() for L in range(NL)]); del o; torch.cuda.empty_cache(); clear()
         return A/np.maximum(A.sum(1,keepdims=True),1e-12)
-    outs={k:open(f"{D}/data/phase188a_loc{E}_{k}_{WHICH}.jsonl","w") for k in ("unpruned","pruned")}; n=0; t0=time.time()
+    outs={k:open(f"{D}/data/phase188a_loc{E}_{k}_{WHICH}.jsonl","w") for k in (("unpruned","pruned") if PRUNED else ("unpruned",))}; n=0; t0=time.time()
     for ex in ds:
         ap=os.path.splitext(os.path.join(root,ex["image"]))[0]+".json"
         if not os.path.exists(ap): continue
@@ -66,8 +66,9 @@ def main():
         if gh*gw!=nt: continue
         A0=maps(inp,base,nt)
         s=A0[max(0,P-4):P+1].mean(0); keep=max(1,int(round(K*nt))); drop=(base+np.argsort(-s)[keep:]).tolist()
-        A1=maps(inp,base,nt,drop)
-        for k,A in (("unpruned",A0),("pruned",A1)):
+        pairs=[("unpruned",A0)]
+        if PRUNED: pairs.append(("pruned",maps(inp,base,nt,drop)))
+        for k,A in pairs:
             outs[k].write(json.dumps({"question_id_full":f"{ex['category']}/{ex['question_id']}","category":ex["category"],"grid":[gh,gw],"n_img_tokens":nt,
                 "gt_box_frac":gt,"attn":{f"L{i}":[round(float(v),8) for v in A[i]] for i in range(NL)}})+"\n"); outs[k].flush()
         n+=1
