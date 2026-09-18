@@ -6378,3 +6378,120 @@ evaluation-and-scope result about the whole family (§22 + §23C). The defensibl
 re-ranking as the best-effort placement rule and an explicit statement that it does not reliably separate from
 LASER/ViCrop at equal compute on Qwen2.
 Scripts: phase179_placements.py, phase179_baselines.py, phase179_analyze.py.
+
+### §20J  ✗ THE EIGHTH INTERNAL INTERVENTION — DPR→VRH attention reinforcement is null, and it closes the "wrong heads" excuse (Phase 183)
+`a'_{h,p} = a_{h,p} + λ·M_R(p)` on the attention logits, keys inside DPR's W=0.25 window, applied to
+**VRH-selected heads only** (fold-honest). Full image, one modified forward pass, nothing trained, so
+the bar is uniform@300. **Correctness gate: the patch at λ=0 reproduces the unpatched logits exactly.**
+
+| arm | Qwen3-VL Δ vs base | Qwen2-VL Δ vs base |
+|---|---|---|
+| **vrh_dpr λ=2 (PRIMARY)** | **+1.6 [−2.1,+5.8]** ✗ | **−3.1 [−7.3,+1.0]** ✗ |
+| vrh_dpr λ=1 / λ=4 | +1.6 / −3.7 | −1.6 / −3.7 |
+| all_dpr λ=2 (all heads) | +2.6 [−1.0,+6.3] | −2.1 [−6.3,+2.1] |
+| vrh_rand λ=2 (CONTROL) | −1.6 [−4.7,+1.6] | −1.0 [−3.7,+1.6] |
+| **vrh_oracle λ=2 (CEILING)** | **+6.8 [+2.6,+11.0]** ✔ | +1.6 [−1.6,+4.7] |
+| *reference* uniform@600 | *+7.4* | *+6.3* |
+
+**Three things this settles.**
+1. **Null on both models**, and **not distinguishable from the random-window control** (+3.1 [−1.6,+7.9];
+   −2.1 [−6.8,+2.6]) — §10's result reproduced with a *working* localiser instead of the 39%-coverage argmax.
+2. **Head restriction buys nothing**: vrh_dpr − all_dpr is **−1.0 [−4.2,+2.1] on both**. §10 amplified all
+   heads; the standing excuse was that it diluted the intervention across heads that do not retrieve.
+   With the §20H retrieval channel isolated, it still does nothing. **That excuse is now closed.**
+3. **The ceiling replicates and still loses to the budget axis.** vrh_oracle +6.8pp reproduces §10's
+   amp_oracle +5.8pp [+1,+10] independently — but uniform@600 is +7.4pp. *Perfect* attention steering
+   does not match simply spending the tokens.
+
+**Why it nets to zero, visible in the strata (Qwen3, λ=2):** where DPR's window **covers**, the
+intervention gains **+5.0 [+1.0,+9.9]** ✔; where it **misses**, −2.2. Coverage is ~53%, so the gains and
+losses cancel. The localisation gap (oracle − dpr) is **+5.2 [+2.1,+8.9]** and **+4.7 [+0.5,+9.4]** —
+clearing on both models. **Inside this intervention family the bottleneck is localisation**, but the
+family's own ceiling is below the budget axis, so closing the localisation gap would not rescue it.
+
+> Eight internal interventions now. The seventh (§14H) was the first to fail with a working localiser;
+> the eighth is the first to fail with a working localiser **and** the correct retrieval channel.
+> Attention can reweight tokens that exist; it cannot create tokens on a sub-token target.
+⚠ Boundary for any write-up: **KLAL** (2511.12738) directs attention successfully — but at *training
+time*. Every null here is inference-time. That distinction must be explicit or it reads as a contradiction.
+
+### §20K  ✗ DYNAMIC (per-example) VRH SELECTION — the example-dependence is carried by the circular term (Phase 184a)
+VRH claims its heads are universal and stably detectable. Tested directly: score heads per example as
+`S_h = G_h·V_h·R_h` (G = fold-honest global VRH quality, V = phase-108 per-item `S_v`, R = this head's
+mass inside DPR's window), take top-25%/layer. CPU only, no intervention.
+
+**Q1 — is the set example-dependent?** Inter-item Jaccard of the selected sets, **with the shared G
+factor removed** (chance = 0.144):
+
+| selection term | Qwen3 | Qwen2 | reading |
+|---|---|---|---|
+| **V only** (per-item visual sensitivity) | **0.702** | **0.661** | nearly stable — *supports* VRH's universality |
+| **R only** (agreement with DPR's window) | **0.337** | **0.346** | strongly example-dependent |
+| V·R | 0.537 | 0.518 | intermediate |
+
+**The example-dependence comes almost entirely from `R_h`** — and `R_h` is example-dependent *because the
+window moves*, not because the retrieval heads differ. "Which heads point at a moving target" changing
+per example is a restatement of the target moving, not a discovery about retrieval heads. The term that
+measures genuine per-example visual behaviour (`V_h`) is stable at 0.70/0.66, i.e. **VRH's universality
+claim survives this test rather than being refuted by it.**
+
+**Q2 — is the dynamic set a better verifier?** Against §20H's fixed set (AUROC 0.762 / 0.755):
+non-circular `G·V` gives **−0.005 [−0.016,+0.006]** and **−0.012 [−0.023,−0.001]** — null on Qwen3,
+significantly **worse** on Qwen2. The circular `G·V·R` variant is also no better (−0.004 / −0.007).
+
+**Verdict.** Combined with §20J (head restriction worth −1.0 [−4.2,+2.1] for the intervention, i.e. head
+choice is inert there), the dynamic-head idea is closed before spending GPU on the reinforcement arm:
+the selection is either stable (V) or circular (R), and it does not improve the one thing fixed VRH
+heads are good for.
+
+## §20B ✅ REPLICATED on Qwen2-VL — transport completes by ~L16 on BOTH models (phase 176c, n=40 each)
+
+176c upgrades §20 from n=12/one model to n=40/two models and adds prefix/suffix masks, which separate
+"bottleneck layer" from "position in the pipeline". Mask = block the chosen layers' text→image attention.
+
+| | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| mask all layers (sanity) | KL 1.266, **42%** answers flip | KL 0.532, **45%** flip |
+| single-layer peak | **L11 = 0.504** (L13 0.101, L12 0.063, L9 0.059) | **L15 = 0.118, L14 = 0.096** (L9 0.043) |
+| late layers L20–L27 | 0.0003 – 0.0017 | 0.0007 – 0.0023 |
+| prefix L0..ℓ saturates at | **L12** (1.278 ≈ full 1.266) | **L16** (0.547 ≈ full 0.532) |
+| suffix Lℓ..end ≈ 0 from | **L16** (0.014), L20 (0.002) | **L16** (0.029), L20 (0.004) |
+| read-out gate used by every method here | L17–L20 | L19–L22 |
+
+**Two models, one conclusion.** Image→text transport is concentrated in the first two-thirds of depth (peak L11 /
+L14–15) and is **complete by ~L16**: blocking everything from L16 onward is harmless (0 answer flips from L20).
+The read-out gate that this project — and ViCrop, LASER and every attention-cropping method — uses lies
+**entirely after that window**, on layers whose image attention is causally inert (KL ≈ 0.001–0.004).
+
+> **The attention we all read is a residue of where the model looked, not the channel by which the image
+> reaches the answer.** It still predicts object location well enough to crop on, which is why the family works
+> at all; but it is not carrying the evidence. This is the mechanism behind §19 (the head *subtracts* exactly
+> these inert late layers, which the block mean adds at +1), behind the seven null internal interventions
+> (all applied downstream of the transport window), and it predicts §23B: placement rules that all read the
+> same inert depth should not separate cleanly — which is what the baseline table shows.
+
+Scripts: phase176c_transport.py (from 176/176b). Logs: logs/q_176c_{qwen3,qwen2}.log.
+
+## §18O (final) ✗ Global+local rejected — P1 0 of 2 (phase 178)
+Qwen2 leg: P1 glocal−bar on relational **+1.3 [−11.8,+14.5]** n.s. (fails); GUARD glocal−head on single
+−4.3 [−12.2,+3.5] (passes). Qwen3 leg failed both. **P1 0 of 2 → rejected.** Context arm glocal_100_200 reads
++7.3 [+0.0,+14.7] pooled on Qwen2 but was declared ineligible before the run and stays ineligible.
+
+## §24 — Does the ridge depth filter convert? (phase 182, Qwen3 leg; Qwen2 pending)
+
+| Qwen3, n=191 | bar | head (GBT) | ridge | oracle |
+|---|---|---|---|---|
+| single | 62.6 | 78.3 | 77.4 | 96.5 |
+| relational | 65.8 | 65.8 | 65.8 | 75.0 |
+| ALL | 63.9 | 73.3 | 72.8 | 88.0 |
+
+ridge − head = **−0.5 [−5.2,+4.2]** pooled, −0.9 single, +0.0 relational. ridge − bar = +8.9 [+0.0,+17.3].
+
+⚠ **The pre-registered equivalence margin (3pp) was unachievable at this n — a design error made when writing the
+pre-registration, not a property of the result.** The pooled CI half-width is ~4.7pp, so no margin tighter than
+~5pp is establishable with 191 items. The margin is NOT loosened post hoc. Correct statement: **no evidence of a
+difference between ridge and tree on the end task, and no demonstration of equivalence at 3pp.**
+⇒ The paper reports the **tree** as the method (every end-task number uses it) and presents the ridge as an
+interpretable approximation **with its own numbers shown**, not as an interchangeable substitute. §21A's claim is
+narrowed to "ridge ties the tree *as a ranker* (coverage, 4 architectures)"; the two agree on the crop cell only
+34–38% of the time (§182 preamble), so ranking equivalence never implied placement equivalence.
