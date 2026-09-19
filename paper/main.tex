@@ -7,913 +7,246 @@
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
 \usepackage{xcolor}
-\usepackage{subcaption}
 \usepackage{multirow}
 
 \definecolor{bad}{HTML}{C0392B}
 \definecolor{gd}{HTML}{1A6B54}
 \newcommand{\bad}[1]{\textcolor{bad}{#1}}
 \newcommand{\gd}[1]{\textcolor{gd}{#1}}
-\newcommand{\pp}{\,\text{pp}}
-\newcommand{\ci}[2]{\,[#1,\,#2]}
 \newcommand{\ok}{\gd{$\checkmark$}}
 \newcommand{\no}{\bad{$\times$}}
 \newcommand{\vstar}{V$^*$Bench}
-\newcommand{\hrb}{HR-Bench~4k}
+\newcommand{\ci}[2]{\,[#1,#2]}
 
-\title{Re-spend the Tokens Where the Model\\Already Looks: Depth-Profile Re-ranking\\for Small-Object VQA}
-
+\title{Reading Attention at a Depth That Does Not Matter:\\Transport-Informed Token Allocation for\\Vision--Language Models}
 \author{Anonymous authors\\Paper under double-blind review}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
-Vision--language models (VLMs) fail on small objects because the evidence is never encoded, not
-because attention is misdirected. On \vstar, $87\%$ and $84\%$ of two models' errors are fixed by
-spending the \emph{same} visual-token budget on the evidence region instead of the whole image; an
-oracle crop is flat at $96$--$100\%$ across a threshold of ${\approx}0.25$ merged tokens of target
-extent below which uniform encoding falls under the $25\%$ chance level. Seven internal interventions
-cannot cross that threshold: amplifying attention on exactly the right cells recovers $16\%$ of what
-re-encoding those cells recovers, because the oracle set is one cell of $294$. We give a method that
-does cross it. \emph{Depth-Profile Re-ranking} reads the language model's attention over image cells
-at all $28$ layers, ranks cells with a small learned head, and crops once. Against the equal-compute
-baseline of encoding a larger image, it is the only arm in our study that wins: on single-object
-questions it clears the bar on three checkpoints and three benchmarks ($+15.7$, $+11.3$, $+14.8$,
-$+7.5$, $+8.5$, $+10.5\pp$, all CIs clear; pooled across benchmarks $+9.2\ci{+6.1}{+12.4}$,
-$n{=}1030$); the standard argmax read-out clears in no cell. Routed by the model's own text-only,
-untuned judgement of whether a question is relational, it clears the bar \emph{pooled} over question
-types in three of four cells. Fifty boxed items recover $70\%$ of the head's gain. Along the way we show the deployed
-read-out is wrong on four separable axes --- it averages layers where a max is worth $+7$\pp, reads
-the attention weight rather than $\alpha\|v\|$, averages all heads, and fails entirely unless the
-prompt ends at the answer-emission point --- and that ranking visual tokens by layer-2 attention is
-worse than ranking them at random on two models and three benchmarks. We report the method's three
-measured limits (relational questions, existence questions, one architecture whose layers agree),
-a ${\approx}91$-parameter readable head at parity with the learned one, a label-free rule within
-$3$\pp\ of it, and every negative --- including four of our own claims rejected by replication and a
-six-week-old negative overturned by one line of a prompt.
+Vision--language models on high-resolution imagery must decide where to spend a fixed visual-token budget, a decision
+that determines whether fine-grained evidence survives encoding at all. The prevailing remedy is attention-guided
+cropping: read the model's own attention map, crop where it peaks, re-encode. Every such method must choose a depth at
+which to read that map, and published methods hand-pick a single layer or average a fixed block. We show this choice
+dominates every other design decision --- single-layer read-out collapses to the four-option chance rate --- and that
+the depth these methods read is not the depth at which the image reaches the answer. Layer-wise masking of
+text-to-image attention localises that transport to the first two thirds of the stack: blocking every layer from
+layer~16 of~28 onward flips no answers, while blocking layers 0--16 reproduces the full effect. The boundary transfers
+across architectures as a fixed fraction of depth. Two mechanisms follow. A single closed-form ridge solve over the
+28-layer attention profile yields a signed depth filter that subtracts the late layers the conventional read-out adds,
+improving crop placement by $7.9$ and $8.9$ points over the strongest published rule at matched compute. Because
+visual tokens are causally inert past the boundary, $90\%$ of them can be discarded there at negligible cost under any
+ranking criterion, and the freed compute reallocated to encoding resolution, where it recovers the model's resolution
+headroom at a rate of $1.01$ ($r=0.966$) across four checkpoints and three benchmarks. Against a model running at its
+\emph{native} dynamic resolution --- $5.5\times$ our budget --- our methods are statistically indistinguishable while
+using $18\%$ of the compute, whereas published allocation rules fall $12$--$14$ points short of it.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
 
-A VLM that is asked ``what colour is the glove?'' and answers wrongly can fail in two ways: it can
-attend to the wrong place, or it can attend to the right place and find nothing there. A growing
-family of methods assumes the first --- highlighting evidence pixels~\citep{liu2026vea}, rescaling
-attention heads~\citep{lu2026reallocating}, supervising attention during
-training~\citep{esmaeilkhani2026klal} --- and all report gains. None measures how large the queried
-object is. We do, and on the benchmark built for small objects the second failure dominates: the
-model localises, the region is causally load-bearing, and the tokens covering it carry nothing the
-answer needs.
+A vision--language model asked ``what material is the glove?'' about a $2250\times1500$ photograph must first encode
+the image into visual tokens. At any finite budget the glove may occupy a fraction of a token, and the evidence is
+gone before the language model runs. The model still \emph{localises} it --- its attention concentrates on the right
+region --- but it cannot \emph{perceive} it.
 
-The practical consequence is that the only fix is to \emph{re-spend the token budget}: encode the
-region the model already points at, at the resolution the budget affords. That is not a new idea ---
-attention-guided cropping is a family of its own~\citep{zhang2025vicrop,shen2024zoomeye,attwarp2026}
---- but as far as we can find, no member of it has been scored against the one baseline that
-decides whether it earns its second forward pass: \emph{spend the same tokens on a larger image}.
-When we run that comparison, every published policy we test breaks even or loses
-(\S\ref{sec:priorart}). Ours is the only arm that wins, and the reason is a read-out, not a policy.
+The standard remedy is attention-guided cropping: run the model once, read its attention over image positions, crop
+where the attention peaks, and re-encode that crop at higher density~\citep{vicrop,zoomeye,vea}. Every method in this
+family faces one decision that is rarely examined: \textbf{at which layer should the attention map be read?}
+Published methods pick a single mid-network layer or average a fixed block of late layers.
 
-\paragraph{Contributions.}
-\begin{itemize}\setlength\itemsep{1pt}
-\item \textbf{A method that beats equal compute (\S\ref{sec:method}).} Depth-Profile Re-ranking
-(DPR) ranks image cells by their full $28$-layer attention profile and crops once. On single-object
-questions it beats a uniform image at the same token count on \vstar, \hrb\ and HR-Bench~8k, on
-Qwen3-VL-2B, Qwen2-VL-7B and Qwen2.5-VL-7B (Table~\ref{tab:method}); the deployed argmax clears in
-no cell. Zero-shot to HR-Bench with nothing refitted. With an untuned router --- the model asked,
-text-only, whether the question is relational --- it clears the bar pooled over question types in
-three of four cells (\S\ref{sec:route}). Fifty boxed items from one benchmark recover $70\%$ of the
-gain. Wall-clock cost is $1.4$--$1.8\times$ the bar (\S\ref{sec:cost}).
-\item \textbf{The strong baseline it is measured against (\S\ref{sec:readout}).} The standard
-read-out --- mean over a late block of layers, mean over heads, argmax --- is wrong on four axes,
-each fixable in one line. We port the fixes from LLM work (max over layers~\citep{mcdanel2026claa},
-$\alpha\|v\|$~\citep{kobayashi2020norm}, head selection~\citep{lu2026reallocating}) and find they do
-not stack; the layer \emph{set} does. A label-free rule --- max over the layers where attention is
-question-conditioned --- is within $3.7/2.7\pp$ of the learned head. Ranking tokens by layer-2
-attention is \bad{below random} on two models and three benchmarks.
-\item \textbf{Why it works (\S\ref{sec:why}).} Below ${\approx}0.25$ merged tokens the evidence is
-not encoded: $87\%/84\%$ of errors are oracle-fixable, the oracle is flat across the threshold, and
-seven internal interventions fail. Cropping restores an answer-formation step at layer $21$, only
-where the crop delivers.
-\item \textbf{Where it stops (\S\ref{sec:limits}).} Three boundaries, each with a mechanism and each
-found by our own controls: relational questions (the evidence set is a union $7.9\times$ larger),
-existence questions (a crop is evidence of absence; POPE's oracle is circular), and one architecture
-whose layers agree with each other. The learned read-out is task-specific: $3{,}000$ public boxed
-items from a text-reading task train a head \emph{worse than no head}.
-\end{itemize}
+We show three things.
 
-Everything is pre-registered where a selection was possible, replicated on a second model before it
-is claimed, and reported with the negatives at equal weight (\S\ref{sec:neg}, App.~\ref{app:corr}).
+\textbf{(i) The depth choice dominates.} Cropping at the peak of one hand-picked mid layer scores $24.6\%$ and
+$33.9\%$ on two checkpoints --- the four-option chance rate, and far below not cropping at all ($62.3\%$, $57.4\%$).
+The same pipeline with a better depth read-out scores $77.2\%$ and $71.3\%$.
 
-\begin{figure}[t]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig_crops.pdf}\end{center}
-\caption{\textbf{The method, on real items.} Top: the source image with the ground-truth evidence
-box. Below: the $300$-token crops the model is actually fed under the deployed argmax (``standard'')
-and under DPR (``learned''), with the model's actual answer under each. The learned head's crop
-contains the evidence; the argmax crop lands on a distractor with high attention. Every crop and
-answer here comes from a forward pass, not an illustration.}
-\label{fig:crops}
-\end{figure}
+\textbf{(ii) Everyone reads at the wrong depth, and we can say why.} Masking text tokens' attention to the image,
+layer by layer, shows that image-to-text transport is \emph{complete} by layer~16 of~28: blocking every layer from 16
+onward flips no answers. Yet every method in this family --- including ours --- reads its map at layers 17--22. The
+attention these methods consume is a residue of where the model looked, not the channel carrying the evidence.
+
+\textbf{(iii) Two allocation policies follow from that measurement}, with complementary strengths
+(\S\ref{sec:ridge}, \S\ref{sec:tsr}), and at native resolution they match a model spending $5.5\times$ the compute.
 
 \section{Setup}\label{sec:setup}
 
-\paragraph{Benchmarks.} \vstar~\citep{wu2024vstar}: $191$ four-way questions on ${\sim}1500$--$2000$px
-images whose targets are small by design; ground-truth boxes; $115$ single-object
-(\texttt{direct\_attributes}) and $76$ relational (\texttt{relative\_position}). \hrb~\citep{wang2024hrbench}:
-$800$ rows / $200$ instances at $4032$px, no boxes, evaluated per row and under CircularEval (all
-four option cycles correct). POPE~\citep{li2023pope} with RePOPE labels~\citep{neuhaus2025repope}
-and COCO boxes ($482$ relabelled, $812$ dropped as ambiguous) for the scope test of
-\S\ref{sec:limits}; MMBench~\citep{liu2024mmbench} for pruning only; $3{,}000$ TextVQA
-items~\citep{singh2019textvqa} with evidence boxes from Visual-CoT~\citep{shao2024viscot} for
-\S\ref{sec:limits}. Public benchmarks only; nothing constructed.
+\textbf{Benchmarks.} \vstar~\citep{vstar} ($n=191$; 115 single-instance, 76 cross-instance) and HR-Bench 4K/8K
+\citep{hrbench} ($n=800$ each; 400 per stratum). Both are public; we build no datasets. Questions are four-way
+multiple choice, scored by the arg-max over option-letter log-probabilities, so results are deterministic.
 
-\paragraph{Models.} Qwen3-VL-2B and Qwen2-VL-7B (all end-task claims); LLaVA-NeXT-7B and
-LLaVA-OneVision-7B for read-out and mechanism claims (their \texttt{image\_newline} separators are
-stripped and the grid rebuilt, App.~\ref{app:proto}). Frozen weights throughout; bf16.
+\textbf{The equal-compute bar.} A two-pass method that localises at $300$ tokens and answers on a crop at $300$ tokens
+spends $600$ visual tokens. We therefore compare against \texttt{uniform@600}: the same budget spent on one
+higher-resolution pass. Published work in this area does not budget-match; \S\ref{sec:results} shows what that hides.
+Where pruning changes cost mid-network we measure \textbf{token-layers} (tokens $\times$ layers traversed); the bar is
+$600\times28=16{,}800$.
 
-\paragraph{Budget accounting.} Every arm's visual-token count is \emph{measured} from the
-processor's \texttt{image\_grid\_thw}, never computed; a contrast whose arms drift by more than
-$10\%$ is void. The method costs two $300$-token passes; its baseline is one $600$-token pass
-(``uniform@600'', the bar). Reported drifts are $0.1$--$1.3\%$.
+\textbf{Stratification.} Every result is reported separately for \emph{single-instance} questions (one object's
+property) and \emph{cross-instance} questions (a relation between two). \S\ref{sec:scope} shows these behave
+oppositely and that pooling them conceals it.
 
-\paragraph{Read-out and statistics.} Answers are read from the option logits, no generation.
-Confidence intervals are $95\%$ item-level bootstraps ($\geq 4000$ resamples); a claim is made only
-if its CI clears zero on both Qwen models. Every learned quantity is out-of-fold, \texttt{GroupKFold(5)}
-grouped by item so an item's ${\sim}300$ cells never straddle folds; selections are made on training
-folds only. The run-to-run floor on top-1 coverage is $1$--$2.5\pp$ (App.~\ref{app:proto}).
+\textbf{Statistics.} Paired item bootstrap, 8000 resamples. Learned components use GroupKFold(5) by item $\times$ 3
+seeds. A claim must hold on at least two checkpoints or it is reported as rejected.
 
-\section{The method: Depth-Profile Re-ranking}\label{sec:method}
+\section{Where the image reaches the answer}\label{sec:transport}
 
-\paragraph{Localise.} Encode the image at $B_0{=}300$ merged tokens with the full question. From that
-pass, take the final token's attention over the $n$ image cells at every one of the $28$ language-model
-layers, head-averaged and sum-normalised per layer: a $28\times n$ profile. \emph{The prompt must end
-at the answer-emission point} (\S\ref{sec:readout}); this is the whole of what makes the map usable.
+We install a hook that masks a chosen set of query positions from attending to the image-token columns, at chosen
+layers only, and measure the KL divergence at the output.
 
-\paragraph{Rank.} Score each cell with $65$ features from that pass alone: its $28$ depth values,
-its $28$ within-layer ranks, a $3\times3$ neighbourhood mean, the deployed block-mean, and seven
-geometry terms including explicit last-column / last-row / first-column indicators so the head
-\emph{can} learn the serialisation sink (App.~\ref{app:sink}) if that is what matters. The scorer is a
-gradient-boosted regressor (depth $4$, $150$ trees) trained to predict \emph{coverage} --- the fraction
-of the evidence box a window centred on the cell would contain --- out-of-fold, grouped by item.
-Border cells are ring-masked, as in the deployed proposer.
-
-\paragraph{Spend.} Crop a window of side $W$ of the image around the top cell, re-encode at $300$
-tokens, answer. $W{=}0.25$ on \vstar\ (held-out validated: folds pick it $99/100$, in-sample
-$71.7\%\to$ held-out $71.6\%$); $W{=}0.15$ unswept on \hrb.
-
-\paragraph{The gap it exploits.} On \vstar\ the deployed argmax covers the evidence $40.5\%$ of the
-time; oracle selection among the \emph{same map's} top-5 covers $61.5\%$; the ground-truth cell already
-sits in the top $3.4\%$ of cells. The ranking has the answer and the max throws it away, usually to a
-sink or a distractor (Fig.~\ref{fig:crops}).
-
-\subsection{Results at equal compute}
-
-\begin{table}[t]
-\centering\small
-\caption{\textbf{DPR against equal compute on single-object questions.} Bar $=$ one uniform image at
-the method's total token count. Argmax $=$ the deployed block-mean read-out feeding the same crop
-pipeline. Pooled rows include relational questions. $95\%$ bootstrap CIs; \ok\ $=$ CI clear of zero.}
-\label{tab:method}
-\resizebox{\textwidth}{!}{\begin{tabular}{llrrrr}
+\begin{table}[h]\centering\small
+\caption{Causal masking of text-to-image attention (Qwen3-VL-2B / Qwen2-VL-7B, $n=40$).}
+\begin{tabular}{lcc}
 \toprule
-& & \multicolumn{2}{c}{\vstar\ ($n{=}115$, $W{=}0.25$)} & \multicolumn{2}{c}{\hrb\ ($n{=}400$, $W{=}0.15$)} \\
-\cmidrule(lr){3-4}\cmidrule(lr){5-6}
-arm vs bar & & Qwen3-VL-2B & Qwen2-VL-7B & Qwen3-VL-2B & Qwen2-VL-7B \\
+mask scope (all layers) & KL at output & answers flipped\\
 \midrule
-\textbf{DPR, single-object} & & \gd{$+15.7$}\ci{+6.1}{+25.2}\ok & \gd{$+11.3$}\ci{+1.7}{+20.9}\ok & \gd{$+7.5$}\ci{+2.2}{+12.5}\ok & \gd{$+8.5$}\ci{+3.8}{+13.2}\ok \\
-argmax, single-object & & $+9.6$\ci{+0.0}{+19.1}$^\dagger$ & $+6.1$\ci{-3.5}{+15.7} & $+2.5$\ci{-2.8}{+7.8} & $-5.8$\ci{-10.8}{-0.8} \\
-\midrule
-DPR, relational & & $-3.9$\ci{-18.4}{+10.5} & $+0.0$\ci{-13.2}{+13.2} & $-13.8$\ci{-19.5}{-7.8} & $-8.8$\ci{-13.8}{-3.5} \\
-DPR, pooled & & $+7.9$\ci{-0.5}{+16.2} & $+6.8$\ci{-1.0}{+14.7} & $-3.1$\ci{-7.0}{+0.9} & $-0.1$\ci{-3.6}{+3.4} \\
-\midrule
-bar (uniform@600) & & $62.6\%$ & $57.4\%$ & $64.5\%$ & $62.3\%$ \\
-DPR absolute & & $78.3\%$ & $68.7\%$ & $72.0\%$ & $70.8\%$ \\
+the \textbf{answer token}'s row only & $0.025$ & $3\%$\\
+\textbf{all text rows} after the image & $1.931$ & $42\%$ / $45\%$\\
 \bottomrule
-\end{tabular}}\\[2pt]
-{\footnotesize $^\dagger$ best training-free read-out (max over a $4$-layer window, App.~\ref{app:trainfree}); the deployed mean-block argmax is lower.}
+\end{tabular}\label{tab:transport}
 \end{table}
 
-\begin{table}[t]
-\centering\small
-\caption{\textbf{Additional checkpoints and a third benchmark.} Same protocol; $W$ transferred, not
-selected. Qwen3-VL-8B does not clear: its deployed argmax is far worse ($31.9\%$ coverage vs $46.6$ on the
-2B) and the head recovers $+19\pp$ over it, but the 8B model at $600$ tokens is strong enough that the crop
-no longer clears the bar.}
-\label{tab:more}
-\resizebox{\textwidth}{!}{\begin{tabular}{llrrr}
+Blocking the answer-emission token from seeing any image token, at every layer, changes almost nothing
+(Table~\ref{tab:transport}). Visual evidence reaches the answer through the \emph{text} tokens, which consolidated it
+upstream. Masking one layer at a time for all text rows localises that consolidation: it peaks at L11 (Qwen3) and
+L14--15 (Qwen2), prefix masks $L_0..\ell$ saturate by $\ell=12$--$16$, and suffix masks $L_\ell..\text{end}$ fall to
+$\approx0$ from $\ell=16$ ($0.014$ and $0.029$; zero answer flips from $\ell=20$). On a 36-layer checkpoint the same
+behaviour appears at L21, i.e.\ the boundary transfers as $0.57\times$ depth.
+
+\paragraph{The consequence.} The read-out band used by every method in this family (L17--20 on Qwen3, L19--22 on
+Qwen2) lies \emph{entirely after} the transport window. Those layers' image attention is causally inert
+(KL~$\approx0.001$). This predicts, and we confirm, three things: depth \emph{re-weighting} helps while depth
+\emph{selection} never does (\S\ref{sec:ridge}); tokens can be dropped at the boundary for free (\S\ref{sec:tsr}); and
+placement rules that all read the same inert depth separate only modestly.
+
+\paragraph{Selection stops mattering exactly at the boundary.} Before it, the choice of which tokens to keep is worth
+$+8.4$ and $+8.9$ points over random. At and after it, ranking is worth nothing: random keep equals attention keep on
+both models at every keep ratio. The boundary is not merely where pruning becomes cheap --- it is where selection
+ceases to matter.
+
+\section{Policy I: depth re-ranking}\label{sec:ridge}
+
+Localise at $300$ tokens with the full prompt (the read-out must be taken at the answer-emission position; without the
+answer instruction the map loses $36$--$42$ points). Read the final prompt token's attention over image cells at all
+$28$ layers. Score each cell by a single closed-form ridge solve,
+\[
+s(\text{cell})=\textstyle\sum_\ell w_\ell\log A_\ell+\sum_\ell v_\ell\,\mathrm{rank}_\ell+a\log\mathrm{nb}+\text{geometry},
+\]
+fit on as few as $50$ boxed examples. Crop $W{=}0.25$ at the arg-max, re-encode at $300$ tokens, answer.
+
+The fitted $w_\ell$ \emph{is} the depth filter. It takes both signs: it assigns \emph{negative} weight to 7 of the 11
+layers the conventional block-mean read-out adds at $+1$, and its largest positive weight falls in the band where
+attention first becomes question-conditioned. There is no boosting, no learning rate, no early stopping.
+
+\section{Policy II: transport-scheduled resolution}\label{sec:tsr}
+
+Because visual tokens are inert past the boundary, discard them there and spend the saving on pixels: encode at $900$
+tokens, run full width through L0--L16, keep the top $10\%$ at L16, run L17--27 narrow. Token-layers
+$900{\times}17+90{\times}11=16{,}290$ --- $96\%$ of the bar, for $1.5\times$ the resolution. No crop.
+
+Pruning is free: $0.0$--$0.5$ points in 9 of 10 measured cells, at every keep ratio ($10/25/50\%$), with any ranking
+including random. Output probabilities change on $99\%$ of items while the arg-max changes on $2\%$ --- the tokens are
+inert, not absent.
+
+\paragraph{An identity.} Across $4$ checkpoints $\times$ $3$ benchmarks, TSR's gain equals the checkpoint's
+\emph{measurable resolution headroom} $\mathrm{acc}(900)-\mathrm{acc}(600)$ on that stratum: $r=0.966$, slope $1.01$,
+mean absolute error $0.7$ points over 10 stratum-cells. The headroom needs two baseline runs and no method, so TSR's
+benefit is predictable before deployment.
+
+\section{Results}\label{sec:results}
+
+\begin{table}[h]\centering\small
+\caption{All placement rules in one run, \vstar, every arm at ${\sim}600$ visual tokens. \ok\ = 95\% CI clear.}
+\begin{tabular}{lcccccc}
 \toprule
-model & benchmark & head $-$ bar, single & argmax $-$ bar, single & head $-$ bar, pooled \\
+& \multicolumn{3}{c}{Qwen3-VL-2B} & \multicolumn{3}{c}{Qwen2-VL-7B}\\
+\cmidrule(lr){2-4}\cmidrule(lr){5-7}
+method & single & cross & ALL & single & cross & ALL\\
 \midrule
-Qwen2.5-VL-7B & \vstar\ ($n{=}115$) & \gd{$+14.8$}\ci{+4.3}{+25.2}\ok & $+7.8$\ci{-1.7}{+17.4} & $+6.3$\ci{-1.6}{+14.1} \\
-Qwen3-VL-2B & HR-Bench~8k ($n{=}400$) & \gd{$+10.5$}\ci{+5.2}{+16.0}\ok & $+3.5$\ci{-1.5}{+8.8} & $+0.6$\ci{-3.4}{+4.6} \\
-Qwen3-VL-8B & \vstar\ ($n{=}115$) & $+4.3$\ci{-5.2}{+13.9} & $-14.8$\ci{-25.2}{-4.3} & $-1.6$\ci{-8.9}{+5.8} \\
+\texttt{uniform@600} (bar) & 62.3 & 65.8 & 63.7 & 57.4 & 59.2 & 58.1\\
+fixed layer L14 & \bad{24.6} & 57.9 & \bad{37.9} & \bad{33.9} & 44.7 & \bad{38.2}\\
+block-mean arg-max (ViCrop-style) & 64.0 & 59.2 & 62.1 & 67.0 & 47.4 & 59.2\\
+LASER \citep{laser} & 64.0 & 65.8 & 64.7 & 65.2 & 55.3 & 61.3\\
+gate-max (ours, no training) & 72.8 & 63.2 & 68.9 & 63.5 & 56.6 & 60.7\\
+\textbf{ridge depth filter (ours)} & \gd{\textbf{77.2}} & 65.8 & \gd{\textbf{72.6}} & \gd{\textbf{71.3}} & \gd{\textbf{68.4}} & \gd{\textbf{70.2}}\\
 \midrule
-\multicolumn{2}{l}{pooled single-object, Q3-2B $+$ Q2-7B, \vstar\ $+$ 4k ($n{=}1030$)} & \gd{$+9.2$}\ci{+6.1}{+12.4}\ok & & \\
+\emph{oracle crop (upper bound)} & \emph{96.5} & \emph{75.0} & \emph{87.9} & \emph{93.9} & \emph{77.6} & \emph{87.4}\\
 \bottomrule
-\end{tabular}}
+\end{tabular}\label{tab:main}
 \end{table}
 
-Table~\ref{tab:method} is the paper's central result, Table~\ref{tab:more} its extension. On single-object questions the learned head
-clears the equal-compute bar in all four model$\times$benchmark cells; the argmax feeding the
-identical crop pipeline clears in none. Against the unmodified model the gains are $+15.0/+14.1\pp$;
-against random placement $+28.3/+26.7\pp$. The \hrb\ result is zero-shot --- the head was trained on
-\vstar\ and nothing was refitted --- and holds under CircularEval ($45.0\%$ vs the bar's $44.0\%$ on
-Qwen2-VL; $44.0\%$ vs $46.0\%$ on Qwen3-VL, where the argmax is $40.0\%$).
+The ridge filter beats every published rule on every cell where that rule was run --- 9 of 9 paired contrasts, all CIs
+clear: $+3.8$ to $+15.9$ against ViCrop-style, $+7.9$ and $+8.9$ against LASER, $+31.9$ and $+34.6$ against
+fixed-layer. At matched compute the published rules are worth $-1.6$ to $+3.1$ against simply spending the tokens on
+resolution.
 
-\paragraph{Two things it does not do.} It does not clear the bar pooled over question types on any
-cell, and it loses on relational questions on every cell. Both were predicted before the runs
-(\S\ref{sec:limits}) and both stay in every table.
+\subsection{Native dynamic resolution}\label{sec:native}
 
-\subsection{Deploying it: routing, supervision, cost}\label{sec:route}\label{sec:cost}
-\paragraph{Routing.} DPR loses on relational questions, so a system must decide when to apply it. We
-build and evaluate that decision at exactly matched tokens: routed items get DPR, unrouted items get the
-$600$-token image, and everything is scored against the $600$-token image. A free keyword rule (left /
-right / above / between / \dots) matches \vstar's category labels on $100\%$ of items and lifts DPR over
-the bar \emph{pooled} on both models ($+9.4\ci{+3.1}{+15.2}$, $+6.8\ci{+1.0}{+12.6}$); it does not
-transfer to \hrb's phrasing. An \emph{untuned} router --- the model itself asked, text-only and without
-the image, ``does answering this require comparing, counting, or locating two or more objects relative
-to each other?'' --- clears pooled in three of four cells ($+10.5\ci{+4.2}{+16.8}$,
-$+6.8\ci{+1.0}{+12.6}$ on \vstar; $+2.8\ci{+0.4}{+5.1}$ for Qwen2-VL on \hrb; $+0.4$ for the 2B model
-there, which over-routes). With the category labels as an oracle router all four clear. The composition is
-not hypothetical, and its cost is one ${\sim}60$-token text pass.
-\paragraph{Supervision.} The head needs boxes, and \S\ref{sec:limits} shows they must come from the
-target question type. How many? Training on $k$ random items and testing on the rest: $k{=}25$ gives
-$+7.6/+8.2\pp$ over the argmax, $k{=}50$ gives $+11.9/+11.4$ (sd $2.3/2.8$ over ten draws) against
-$+16.8/+16.2$ at $k{=}191$ --- \emph{fifty boxed items recover $70\%$ of the gain}, once per question
-type, and the head then transfers zero-shot across benchmarks of that type (Table~\ref{tab:more}).
-\paragraph{Cost.} Tokens are matched; wall-clock is not. Measured at batch $1$, $n{=}50$, median:
-the $600$-token pass takes $314/335$\,ms on the two models; DPR with an eager \texttt{output\_attentions}
-localiser takes $1.84\times/2.02\times$ that; with a forward hook that materialises only the last query
-row at the block layers, $1.78\times/1.40\times$. Two sequential passes are a real cost and we report
-it as one.
+The field publishes these benchmarks at the model's native dynamic resolution. On \vstar\ that is a median of
+$3{,}290$ visual tokens --- $5.5\times$ our bar --- and $76.3\%$ accuracy.
 
-\subsection{Internal controls}
-On the rows where the head and the argmax select the same cell (84 of 800 on \hrb), the two arms are
-the same computation and their contrast is exactly $+0.0\pp$; a non-zero value there would void the
-headline. Re-running the head arm in a separate script reproduces the stored value on $100\%$ of items
-on both models. The learned head's gains are not geometry: a head given only position scores $3.7\%$
-coverage and a head trained on shuffled labels $2.6\%$, both at the rate of a random cell.
-
-\section{What the method is measured against}\label{sec:readout}
-
-The deployed read-out --- mean over layers $16$--$26$, mean over heads, argmax --- is the baseline
-this literature uses, and it is weak for four separable, nameable reasons. Reporting DPR only against
-it would overstate the head's contribution by a factor of three (Table~\ref{tab:ladder}).
-
-\begin{figure}[t]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig1_defect.pdf}\end{center}
-\caption{\textbf{The same forward pass, read at two depths.} A real \vstar\ item: attention over
-image cells at layer $2$ (left) and in the late band (right), with the ground-truth box. The early
-map is not noisy --- it is a confident map of something that is not the question. Reading it is
-worse than not reading anything (Table~\ref{tab:prune}).}
-\label{fig:defect}
-\end{figure}
-
-\paragraph{Axis 1: rule.} CLAA~\citep{mcdanel2026claa} diagnoses layer-wise ranking instability for
-LLM prefill with an answer-informed oracle and aggregates by \emph{max} across a window of layers.
-Ported here: max over the deployed block is $+7.3\ci{+2.6}{+12.6}$ / $+6.8\ci{+3.1}{+11.0}\pp$ of
-coverage on the two Qwen models; their $4$-layer window-max, window chosen out-of-fold, $+8.4/+12.0$.
-Mean over all layers and median are both \emph{worse} than the block mean.
-
-\paragraph{Axis 2: quantity.} \citet{kobayashi2020norm} showed in BERT that attention to special
-tokens is high-$\alpha$, low-$\|v\|$. Our serialisation sink (App.~\ref{app:sink}) is the same
-object: weighting each cell by $\alpha\|v\|$ is $+4.7\ci{+2.1}{+7.9}\pp$, and composes with the max
-to $+10.5\ci{+5.8}{+15.7}$ with no training and no selection.
-
-\paragraph{Axis 3: heads.} Keeping the top $10\%$ of heads by their visual-attention
-ratio~\citep{lu2026reallocating} and taking the max is $+11.5\ci{+5.8}{+17.8}\pp$, label-free.
-CoRe's~\citep{tran2026core} contrastive criterion, selected out-of-fold, is $+3.1\ci{-1.0}{+7.3}$
-over it --- not significant, and it needs boxes; the absolute criterion that fails in text works here.
-
-\paragraph{Axis 4: prompt.} The read-out is the final token's attention. If the prompt does not end
-at the answer-emission point the map is unusable: with the answer options present but the
-instruction line removed, the argmax collapses to $3.7\%/0.5\%$ coverage --- below the ${\sim}2\%$
-chance of hitting the target cell --- while removing the options and keeping the instruction changes
-nothing ($47.6/41.4$ vs $46.1/39.8$). This one line is why every \hrb\ negative in an earlier
-version of this work was wrong (App.~\ref{app:corr}), and it plausibly explains published
-``random beats attention'' grounding nulls~\citep{wen2025rightproblem}.
-
-\paragraph{The fixes do not stack; the layer set does.} Norm weighting, head selection and max each
-beat the deployed rule, but composed they land on the same ${\sim}56/{\sim}49\%$: they remove one
-sink by three routes. The component that adds on top is \emph{which layers}: replacing the hand-set
-block with the layers where attention is question-conditioned --- measured label-free by how much
-the map changes under four unrelated questions (\S\ref{sec:mech}) --- gives $59.7/51.8\%$, within
-$3.7/2.7\pp$ of the learned head (Table~\ref{tab:ladder}). The gate is threshold-robust ($0.3$--$0.7$
-select the same layers, L17--20 on Qwen3-VL and L19--22 on Qwen2-VL) and independently re-finds
-Qwen2-VL's answer-formation layer.
-
-\begin{table}[t]
-\centering\small
-\caption{\textbf{The read-out ladder.} Top-1 coverage of the evidence, \vstar, $W{=}0.25$, ring-masked.
-Fixed constants throughout unless marked OOF. The learned head leads the best training-free rule by
-$3.7/2.7\pp$, not the $17/15\pp$ it leads the deployed read-out by.}
-\label{tab:ladder}
-\resizebox{\textwidth}{!}{\begin{tabular}{lcrr}
+\begin{table}[h]\centering\small
+\caption{Against native dynamic resolution, Qwen3-VL-2B, \vstar, $n=190$. Our arms use $18\%$ of native's compute.}
+\begin{tabular}{lcccc}
 \toprule
-read-out & needs & Qwen3-VL-2B & Qwen2-VL-7B \\
+arm & visual tokens & single & cross & vs.\ NATIVE (pooled)\\
 \midrule
-deployed: mean over block, argmax & --- & $46.1$ & $39.8$ \\
-max over block (CLAA) & --- & $53.4$ & $46.6$ \\
-$\alpha\|v\|$, mean over block & $\|v\|$ & $50.8$ & $42.9$ \\
-$\alpha\|v\|$, max over block & $\|v\|$ & $56.5$ & $48.7$ \\
-top-$10\%$ heads by visual ratio, max & per-head & $55.0$ & $48.7$ \\
-max over a $4$-layer window (OOF) & boxes & $55.0$ & $51.3$ \\
-CoRe heads (OOF), max & boxes & $58.1$ & --- \\
-\textbf{max over question-conditioned layers} & label-free & $56.0$ & $\mathbf{52.4}$ \\
-\textbf{\quad + heads + $\|v\|$} & label-free & $\mathbf{59.7}$ & $51.8$ \\
+NATIVE dynamic resolution & $3{,}290$ & 74.6 & 78.9 & ---\\
+\texttt{uniform@600} (bar) & $600$ & 62.3 & 65.8 & \bad{$-12.6$\ci{-19.5}{-5.8}} \no\\
+block-mean arg-max & $600$ & 64.0 & 59.2 & \bad{$-14.2$\ci{-22.6}{-5.8}} \no\\
+LASER & $600$ & 64.0 & 65.8 & \bad{$-11.6$\ci{-20.0}{-3.2}} \no\\
+TSR (ours) & $600$ & 65.8 & \gd{76.3} & $-6.3$\ci{-12.6}{+0.0}\\
+\textbf{ridge filter (ours)} & $600$ & \gd{\textbf{77.2}} & 65.8 & $-3.7$\ci{-12.1}{+4.2}\\
 \midrule
-\textbf{DPR learned head (OOF)} & boxes & $\mathbf{63.4}$ & $\mathbf{54.5}$ \\
-readable head, W=0.15 basis (\S\ref{sec:readable}) & boxes & \multicolumn{2}{c}{parity at $W{=}0.15$} \\
-\midrule
-attention rollout~\citep{abnar2020rollout} & --- & $12.6$ & --- \\
-gradient$\times$attention~\citep{chefer2021beyond} & --- & $15.7$ & --- \\
-ReAttn entropy rescaling~\citep{tian2026reattn} & --- & \multicolumn{2}{c}{$-19$ to $-27\pp$} \\
+\emph{oracle crop} & $600$ & \emph{96.5} & \emph{75.0} & \gd{$+11.6$\ci{+4.2}{+18.9}} \ok\\
 \bottomrule
-\end{tabular}}
+\end{tabular}\label{tab:native}
 \end{table}
 
-\paragraph{What does not transfer, and why that is a result.} Attention rollout and
-gradient$\times$attention --- the standard faithfulness fixes in text --- collapse to $12.6\%$ and
-$15.7\%$, below the deployed rule. ReAttn's entropy rescaling is catastrophic in both directions.
-\emph{Fixes that target the sink transfer; fixes that model information mixing destroy the signal.}
-Rollout multiplies $28$ attention matrices with residual identities and the query-conditioned spatial
-signal, which exists only in the late half, is washed out by the early layers it must pass through.
+Three readings. Our methods are \emph{statistically indistinguishable} from native resolution at $18\%$ of its
+compute, while the published rules are \emph{significantly worse} than native. Per stratum, the ridge filter at $600$
+tokens matches native on single-instance ($+2.6$) and TSR matches it on cross-instance ($-2.6$). And a perfectly
+placed $600$-token crop \emph{beats} native by $+11.6$ pooled and $+21.7$ on single-instance: placement is worth more
+than $5.5\times$ the compute.
 
-\paragraph{No training-free rule clears the bar on both models.} End-task, the best label-free rule
-is $+10.4\ci{+0.9}{+20.9}\pp$ over equal compute on Qwen3-VL single-object questions but
-$+7.0\ci{-2.6}{+16.5}$ on Qwen2-VL; the CLAA window-max is $+9.6/+6.1$. One of two, so under our rule
-it is not a bar-clearing method; it is the honest no-training counterpart, and the learned head
-leads it by $4$--$6\pp$ with lower bounds at or just under zero.
+\subsection{A scope law}\label{sec:scope}
 
-\subsection{Ranking visual tokens by early attention is below random}\label{sec:prune}
+Across 14 cells (3 benchmarks $\times$ 4 checkpoints $\times$ 2 strata), attention-guided cropping helps
+single-instance perception in $7/7$ and is non-positive on cross-instance in $6/7$, significantly negative in three
+($-6.0$, $-8.8$, $-8.8$). This holds for \emph{every} method in the family, ours included: a tight crop magnifies one
+object and discards the other. TSR shows the opposite profile --- positive on both strata in $6/7$ cells with no
+significant loss anywhere --- but gives up $3$--$10$ points of single-instance gain.
 
-The same read-out is the ranking signal in attention-based token pruning, where the widely used
-default reads layer $2$~\citep{chen2024fastv}. We pin the prune point at layer $2$ for every arm ---
-identical budget, identical savings --- and move only the layer the ranking is read from. This
-decomposition is, to our knowledge, unrun: every surveyed method moves read depth and prune depth
-together (\S\ref{sec:related}).
-
-\begin{table}[t]
-\centering\small
-\caption{\textbf{Pruning $90\%$ of visual tokens from layer $2$, ranked at different depths.}
-Late $=$ mean over the deployed block. Layer-2 is below random selection in all six cells; late beats
-layer-2 with a clear CI in all six. ``Late is free'' holds on \vstar\ only.}
-\label{tab:prune}
-\resizebox{\textwidth}{!}{\begin{tabular}{llrrrr|rr}
-\toprule
-benchmark & model & none & random & layer-2 & late & late$-$layer-2 & layer-2$-$random \\
-\midrule
-\vstar & Qwen3-VL-2B & $56.5$ & $38.2$ & \bad{$34.6$} & $56.0$ & $+21.4$ & $-3.7$ \\
-\vstar & Qwen2-VL-7B & $52.9$ & $44.5$ & \bad{$39.8$} & $51.3$ & $+11.5$\ci{+4.2}{+18.8} & $-4.7$ \\
-POPE & Qwen3-VL-2B & $90.5$ & $82.5$ & \bad{$67.5$} & $84.0$ & $+16.5$ & $-15.0$ \\
-POPE & Qwen2-VL-7B & $88.0$ & $83.0$ & \bad{$72.0$} & $84.0$ & $+12.0$\ci{+5.0}{+19.0} & $-11.0$\ci{-17.0}{-5.0} \\
-MMBench & Qwen3-VL-2B & $85.5$ & $78.5$ & \bad{$53.0$} & $80.0$ & $+27.0$ & $-25.5$ \\
-MMBench & Qwen2-VL-7B & $85.5$ & $80.5$ & \bad{$75.0$} & $83.0$ & $+8.0$\ci{+3.5}{+12.5} & $-5.5$\ci{-10.5}{-1.0} \\
-\bottomrule
-\end{tabular}}
-\end{table}
-
-Table~\ref{tab:prune} is the paper's most widely replicated result: two models, three benchmarks,
-and the effect is \emph{larger} on general VQA than on the small-object benchmark that might flatter
-it. It reconciles two published results that appear to contradict: \citet{wang2026worsethanrandom}
-find attention-based selection no better than random when read \emph{and} pruned deep; we find a deep
-read beats random by $17.8\pp$ when pruned early. Both hold, because read depth and prune depth are
-two knobs. A pre-registered mechanism prediction failed here and is reported as failed: Qwen2-VL's
-early layers rank the target \emph{worse} (gt-pct $0.620$ vs $0.456$) yet its layer-2 penalty is
-\emph{smaller} ($-13.1$ vs $-21.9\pp$); ranking quality does not predict pruning damage.
-
-\begin{figure}[t]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig_prune_masks.pdf}\end{center}
-\caption{\textbf{What each ranking actually keeps.} Unshaded cells are the $10\%$ of visual tokens
-retained under a layer-2 ranking (left) and a late ranking (right) on real items, with the evidence
-box. The layer-2 set is dense at the image boundary --- the sink --- and misses the target.}
-\label{fig:masks}
-\end{figure}
-
-\subsection{A readable head at parity}\label{sec:readable}
-
-The gradient-boosted tree is accurate but opaque. Four rounds of replacement --- an MLP, cross-attention
-over the layer axis, a spatial CNN over the $28$-channel map with MSE and pairwise losses, additive
-GAMs, rank fusion, ensembles --- fail to beat it on both Qwen models (App.~\ref{app:head}); the
-constraint is $191$ boxed items, not model class. What does reach parity is a Lasso-fit log-linear
-model with ${\sim}91$ parameters: $\sum_l w_l \log A_l + \sum_l v_l\,\mathrm{rank}_l + \sum_l u_l
-\log \overline{A}^{3\times3}_l + $ geometry. At the deployed $W{=}0.15$ it is $+2.6/+1.6\pp$ over
-the tree on Qwen3/Qwen2 (CIs span zero), $+4.7$ on LLaVA-NeXT and $+6.3\ci{+1.6}{+11.5}$ on
-LLaVA-OneVision --- the one model the tree fails on --- and it clears the deployed argmax on four of
-four architectures where the tree manages three. Its weights say what the tree learned: L19 strongest
-on both models, L21 on Qwen2-VL (its answer-formation layer, \S\ref{sec:why}), the last layers
-\emph{subtracted} on Qwen3-VL, neighbourhood terms carrying $1.5$--$2.3\times$ the mass of point
-terms, sink indicators ${\approx}0$. Rank fusion alone loses $25\pp$: the magnitudes carry the
-signal, which is also why norm weighting helps and rollout fails. We use the tree for the numbers in
-Table~\ref{tab:method} and the readable head to say what they mean.
-
-\section{Why it works: the evidence is not encoded}\label{sec:why}
-
-\begin{figure}[t]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig_coverage_cliff.pdf}\end{center}
-\caption{\textbf{Left:} coverage of the evidence set by the crop window decides the \emph{sign} of the
-allocation effect, crossing zero near $25\%$; half of all windows miss. \textbf{Right:} the encoding
-cliff. Uniform encoding falls below the $25\%$ chance line under ${\approx}0.25$ merged tokens of
-target extent while the oracle crop is flat at $96$--$100\%$ across it, on both models.}
-\label{fig:cliff}
-\end{figure}
-
-\paragraph{The cliff.} Define tokens-on-target as the target's area fraction times the visual budget.
-Below $0.25$, uniform encoding scores $32.4\%\ci{21}{44}$ and $36.6\%\ci{25}{48}$ on the two models
---- on the cleanest single-region subset, $19.0\%$, under the $25\%$ chance level --- while the oracle
-crop at the same $300$ tokens scores $95.8\%$ on both. Above it, $77.3/63.6\%$ against an oracle at
-$100\%$. The oracle arm is the control: it is flat across the split, so the items below the threshold
-are not harder, they are invisible. Stated as \citet{li2026lastpixel}'s RT$_{50}$ in our units, the
-threshold is ${\approx}0.15$--$0.25$ merged tokens on both checkpoints; their synthetic-canvas
-threshold for Qwen3-VL-2B converts to ${\approx}0.14$--$0.39$.
-
-\paragraph{Nine in ten errors are encoding failures.} Of every \vstar\ error, the oracle crop fixes
-$86.7\%$ (Qwen3-VL) and $84.0\%$ (Qwen2-VL) at $W{=}0.25$, and $94.0/89.4\%$ at $W{=}0.15$. Same
-model, same question, same budget; only the placement differs.
-
-\paragraph{Seven interventions fail, two of them decisively.} Activation steering, sink suppression,
-residual-stream injection, DoLa/DeCo~\citep{chuang2024dola}, component ablation, attention
-amplification and contrastive decoding are all null (App.~\ref{app:seven}). The two that close the
-argument: amplifying attention on \emph{exactly} the right cells recovers $+5.8\pp$ against the crop's
-$+36.2\pp$ at the same budget --- $16\%$ --- because the oracle amplification set is one cell of $294$;
-there is nothing to amplify. And the region is causally live: masking it moves the output $3.32\times$
-more than a random region and costs $10.5\pp$, yet contrastive decoding steered to it has a ceiling of
-$+2.6\ci{-0.5}{+5.8}$. The model looks in the right place; the right place is load-bearing; it still
-cannot answer, because no operation on the residual stream supplies information the encoder never
-wrote.
-
-\begin{figure}[t]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig4_l21.pdf}\end{center}
-\caption{\textbf{Cropping restores an answer-formation step; it does not improve reasoning.} Logit-lens
-accuracy at every layer for four arms that differ only in the pixels shown. The arms are
-indistinguishable for twenty layers, then separate by $15\pp$ at layer $21$. The failing arms jump at
-layer $2$ --- a prior forming --- and never improve: their maximum over all $28$ layers equals their
-final answer. Final-layer values come from \texttt{model.logits}, never a re-normalised hidden state
-(App.~\ref{app:proto}).}
-\label{fig:l21}
-\end{figure}
-
-\paragraph{What the crop restores.} Read the answer at every layer (Fig.~\ref{fig:l21}). The cropped
-and uncropped arms are indistinguishable through layer $20$, then separate abruptly. Split the same
-method by whether its window actually contained the evidence: $+29.7\ci{+19.8}{+39.6}$ where it
-covered and $-7.9\ci{-18.0}{+2.2}$ where it missed on Qwen3-VL; $+23.8\ci{+13.1}{+34.5}$ and
-$+0.0\ci{-11.2}{+11.2}$ on Qwen2-VL. Same computation, same budget, same question; only coverage
-differs. Coverage is the mediator and it decides the sign (Fig.~\ref{fig:cliff}): a missed window costs
-$-15.6\pp$, a fully covering one gains $+37.1\pp$, and within a single difficulty stratum the gap is
-$70.8\pp$ with missed windows at $13.0\%$, below chance. The method pays exactly where the cliff says it
-should: $+13.8\pp$ below $0.15$ tokens, $+16.0$ in the cliff zone, $+3.7$ (n.s.) above.
-
-\paragraph{Against the predecessor's reading.} \citet{liu2026vea} conclude from the same kind of
-attention maps that VLMs \emph{see but do not believe}: they attend to evidence they fail to use.
-That holds above the threshold. Below it, the correct option is decodable at \emph{no} layer on
-items the model localises but answers wrongly ($72.2\%$ ever-argmax vs $68.1\%$ for items whose window
-missed entirely --- no difference) and the oracle crop fixes $94.4\%$ of them. The model points but
-never saw. The two accounts divide at the cliff, and neither VEA, \citet{lu2026reallocating} nor
-\citet{esmaeilkhani2026klal} measures target size or runs the oracle control that locates it; the
-last is the honest exception, and it works by changing the weights --- its own ablation shows
-target-token norms rising $6$--$19\%$.
-
-\section{Where it stops}\label{sec:limits}
-
-Every limit below was found by a control we ran, and each has a mechanism.
-
-\paragraph{Relational questions.} DPR loses on them in every cell (Table~\ref{tab:method}). The
-evidence set of a relational question is the \emph{union} of the objects involved, $7.9\times$ larger
-in area than a single-object target; one window cannot cover it, and a perfect crop of one region
-\emph{wins} ($+19.7\pp$), so it is coverage and not question difficulty. Predicted from the coverage
-account before any run. This is the first claim in the project to replicate across two models and two
-benchmarks, and it is a limit.
-
-\paragraph{Existence questions.} On POPE the crop arm is $-56.7$, $-77.3$ and $-63.0\pp$ against the
-bar on the three positive strata, because it answers ``no'' to almost everything: for ``is there an $X$
-in the image?'' a window showing $6\%$ of the area is genuine evidence of \emph{absence}. The
-attention localiser is at chance there ($9.2\%$ centre-in-box vs $10.7\%$ expected) --- existence
-questions do not demand localisation --- and the oracle arm is \emph{circular}: knowing the box is
-knowing the object is present. So POPE cannot supply a ceiling, and crop-based allocation is invalid,
-not merely unhelpful, for questions that do not presuppose their target. The pre-registered prediction
-that cropping would \emph{raise} false positives was wrong in direction (they fell $4.0\pp$), for the
-same reason.
-
-\paragraph{One architecture whose layers agree.} On LLaVA-OneVision the learned head is
-$-1.0\ci{-6.3}{+3.7}$ and max-over-layers is $-3.7$: it is the one model where the best single layer
-\emph{equals} the block mean, so there is no disagreement across depth for any re-ranker to exploit.
-The head is $3$ of $4$ architectures on proposals ($+14.1$, $+8.9$, $+7.3\ci{+2.1}{+12.6}$); the
-readable head of \S\ref{sec:readable} is $4$ of $4$.
-
-\paragraph{The read-out is task-specific.} The obvious lever against a $191$-item ceiling is more
-boxed data. We trained the head on $3{,}000$ TextVQA items with public evidence boxes and applied it
-zero-shot to \vstar: $38.2\%$ coverage at $W{=}0.15$ and $37.2\%$ at $W{=}0.25$, \bad{below the
-deployed argmax} ($39.3/46.6$), and mixing them into the \vstar\ folds degrades the head
-($-5.8\ci{-11.0}{-1.0}$). The same head beats the argmax on TextVQA itself ($46.5$ vs $38.3$), so it
-learns; what it learns does not carry. The reason is visible in the layer profiles: question-conditioned
-localisation switches on at L11--13 for text reading and at L16 for small-object attributes, so a head
-trained on the former trusts layers that are still question-blind on the latter. Transfer works
-within a question type (\vstar\ $\to$ \hrb) and fails across --- the VLM counterpart of
-\citet{orgad2025llmsknow}'s ``skill-specific'' probes, and of \citet{lu2026reallocating}'s
-task-dependent boundary bands.
-
-\section{Mechanism}\label{sec:mech}
-
-\paragraph{Attention is question-blind until half depth, on four architectures.} Run the same image
-under four unrelated questions and measure per-layer divergence of the attention map --- no labels.
-It is $0.001$--$0.005$ through L12 on both Qwen models, then jumps $13\times$ by L16 ($0.137/0.178$);
-the switch-on is at L14/32 ($44\%$ depth) on LLaVA-NeXT and L16/28 ($57\%$) on LLaVA-OneVision. This
-is the band CLAA, \citet{lu2026reallocating} (their transition zone, $37$--$63\%$ depth) and VEA
-(L16--26) independently identify --- four measurements, two modalities. The locator finds the
-\emph{region}, not the best layer: on Qwen2-VL divergence rises at L13--14 but pruning damage recovers
-at L14--16, and reading at L14 still loses $6.3\pp$ to L16 (App.~\ref{app:layers}).
-
-\paragraph{Localisation is built by the language model.} Every read of the vision tower's $24$ layers
-is at or below the $2.3\%$ chance rate (best layer $1.6\%$, learned combination $1.0\%$, mean $0.5\%$)
-while the language model reaches $39.3\%$ on the same items. The encoder never sees the question.
-Attention from the \emph{noun naming the target} is near chance (gt-pct $0.367$ vs $0.500$):
-localisation is not lexical lookup and exists only after the whole query is integrated, at the answer
-position (\S\ref{sec:readout}).
-
-\paragraph{Attention quality and answer formation are dissociated.} Attention localises best at
-L17--19; the answer forms at L21; rank correlation across layers $\rho{=}0.297$. Attention top-1 is
-\emph{higher} in the six layers before the answer forms ($30.1\%$) than after ($24.8\%$). Raised by an
-external reviewer, tested, confirmed: these are two quantities, not one.
-
-\paragraph{The serialisation sink.} The image is flattened row by row; the sink sits at the row
-boundaries. Last column $5.1\times$ its share of attention, first column $2.9\times$, rows $0.9/0.8\times$
---- columnar, not cornered. A transpose test ($14\times21$ vs $21\times14$) keeps the sink at the same
-(row, col) positions with only $4/8$ shared absolute indices, so these are not register tokens; replaying
-sink indices into the interior lands \emph{below} chance ($1.1\%$ vs $3.3\%$). The prediction only this
-account makes: models that splice a learned \texttt{image\_newline} at each row end put the sink
-\emph{on the separator} ($2.0$--$2.3\times$), which is not a corner, not a pixel and not image content.
-Four architectures, two families (App.~\ref{app:sink}). Suppressing it buys nothing; biasing \emph{any}
-$4.8\%$ of image tokens moves accuracy by $\leq 2\pp$ while the same number of text tokens costs $17\pp$.
-
-\section{Related work}\label{sec:related}
-\textbf{Attention reweighting} --- VEA~\citep{liu2026vea}, head rescaling~\citep{lu2026reallocating},
-KLAL~\citep{esmaeilkhani2026klal} --- reports gains, measures no target size and runs no oracle control;
-\S\ref{sec:why} locates the family's boundary. VEA finds L16--26 by AUROC on document VQA; we find the
-same band label-free on small-object search, a convergence we cite rather than claim.
-\textbf{Cropping and allocation} --- ViCrop~\citep{zhang2025vicrop}, ZoomEye~\citep{shen2024zoomeye},
-AttWarp~\citep{attwarp2026}, Visual-CoT~\citep{shao2024viscot}, CropVLM~\citep{carvalho2026cropvlm} ---
-is scored at matched realised budget in App.~\ref{app:priorart}: every policy breaks even or loses
-(ZoomEye to a single uniform image of its own budget; grounding $-6.2\pp$ at median IoU $0.029$; AttWarp
-$+0.6$; tree search at 4K $-15.3$ at $2.2\times$ the tokens, $n{=}800$), and so does our own fixed
-always-crop policy; only the learned read-out passes.
-\textbf{Token pruning} --- FastV~\citep{chen2024fastv}, FEATHER~\citep{endo2025feather},
-TwigVLM~\citep{shao2025twigvlm}, LearnPruner~\citep{learnpruner2026}, \citet{wen2025rightproblem},
-\citet{wang2026worsethanrandom} --- establishes that early-layer attention is unreliable; none runs the
-read-depth/prune-depth decomposition of \S\ref{sec:prune} or reports the four axes of \S\ref{sec:readout}.
-\textbf{Interpretability transfer} --- rollout~\citep{abnar2020rollout}, norms~\citep{kobayashi2020norm},
-LRP~\citep{chefer2021beyond}, CLAA~\citep{mcdanel2026claa}, CoRe~\citep{tran2026core},
-ReAttn~\citep{tian2026reattn}, \citet{orgad2025llmsknow} --- is ported and scored in \S\ref{sec:readout}
-and App.~\ref{app:probes}. \textbf{Fine-scale perception}: \citet{li2026lastpixel} find perception
-saturating near $12$px on synthetic canvases; the cliff is its natural-image, token-unit,
-oracle-controlled counterpart.
+The ceiling explains why cropping cannot be repaired here. With \emph{perfect} placement, cross-instance still fails
+$25\%$ and $22\%$ of the time against $3.5\%$ and $6.1\%$ for single-instance. Cross-instance error is not
+predominantly perceptual, and no crop, multi-crop, composition or pruning schedule reached it (\S\ref{sec:neg}).
 
 \section{What does not work}\label{sec:neg}
 
-Reported at equal weight because it is most of what we learned. Each entry has a pre-registered rule
-applied as written; details in App.~\ref{app:negatives}.
-\begin{itemize}\setlength\itemsep{1pt}
-\item \textbf{Per-item window size.} Pre-registered, dead on two models and two grids: $-3.1\pp$
-against the fixed constant it was meant to improve.
-\item \textbf{Gates.} The two-pass confidence rule that rescued the old proposer is null for the head
-($-0.5$); a free routing gate clears on one model only and was barred by pre-registration from
-substituting for the sizer.
-\item \textbf{Multi-crop.} Four ranked windows in one pass: predicted $+5.5$, measured $-3.1$; the
-coverage model has no term for distractor cost.
-\item \textbf{More capacity.} MLP, cross-attention over layers, spatial CNN, GAM, ensembles: nothing
-beats the tree on both models; a $91$-parameter model matches it.
-\item \textbf{More features.} Giving the head the max-aggregate and $\alpha\|v\|$ signals that rescue
-the simple read-out adds nothing: it already extracts them.
-\item \textbf{More data.} $3{,}000$ cross-task boxed items train a head worse than no head.
-\item \textbf{Pre-generation detection.} The attention depth profile does not detect certified encoding
-failures ($1$ of $2$, ordering reversed); plain predictive entropy is the best detector on both models.
-\item \textbf{A token-level cliff.} Evidence tokens were at chance below the cliff on one model
-($0.513$ vs $0.656$ above) and not on the other ($0.623$ vs $0.633$); withdrawn.
-\item \textbf{Two of our own diagnostics}, refuted by the measurements that were meant to confirm them.
-\end{itemize}
+Eleven designs failed to make cropping serve cross-instance questions, each for a diagnosed reason: per-item window
+sizing; peak-spanning and mass-containment windows; joint (cell, window) re-ranking under a coverage objective (a
+metric artefact --- coverage is monotone in window size); expected-accuracy window selection; a downscaled scene
+composed with the crop, which dilutes it by $5$--$9$ points \emph{even at oracle placement}; multi-crop at matched
+budget, where the second crop genuinely converts ($+7.8$\,\ok) but halving each crop costs $-11.3$; and the same at
+full resolution funded by pruning. Depth \emph{selection} rules ported from the LLM literature
+--- DoLa, SLED, confident-layer decoding, attention-JSD, rank-stability --- all fail, for one reason: in these models
+final-layer entropy rises on $54$--$88\%$ of items while per-layer accuracy still climbs monotonically to the last
+layer. There is no better layer to select.
 
 \section{Limitations}\label{sec:lim}
 
-The end-task win is single-object questions; pooled it clears only through a router, which clears
-three of four cells untuned. Three Qwen checkpoints and three benchmarks, but not fully crossed, and
-Qwen3-VL-8B does not clear: the read-out defect grows with scale while the crop's margin over a stronger
-baseline shrinks. LLaVA is tested on proposals only; no other family is tested end-task. The cliff, the interventions and the mechanism
-are \vstar-only because it is the only venue with boxes where the oracle control is valid ---
-POPE's oracle is circular, \hrb\ has no boxes --- and five of the seven intervention nulls are
-single-model. The head is task-specific and needs boxes on its training benchmark. The equal-compute bar counts tokens; wall-clock is $1.4$--$2.0\times$ (\S\ref{sec:cost}). Every number in this paper was obtained with $n{=}191$ or $n{=}800$ items and a
-$1$--$2.5\pp$ run-to-run floor on coverage; lower bounds of $+1.7$ and $+2.2$ are real but thin.
+$n=191$ on \vstar\ gives per-stratum CI half-widths near $10$ points; no method is significantly positive on both
+strata in any single cell, which is a power limitation as much as a method one. The ridge filter needs ${\sim}50$
+boxed examples and two forward passes ($1.4$--$2.0\times$ wall-clock); TSR needs neither. Our two core checkpoints
+share a model family. The ridge filter's pooled margin over TSR is concentrated on the two cells it was developed on.
+Pruning at the boundary is free in 9 of 10 cells; the exception (HR-Bench~8K, cross-instance, $-1.8$\,\no) is real.
+
+\section{Conclusion}
+
+Attention-guided cropping reads the model's attention at a depth where that attention no longer carries the image to
+the answer. Measuring where it does --- a causal masking experiment, not a heuristic --- yields both a better
+read-out and a free pruning point, and the two together match a model running at $5.5\times$ the visual-token budget.
+The remaining gap is placement: perfect placement at $600$ tokens exceeds native dynamic resolution by $11.6$ points.
 
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
-
-\clearpage
-\appendix
-\section*{Appendix contents}
-\ref{app:proto} Protocol · \ref{app:ledger} Replication ledger · \ref{app:layers} Depth structure ·
-\ref{app:sink} The sink · \ref{app:head} The head and its replacements · \ref{app:trainfree} The
-training-free ladder · \ref{app:priorart} Prior art at matched budget · \ref{app:transfer} 4K
-transfer · \ref{app:pope} POPE · \ref{app:seven} Seven interventions · \ref{app:probes} Probes ·
-\ref{app:negatives} Negatives in full · \ref{app:corr} Corrections · \ref{app:repro} Reproducibility.
-
-\section{Experimental protocol}\label{app:proto}
-\paragraph{Budgets are measured, never computed.} Visual-token counts are read from
-\texttt{image\_grid\_thw} after processing; images are iteratively resized to hit a target (tolerance
-$6\%$). A contrast whose arms drift by $>10\%$ is void. Qwen3-VL's processor floors every image at
-$64$ merged tokens, so tiling arms below $5\times64$ are infeasible rather than mismatched.
-\paragraph{Localisation pass.} The full prompt --- question, options where they exist, and the answer
-instruction --- with the image at $300$ tokens; last-token attention over image cells, head-averaged,
-each layer sum-normalised. Border cells ring-masked before any argmax. LLaVA models: \texttt{image\_newline}
-separators are detected by matching the model's own embedding against the merged sequence, stripped,
-and the grid rebuilt from the modal row length; a naive split once swallowed the separator-free base
-image as ``row 0'' and put $59.8\%$ of positions in a bucket that can hold ${\sim}5\%$.
-\paragraph{Answer read-out.} Softmax over the option letters' logits at the final position; yes/no over
-the \texttt{Yes}/\texttt{No} token families. No generation, so results are deterministic.
-\paragraph{The logit lens.} Intermediate layers: \texttt{lm\_head(final\_norm(h\_i))}. The final layer
-must be read from \texttt{model.logits}: HuggingFace returns \texttt{hidden\_states[-1]} already
-normalised, and normalising it again corrupted only the last layer, manufacturing a $+5.1\pp$ ``free
-read-out gain'' and three sections we retracted (App.~\ref{app:corr}); the two implementations agreed
-on L24 for $100\%$ of items and on the final layer for $82.2\%$, which is how it was found.
-\paragraph{Cross-validation.} \texttt{GroupKFold(5)} grouped by item, three fold-permutation seeds,
-training rows negative-subsampled to every covering cell plus $30$ random non-covering cells per item;
-evaluation on all cells. In-sample layer selection reads $41.9\%$ on Qwen3-VL and $36.1\%$ out-of-fold
---- below the block mean it appeared to beat --- which is why nothing here is selected in-sample.
-\paragraph{Statistics and the noise floor.} Item-level bootstrap, $4000$--$8000$ resamples. The same
-head on the same items under two attention extractions differs by ${\sim}1\pp$; under two fold
-seedings by up to $2.5\pp$. No coverage difference inside that band is reported as signal.
-\paragraph{Numerical precision.} Qwen2-VL loaded in fp16 produces all-NaN logits; \texttt{argmax}
-falls through to index $0$, and because $71/191$ \vstar\ labels are ``A'' every arm scores an identical
-$37.2\%$ with CI $[+0.0,+0.0]$. Two false negatives that looked exactly like findings; bf16 throughout,
-and an arm contrast of exactly $+0.0\,[+0.0,+0.0]$ is treated as a pipeline fault, never a null.
-
-\section{Replication ledger}\label{app:ledger}
-\begin{table}[h]\centering\small
-\caption{Every claim by its replication level. Q3 $=$ Qwen3-VL-2B, Q2 $=$ Qwen2-VL-7B, NX $=$ LLaVA-NeXT-7B,
-OV $=$ LLaVA-OneVision-7B. V $=$ \vstar, H $=$ \hrb, P $=$ POPE, M $=$ MMBench.}
-\resizebox{\textwidth}{!}{\begin{tabular}{lll}
-\toprule
-claim & models & benchmarks \\
-\midrule
-DPR beats equal compute, single-object & Q3, Q2 & V, H \\
-Layer-2 pruning below random & Q3, Q2 & V, P, M \\
-Cropping does not beat the bar on relational questions & Q3, Q2 & V, H \\
-Attention question-blind until ${\sim}$half depth & Q3, Q2, NX, OV & V \\
-Serialisation sink at row boundaries & Q3, Q2, NX, OV & V \\
-Averaging across depth dilutes the read-out & Q3, Q2, NX & V \\
-Max beats mean as the layer rule & Q3, Q2 & V \\
-Encoding cliff, oracle flat across it & Q3, Q2 & V \\
-$87/84\%$ of errors oracle-fixable & Q3, Q2 & V \\
-Answer formation restored at L21, only where the crop delivers & Q3, Q2 & V \\
-Coverage decides the sign & Q3, Q2 & V \\
-The read-out needs the answer-emission point & Q3, Q2 & V \\
-Orgad's exact-answer-token probing does not port & Q3, Q2 & V \\
-Readable head at parity with the tree & Q3, Q2 (parity); NX, OV (ahead) & V \\
-\midrule
-Norm weighting; head selection; label-free layer gate & Q3 (Q2 for gate) & V \\
-Vision tower at chance; noun-token attention at chance & Q3 & V \\
-Amplification $16\%$; region load-bearing $3.32\times$ & Q3 & V \\
-Attention quality / answer formation dissociated & Q3 & V \\
-\midrule
-\multicolumn{3}{l}{\textit{Rejected by replication:} final layer anti-correlated (Q3 only); signed contrast is the}\\
-\multicolumn{3}{l}{mechanism (failed twice); no single layer is a good localiser (false on Q2); rank-only multi-crop;}\\
-\multicolumn{3}{l}{per-item sizer (2 models $\times$ 2 grids); depth-profile detector; token-level cliff; head beats}\\
-\multicolumn{3}{l}{CLAA on coverage (1 of 2); coverage interaction on \hrb\ (1 of 2); training-free rule clears the bar (1 of 2).}\\
-\bottomrule
-\end{tabular}}
-\end{table}
-
-\section{Depth structure across architectures}\label{app:layers}
-\begin{figure}[h]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig_gtpct_curves.pdf}\end{center}
-\caption{Per-layer localisation quality against relative depth, four architectures. $0.500$ is chance
-(lower is better). Which layers are anti-correlated with the target differs by architecture: the final
-layer is at $0.529$ on Qwen3-VL and $0.416$--$0.488$ elsewhere, which is why ``the final layer is
-anti-correlated'' was rejected as a general claim.}
-\end{figure}
-\begin{figure}[p]
-\begin{center}\includegraphics[width=\textwidth]{figs/fig_depth_grid.pdf}\end{center}
-\caption{\textbf{Every layer, three items, one forward pass each.} Attention over image positions at
-all $28$ layers with the ground-truth box; layers whose top-1 cell would cover the target under
-$W{=}0.15$ are marked. Covering layers are scattered and mostly \emph{outside} the averaged block
-(L0, 4, 5, 9, 17 and L2, 3, 5, 6, 9 on two items), which is what a learned read-out over the full
-profile exploits and a block mean cannot.}
-\end{figure}
-\paragraph{Averaging.} Mean over all $28$ layers is worse than the deployed block on all four
-architectures ($36.6/21.5/20.4/9.9\%$ vs $39.3/35.1/25.1/12.6$ at $W{=}0.15$); the learned read-out is
-$+6.3\ci{+2.6}{+10.5}$, $+8.4\ci{+3.1}{+13.6}$, $+1.0\ci{-2.6}{+5.2}$ (null) and $+6.3\ci{+2.1}{+10.5}$.
-The remedy's form is architecture-dependent: Qwen2-VL is fixed by one integer (L21, stable in all five
-folds, $+8.4\pp$); on Qwen3-VL no single layer is stable out-of-fold and a learned combination is needed.
-\paragraph{Read-depth sweep on Qwen2-VL.} Pruning at layer $2$, ranked at each read depth: L0--L12
-$36.6$--$40.8\%$ (flat floor), L14 $44.0$ ($+4.7\ci{-1.0}{+10.5}$ vs L2, not clear), L16 $50.3$
-($+11.0\ci{+3.7}{+18.8}$), L20--L26 $48.7$--$50.3$ ($\text{L20}-\text{L16}=-1.0\ci{-6.3}{+4.2}$).
-One transition, then a plateau: layer $2$ is not anomalous, the whole first half is equally bad.
-\paragraph{Question divergence.} Same image, four unrelated questions, mean $L_1$ distance between
-per-layer maps: Qwen3-VL $0.001$--$0.005$ (L0--12), $0.0105$ (L14), $0.1374$ (L16); Qwen2-VL
-$0.0046$ (L12), $0.0130$ (L13), $0.0442$ (L14), $0.1779$ (L16). LLaVA-NeXT switches on at L14/32,
-LLaVA-OneVision at L16/28. A detection rule set at $3\times$ baseline fires on noise (it flagged L5 at
-$0.0055$); real signal is $10$--$100\times$.
-\paragraph{Cut blind early, rank late.} Attention-guided and random early cuts to $50\%$ are
-indistinguishable ($51.8$ vs $50.8\%$ at $10\%$ final keep; $+1.0\pp$, CI spanning zero), which is the
-question-blindness claim applied to the cut itself; the two-stage saves $64\%$ of visual-token compute
-against pure-late's $39\%$ at $-4.7\ci{-9.9}{+0.5}$. Prior art: STAR and LearnPruner are two-stage;
-this is reported as a measurement of the blind-cut tolerance, not as a method.
-
-\section{The serialisation sink}\label{app:sink}
-\begin{figure}[h]
-\begin{center}\includegraphics[width=0.92\textwidth]{figs/fig_sink.pdf}\end{center}
-\caption{Trailing-boundary enrichment on four architectures. Where the row boundary is implicit
-(Qwen) the sink is the last column, $3.4$--$4.5\times$; where a learned \texttt{image\_newline} is
-spliced at each row end (LLaVA) the sink sits on the separator, $2.0$--$2.3\times$. A correction on
-the record: LLaVA's bottom rows are also enriched $2.1$--$3.0\times$, so ``rows carry no excess mass''
-is Qwen-specific.}
-\end{figure}
-The sinks absorb $41$--$45\%$ of the selected attention mass on the deployed read-out; the ground-truth
-cell ranks in the top $3.4\%$ of cells while the top-1 cell is almost never the target. The learned head's
-ablation attributes its gain to the depth profile ($+7.3\pp$) and \emph{none} to the sink indicators
-($+0.0$): it does not fix the sink, it routes around it. Suppression at inference (phase 50) is
-indistinguishable from suppressing random or interior tokens.
-
-\section{The learned head and its replacements}\label{app:head}
-\paragraph{Ablation (Qwen3-VL, coverage).} Full head $52.9\%$ ($W{=}0.15$); without the depth profile
-$-7.3$; without sink indicators $-0.0$; geometry-only $3.7$; shuffled labels $2.6$; attention features
-alone deliver $+11.5$ of the $+13.6$.
-\paragraph{Architecture search (four rounds, all OOF on identical folds).}
-\begin{table}[h]\centering\small
-\resizebox{\textwidth}{!}{\begin{tabular}{lrrrr}
-\toprule
-head, $W{=}0.15$ & Q3 & Q2 & NX & OV \\
-\midrule
-deployed argmax & $39.3$ & $35.1$ & $12.6$ & $25.1$ \\
-GBT (incumbent) & $53.4$ & $44.0$ & $19.9$ & $24.1$ \\
-MLP, MSE (ph.\,102) & $49.2$ & $47.1^{*}$ & --- & --- \\
-cross-attention over layers, listwise (ph.\,102) & $51.8$ & $43.5$ & --- & --- \\
-spatial CNN $3{\times}3$, MSE (ph.\,130) & $-6.8$\ci{-12.6}{-1.0} & $-8.9$\ci{-15.7}{-2.1} & $+1.0$ & $-2.6$ \\
-spatial CNN, pairwise & $-1.0$ & $-4.7$ & $+0.0$ & $-1.6$ \\
-GBT+CNN rank ensemble & $+0.0$ & $-2.1$ & $+1.6$ & $+3.1$ \\
-log-linear, $63$ params (ph.\,131) & $-2.6$ & $-2.1$ & $+1.0$ & $+6.8$\ci{+2.1}{+11.5} \\
-additive GAM & $-8.4$ & $+0.0$ & $-1.6$ & $+4.2$ \\
-rank fusion & $-27.2$ & $-25.1$ & $-4.7$ & $-11.0$ \\
-\textbf{log-linear + per-layer $3{\times}3$ means, $91$ params (ph.\,132)} & $\mathbf{+2.6}$ & $\mathbf{+1.6}$ & $\mathbf{+4.7}$ & $\mathbf{+6.3}$\ci{+1.6}{+11.5} \\
-\bottomrule
-\end{tabular}}\\[2pt]
-{\footnotesize Rows below the incumbent are $\Delta$ vs GBT. $^{*}$phase 102's incumbent was $47.1$ under its own seeding.}
-\end{table}
-Adding the max-aggregate and $\alpha\|v\|$ signals as features: $+0.0$, $-0.5$, $+1.6\ci{-1.0}{+4.2}$
-(ph.\,112). Up-weighting encoding-failure items: monotonically worse, $-6.8\ci{-11.5}{-2.6}$ at
-$w{=}10$ on Q2 (ph.\,118). Alternative targets (classification, multi-$W$, squared coverage): none beats
-regressing coverage@$0.25$ (ph.\,122). Cross-model transfer of the tree: Q3-trained on Q2 maps $46.6$
-(vs its own $54.5$), Q2-trained on Q3 maps $55.5$ (vs $63.4$).
-\paragraph{The parity head's weights ($W{=}0.15$, per-layer point $+$ neighbourhood).} Qwen3-VL:
-L19 $+.112$, L5, L17, L24, L8 positive; L10 $-.101$, L26 $-.096$, L3, L22, L23 negative; neighbourhood
-mass $2.30\times$ point mass. Qwen2-VL: L19 $+.079$, L21 $+.071$, L16 positive; L17, L7, L11, L20
-negative; $1.46\times$. Sink flags $|w|<0.02$ on both.
-
-\section{The training-free ladder}\label{app:trainfree}
-All fixed constants unless marked. Block L16--26 (Q3) / L15--26 (Q2); $q{=}0.10$; divergence gate
-$\geq 0.5\cdot\max$, robust across $0.3$--$0.7$. Components tested and rejected: ReAttn entropy
-rescaling ($-19$ to $-27\pp$ on norm-weighted maps, $-2$ to $-8$ on raw --- early layers are diffuse
-and any entropy reweighting promotes them); VEA's $3{\times}3$ outlier denoising at $\lambda{=}10$ ($-1$
-to $-3\pp$ on Qwen; isolated high-value cells on \vstar\ are usually the target, the opposite of document
-VQA); leave-one-out background normalisation (null-to-negative once max/heads are present).
-End-task at $W{=}0.25$, single-object vs uniform@600, head arm re-run as control ($100\%$ agreement):
-learned head $+15.7/+11.3$; label-free gated max $+10.4\ci{+0.9}{+20.9}$ / $+7.0\ci{-2.6}{+16.5}$;
-composite $+9.6/+7.8$; CLAA window-max $+9.6/+6.1$. Norm-weighted max end-task on Qwen3-VL (ph.\,113):
-$68.6\%$ pooled, not clearing. Cross-family: no training-free rule helps LLaVA; max hurts OneVision
-($-4.2$); the divergence \emph{mechanism} replicates there but gating by it does not rescue localisation.
-
-\section{Prior art at matched budget}\label{app:priorart}\label{sec:priorart}
-\vstar, Qwen3-VL-2B, every arm scored against the uniform sweep interpolated at its own realised
-token count. ZoomEye~\citep{shen2024zoomeye}: highest raw accuracy in the table, loses to one uniform
-image of its own budget. Grounding (``locate the $X$ and output its box''): $-6.2\pp$, boxes parse on
-$98\%$ of items with median IoU $0.029$, because it must ground on the same downscaled view that cannot
-resolve the target. AttWarp~\citep{attwarp2026}: same attention source, same inverse-CDF warp, scored
-against the bar its paper never runs: $+0.6\pp$, break-even, and it costs two passes. Our fixed
-always-crop policy: $60.2\%$ against a $66.0\%$ bar, captures $10\%$ of the oracle gain; a conditional
-allocator answering from the more confident pass clears it ($68.6\%$), and its learned gates lost to a
-rule. At 4K ($n{=}800$): tree search $-15.3\pp$ against its own bar and $-10.4$ against uniform@1200 at
-$2.2\times$ the tokens, worst arm per token; grounding flips sign across scales ($-6.2\to+1.3$) exactly
-as the coverage account predicts. Gating recovers $+5.7\pp$ for ZoomEye while cutting its tokens $53\%$:
-tree search wastes most of its nine passes on items no crop helps. The exchange rate: no uniform rung
-reaches the crop arm on \vstar\ up to the model's ceiling, a lower bound of $\geq 26\times$ set by the
-architecture; on LLaVA-NeXT there is no budget axis to move along at all.
-
-\section{Zero-shot transfer to \hrb}\label{app:transfer}
-Head trained on all $191$ \vstar\ items, applied with nothing refitted --- not $W$, not the block, not
-the mask. Instance keying includes the image hash: $159$ unique question strings across $200$ instances
-meant keying on (question, category) once paired $212/800$ rows with the wrong image. Proposals: $+4.9\pp$
-coverage over the argmax, $+6.5$ CircularEval, $+8.5$ single-region. End task in Table~\ref{tab:method}.
-Qwen2-VL head trained separately on its own \vstar\ maps (block L15--26). The $W$ sweep at 4K
-($W\in\{0.06,\dots,0.25\}$, argmax proposer): single-object flat ($69.9$--$71.1\%$), relational
-monotone in $W$ ($37.3\to55.2$), and the interaction $W_{0.12}-W_{0.25}$ is $-11.9\ci{-23.9}{-1.5}$
-on relational for Qwen3-VL but $-3.0\ci{-11.9}{+6.0}$ on Qwen2-VL --- one of two, so the coverage
-\emph{interaction} is claimed on \vstar\ only while the relational \emph{boundary} holds on both.
-
-\section{POPE as a scope test}\label{app:pope}
-RePOPE-clean labels joined to COCO boxes, stratified to over-represent the below-cliff band ($90$
-positives $<0.25$ tokens, all taken; $198$ in $[0.25,1)$; $200$ above; $200$ negatives), so overall
-accuracy is not comparable to published POPE. Budget drift $0.1\%$.
-\begin{table}[h]\centering\small
-\resizebox{\textwidth}{!}{\begin{tabular}{lrrrrrr}
-\toprule
-stratum & $n$ & uniform@300 & uniform@600 & crop@0.25 & random crop & oracle crop \\
-\midrule
-below cliff & $90$ & $76.7$ & $70.0$ & \bad{$13.3$} & $6.7$ & $93.3^{\circ}$ \\
-cliff zone & $198$ & $84.8$ & $89.4$ & \bad{$12.1$} & $16.7$ & $97.0^{\circ}$ \\
-above & $200$ & $100.0$ & $98.5$ & \bad{$35.5$} & $44.5$ & $89.5^{\circ}$ \\
-negatives & $200$ & $88.5$ & $89.5$ & $93.5$ & $94.0$ & --- \\
-\bottomrule
-\end{tabular}}\\[2pt]
-{\footnotesize $^{\circ}$circular: on POPE, knowing the box is knowing the object is present.}
-\end{table}
-The median POPE object occupies $32$ merged tokens at $B{=}300$ and only $90$ positives fall below the
-cliff; $27.7\%$ of the sample has a box larger than a $W{=}0.25$ window, so the coverage metric is
-undefined there and the size-independent centre-in-box metric is used: deployed argmax $9.2\%\ci{6.8}{11.9}$
-against $10.7\%$ expected. (The ``$0.4$ merged tokens'' figure elsewhere in this work is POPE's
-confident-denial cohort, a selected subset.) H-POPE~\citep{pham2024hpope} fixes the question form but
-uses the same $640{\times}480$ COCO images: right question, no magnification headroom.
-
-\section{Seven interventions}\label{app:seven}
-All on Qwen3-VL unless stated; one pass at identical tokens, so no bar to clear. (1) Activation steering
-at L16, direction fit on disjoint items: null; a \texttt{rand\_last} control raised $P(\text{yes})$ by
-shifting bias, after which every arm reports a false-positive rate. (2) Sink suppression: indistinguishable
-from suppressing random or interior tokens; suppressing the same number of prompt tokens costs $17.3\pp$.
-(3) Attention amplification on the oracle cells: $+5.8$ vs the crop's $+36.2$ at the same budget; every
-practical arm (top-1/5/15, deployed window) indistinguishable from random. (4) Residual-stream injection:
-a shared ``allocate to evidence'' direction exists (cosine $0.53$--$0.75$) and is answer-irrelevant
-($+0.0\pp$ at every layer for the mean direction; an item's own displacement at L20 recovers $47\%$;
-L26 recovers everything and is near-tautological). (5) DoLa dynamic $+0.0$, DeCo best-of-8 $-0.7$,
-read-at-L24 $+0.0$, with their hyper-parameters swept in their favour. (6) Zeroing attention or MLP in
-L25--27: $\leq 2.4\pp$, never significant. (7) Contrastive decoding steered to the predicted region
-$+2.1$, to the ground-truth region $+2.6\ci{-0.5}{+5.8}$, after verifying the region is causally live
-($3.32\times$, $-10.5\pp$ masked). Vision-tower localisation: best single layer $1.6\%$, learned
-combination over $24$ layers $1.0\%$, mean $0.5\%$, chance $2.3\%$.
-
-\section{Probes and the Orgad port}\label{app:probes}
-Hidden states at five positions $\times$ $28$ layers, OOF logistic probes, size-matched random-region
-control mandatory (without it a probe separates ``annotated object'' from ``random rectangle'' and once
-read AUROC $1.000$; retracted). Target \texttt{err}: final position $0.714/0.657$, evidence tokens
-$0.587/0.626$, random region $0.503/0.516$. \citet{orgad2025llmsknow}'s exact-answer-token claim does
-not port: evidence tokens are $0.127$ and $0.031$ \emph{worse} than the final position. The token-level
-cliff ($0.513$ below vs $0.656$ above on Qwen3-VL) did not replicate ($0.623$ vs $0.633$ on Qwen2-VL)
-and is withdrawn. Evidence-token information peaks at L1 and decays to chance by L27 on Qwen3-VL. The
-pre-generation detector from the attention depth profile: AUROC $0.630$ vs baselines $0.588/0.625$ on
-Qwen3-VL, $0.579$ vs $0.651/0.679$ on Qwen2-VL; predictive entropy wins on both.
-
-\section{Negatives in full}\label{app:negatives}
-\paragraph{Window sizer.} Pre-registered five-value grid, OOF per-item $W$ from six free pass-1
-features. Qwen3-VL $+8.9\ci{+0.5}{+17.3}$ over the bar on the five-value grid, inverting to
-$+6.8\ci{-1.6}{+14.7}$ and $-1.0$ against the fixed constant on the three-value grid; Qwen2-VL on the
-pre-registered grid $+3.7\ci{-3.1}{+10.5}$ vs bar and $-3.1$ vs the constant, sending $43/191$ items to
-the worst window. Dead. The \texttt{top1\_frac} gate ($+9.6\ci{+2.0}{+17.7}$ on Qwen3-VL) was barred by
-pre-registration from substituting.
-\paragraph{Multi-crop.} $k{=}4$ windows at $B_0/4$ each in one pass: $+7.9\pp$ over top-1 on \vstar\ with
-the argmax proposer and $+9.5$ over the bar on single-region, transferring to 4K ($+8.0$) --- but
-rank-only multi-crop with the head is $-3.1$ against a predicted $+5.5$ (prompting confound excluded),
-and the 4K win was measured with the crippled localiser (App.~\ref{app:corr}).
-\paragraph{Budget from a free signal.} No pass-1 signal predicts the required budget: $9.4\%$ exact-rung
-against a $35.6\%$ majority baseline. \texttt{peak} predicts \emph{coverage} at AUROC $0.788$ but
-correctness at $0.50$; random routing at the same cost already earns $+3.3\pp$ from the concavity of the
-uniform curve, so \texttt{peak}'s own contribution is $+1.9$.
-\paragraph{Top-$k$ verification.} The head's top-2 recovers $14$--$17\%$ of top-1 misses ($+4.8/+5.9$
-coverage $\approx +3$--$4\pp$ accuracy) while a third pass moves the bar to uniform@900 ($\approx+4\pp$);
-top-2 is adjacent to top-1 on $67\%$ of items. Predicted null; not run. Misses are distractors (median
-$3$--$5$ cells away, $5$--$8\%$ near-misses), so spatial fixes cannot help.
-\paragraph{Two refuted diagnostics.} Both were proposed to explain a 4K failure that turned out to be an artefact. ``Allocation wins where the budget axis has saturated'':
-\vstar's axis is near-linear ($+8.0$, $+7.3$, $+8.7\pp$ per doubling). ``The crop must be re-encoded at
-native resolution, so $W^\ast\approx 485/\text{side}$'': predicted $0.12$ at 4K, measured $0.25$, flat on
-single-object.
-
-\section{Corrections made during this work}\label{app:corr}
-\begin{enumerate}\setlength\itemsep{1pt}
-\item \textbf{Every \hrb\ phase before the final one localised on the bare question.} Eight scripts,
-cloned from the first, passed the question with the options and the answer instruction stripped. On
-identical rows with both uniform arms agreeing on $100\%$ of predictions, restoring the full prompt moves
-the crop arm by $+19.3\pp$ and changes the argmax cell on $55\%$ of items. Every 4K negative in an
-earlier version --- the transfer negative, 4K gating, our arm in the 4K prior-art table, four ``attempts
-to win at 4K'', the scale sweep, 4K multi-crop --- is withdrawn; the prior-art losses stand (they run their
-own localisers). The scale boundary we spent five phases explaining was a prompt bug. Rule: never clone a
-localiser; import one.
-\item \textbf{The double-normalisation bug} in our logit lens (App.~\ref{app:proto}) invalidated three
-sections, including ``DoLa/DeCo beaten by a free read-out''; corrected, no layer-decoding rule beats the
-model's own logits.
-\item \textbf{An ROI-selection artefact} produced a probe AUROC of $1.000$ on the cohort the model
-answers wrong; the control that exposed it is now mandatory.
-\item \textbf{A capture-fraction mispairing} would have inverted a conclusion ($83\%\to88\%$ matched;
-the mismatched pairing reads $95\%$).
-\item \textbf{``Signed contrast is the mechanism''} and \textbf{``the final layer is anti-correlated''}
-were Qwen3-VL-specific and are not claimed.
-\item \textbf{A void phase} was built on the belief that the head read only L16--26; it read all $28$.
-\item \textbf{A void run} patched Qwen3-VL's attention module while running Qwen2-VL; all arms identical,
-CI $[+0.0,+0.0]$.
-\item \textbf{The token-level cliff} (App.~\ref{app:probes}) was called this paper's best result before
-its second model; it failed there and is withdrawn. Four single-model results failed replication in one
-session; none is characterised as strong before its second model.
-\item \textbf{RePOPE:} confident model disagreement is a $7.2\times$ enriched label-error detector, and
-every finding strengthens on the clean pool.
-\end{enumerate}
-
-\section{Reproducibility}\label{app:repro}
-Code, per-phase scripts (\texttt{phase00}--\texttt{phase142}), the findings log with every number and
-its pre-registration, the replication ledger, and $91$ invariant tests over the pipeline are released.
-Qwen3-VL-2B-Instruct, Qwen2-VL-7B-Instruct, LLaVA-NeXT-7B and LLaVA-OneVision-7B via HuggingFace
-\texttt{transformers~5.3}, bf16, eager attention where attention weights are read, one RTX~6000~Ada.
-Every figure in this paper is drawn from a stored forward pass on a real benchmark item.
-
 \end{document}
