@@ -7288,3 +7288,39 @@ our own development set and belongs in the paper as one.
 ⇒ **Revised recommendation.** Lead with TSR as the default allocation policy; present depth re-ranking as the
 higher-ceiling option for single-instance-dominated deployments where ~50 boxes are available. The depth-filter
 mechanism (§19/§21) and the transport measurement (§20B/§39) underpin both and are unchanged.
+
+## §42 ★★★ RANKING MATTERS BEFORE THE TRANSPORT BOUNDARY AND NOT AFTER IT (phase 189f, both models)
+
+A linear probe on **layer-4 hidden states** (§31), fit on V*Bench boxes, used as a pruning criterion at L4; compared
+against random keep and attention keep at the same depth and budget. Keep 25%.
+
+| contrast | Qwen3 | Qwen2 |
+|---|---|---|
+| **S1: probe vs RANDOM keep at L4** (pooled) | **+8.4 [+2.1,+15.2] ✔** | **+8.9 [+2.6,+15.2] ✔** |
+| probe vs ATTENTION keep at L4 (pooled) | −1.6 | +0.5 |
+| **S0: prune 75% at L4, 600 tokens = 38% of bar** | −3.7 [−9.9,+2.6] | −1.0 [−6.3,+4.2] |
+| P1: reinvest in 1500 tokens (96% of bar) | +1.6 [−4.7,+7.9] | +1.0 [−4.7,+6.8] |
+
+### The depth-dependent law (completes §20B / §26C)
+```
+BEFORE the transport boundary : visual tokens carry information
+                                -> ranking MATTERS   (+8.4 / +8.9 ✔✔ over random)
+                                -> pruning COSTS     (§196: L4 vs L16 = −5.2 ✗ pooled; §28: in-window taper −7.9 ✗)
+AT / AFTER the boundary       : visual tokens are inert
+                                -> ranking IRRELEVANT (§26C: random = attention, both models, every keep ratio)
+                                -> pruning FREE       (§26C/§38: 0.0–0.5pp in 9 of 10 cells)
+```
+This is the sharpest statement of the transport result in the project: the boundary is not merely where pruning
+becomes cheap, it is where **selection stops mattering**. Both halves are measured, on two models.
+
+### What it does NOT support
+**P1 fails 0 of 2**: reinvesting the L4 saving in 1500-token encoding gains +1.6 / +1.0, n.s. And the *choice* of
+early ranker is nearly exhausted — objectness probe ≈ attention at L4 (−1.6 / +0.5), despite the probe retaining the
+evidence box far better (87%/75% vs 72%/59%, §31). **Box retention does not convert** — a fifth instance of the
+intermediate-metric gap (§14W, §24, §30B, §29, now here).
+
+### What it does support (efficiency)
+**Pruning 75% of visual tokens at L4 costs 1.0–3.7 points, neither significant, at 38% of the bar's compute** — a 62%
+prefill reduction, versus TSR's 35% at the boundary. For deployments that are compute-bound rather than
+accuracy-bound this dominates TSR; for accuracy at fixed compute it does not.
+Scripts: phase189a_hidden_probe_dump.py, phase189f_objprune.py, phase189f_analyze.py.
