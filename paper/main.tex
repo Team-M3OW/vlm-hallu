@@ -309,7 +309,7 @@ models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\
 yet per-layer accuracy still climbs monotonically to the last layer. There is no better layer to select, which is why
 re-weighting works where selection does not.
 
-\textbf{Visual-token pruning.} FastV prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
+\textbf{Visual-token pruning.} FastV~\citep{chen2024fastv} prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
 fixed ratio; HiRED allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
 derive the pruning depth from the transport measurement rather than tuning it, and show that at that depth the
 \emph{choice} of surviving tokens is irrelevant --- random keep matches attention keep --- while one layer earlier it
@@ -355,6 +355,9 @@ read-out and a free pruning point, and the two together match a model running at
 The remaining gap is placement: perfect placement at $600$ tokens exceeds native dynamic resolution by $11.6$ points.
 
 
+\bibliographystyle{iclr2027_conference}
+\bibliography{refs}
+
 \appendix
 \section{Experimental protocol}\label{app:proto}
 
@@ -389,6 +392,204 @@ higher-resolution localiser that gained $+4.2$ coverage and $-3.7$ accuracy; and
 evidence box far better than attention ($87\%$ vs.\ $72\%$) and converts to $-1.6$. We therefore report coverage only
 as a diagnostic and gate every claim on end-task accuracy at matched compute.
 
-\bibliography{refs}
-\bibliographystyle{iclr2027_conference}
+
+\section{The transport measurement in full}\label{app:transport}
+
+A forward pre-hook on every decoder layer adds $-10^4$ to the attention logits of chosen query rows over the
+image-token columns, at chosen layers only. Masking \emph{all} text rows at \emph{all} layers destroys the answer
+(KL $1.266$ / $0.532$, $42\%$ / $45\%$ of answers flip, $n{=}40$); masking only the answer token's row at all layers
+does not (KL $0.025$, $3\%$ flip). Table~\ref{tab:prefix} localises the window.
+
+\begin{table}[h]\centering\small
+\caption{Prefix and suffix masks, all text rows, $n=40$ per model, V$^*$Bench at 300 tokens. The prefix mask
+$L_0..\ell$ saturates at the full-mask value once $\ell$ passes the window; the suffix mask $L_\ell..\text{end}$
+falls to zero once $\ell$ is past it. Both read the boundary at the same place.}
+\begin{tabular}{lcccccc}
+\toprule
+& $\ell{=}4$ & $\ell{=}8$ & $\ell{=}12$ & $\ell{=}16$ & $\ell{=}20$ & $\ell{=}24$\\
+\midrule
+Qwen3 prefix $L_0..\ell$ (KL) & 0.082 & 0.549 & \textbf{1.278} & 1.259 & 1.215 & 1.257\\
+Qwen3 suffix $L_\ell..$ (KL) & 0.967 & 0.880 & 0.320 & \textbf{0.014} & 0.002 & 0.001\\
+Qwen3 suffix (answers flipped) & 53\% & 50\% & 20\% & 12\% & \textbf{0\%} & \textbf{0\%}\\
+\midrule
+Qwen2 prefix $L_0..\ell$ (KL) & 0.037 & 0.105 & 0.364 & \textbf{0.547} & 0.534 & 0.538\\
+Qwen2 suffix $L_\ell..$ (KL) & 0.518 & 0.465 & 0.429 & \textbf{0.029} & 0.004 & 0.002\\
+Qwen2 suffix (answers flipped) & 53\% & 47\% & 40\% & 5\% & 3\% & \textbf{0\%}\\
+\bottomrule
+\end{tabular}\label{tab:prefix}
+\end{table}
+
+Single-layer masks peak at L11 on Qwen3 (KL $0.504$; next highest L13 at $0.101$) and at L15/L14 on Qwen2
+($0.118$/$0.096$). From L20 onward every layer is at or below $0.0023$ on both models. On Qwen3-VL-8B, which has
+$36$ layers, the same behaviour appears at L21, i.e.\ the same $0.57$ fraction of depth.
+
+\paragraph{Three independent readings of the same boundary.} The masks are one. Pruning is the second: discarding
+$90\%$ of visual tokens at the boundary costs $+0.0$ to $+0.5$ points across ten stratum-cells, whereas moving the
+same cut to $\ell{=}4$ costs $5.2$ more on one model ($0.5$ on the other), and a taper that removes half the tokens
+at $\ell{=}9$--$12$ loses $3.5$ points against not pruning at matched tokens while buying nothing over a single cut
+($-1.0$). Read-out depth is the third: restricting the localiser to layers $\le$ L20 costs $-0.5$ and $+1.6$ points
+of coverage, while restricting it to $\le$ L16 costs $9.4$ and $22.0$. Transport finishes at the boundary; the
+signal the ranking reads is produced after it.
+
+\section{Depth structure across checkpoints}\label{app:depth}
+
+\begin{table}[h]\centering\small
+\caption{Where each quantity falls, per checkpoint. The transport boundary and the read-out band are fractions of
+depth, not fixed layer indices, which is what lets both policies transfer to a $36$-layer model unchanged.}
+\begin{tabular}{lccccc}
+\toprule
+checkpoint & layers & block-mean band & read-out band & boundary & boundary / depth\\
+\midrule
+Qwen3-VL-2B & 28 & L16--L26 & L17--L20 & L16 & 0.57\\
+Qwen2-VL-7B & 28 & L15--L26 & L19--L22 & L16 & 0.57\\
+Qwen2.5-VL-7B & 28 & L16--L26 & --- & L16 & 0.57\\
+Qwen3-VL-8B & \textbf{36} & L20--L33 & --- & \textbf{L21} & 0.57\\
+\bottomrule
+\end{tabular}\label{tab:depth}
+\end{table}
+
+\section{Full paired comparison against published rules}\label{app:paired}
+
+\begin{table}[h]\centering\small
+\caption{Ridge filter minus each alternative on V$^*$Bench, paired on identical items, pooled over strata,
+$n=191$ ($190$ for LASER, one item missing). All nine published-rule contrasts clear zero on both models.
+Bootstrap $95\%$ CIs, $4{,}000$ resamples.}
+\begin{tabular}{lcc}
+\toprule
+contrast & Qwen3-VL-2B & Qwen2-VL-7B\\
+\midrule
+$-$ \texttt{uniform@600} (equal-compute bar) & \gd{$+8.9$ [$+0.5,+17.8$]}~\ok & \gd{$+12.0$ [$+4.2,+19.9$]}~\ok\\
+$-$ fixed-layer crop (L14) & \gd{$+34.6$ [$+25.1,+43.5$]}~\ok & \gd{$+31.9$ [$+24.1,+39.8$]}~\ok\\
+$-$ block-mean arg-max & \gd{$+10.5$ [$+4.2,+16.8$]}~\ok & \gd{$+11.0$ [$+4.7,+17.8$]}~\ok\\
+$-$ LASER & \gd{$+7.9$ [$+0.5,+15.3$]}~\ok & \gd{$+8.9$ [$+3.1,+14.7$]}~\ok\\
+\midrule
+\multicolumn{3}{l}{\emph{controls, not baselines}}\\
+$-$ gate-max & $+3.7$ [$-2.1,+9.4$] & \gd{$+9.4$ [$+3.7,+15.2$]}~\ok\\
+$-$ gradient-boosted tree & $-0.5$ [$-4.7,+3.7$] & \gd{$+7.3$ [$+1.6,+13.1$]}~\ok\\
+$-$ ridge refit, disjoint fold seeds & $-1.0$ [$-3.1,+1.0$] & $+1.0$ [$-1.0,+3.1$]\\
+$-$ oracle placement & $-15.2$ [$-22.5,-8.4$]~\no & $-17.3$ [$-24.6,-9.9$]~\no\\
+\bottomrule
+\end{tabular}\label{tab:paired}
+\end{table}
+
+The fold-seed control matters most. Refitting the ridge under three disjoint fold seeds moves the pooled result by
+$1.0$ point or less on both models, so the margin is not an artefact of which items landed in which fold. The
+oracle row is the remaining headroom: even the best rule we have is $15$--$17$ points below perfect placement.
+
+\begin{table}[h]\centering\footnotesize
+\setlength{\tabcolsep}{3pt}
+\caption{HR-Bench, ridge minus each alternative, $n=400$ per stratum, $800$ per cell. The ridge is transferred:
+its weights were fit on V$^*$Bench and applied here with nothing refit. Placement quality replicates; the scope
+law replicates with it.}
+\begin{tabular}{llccc}
+\toprule
+& & HR-4K Qwen3-2B & HR-4K Qwen2-7B & HR-8K Qwen3-2B\\
+\midrule
+\multirow{3}{*}{vs.\ bar} & single & \gd{$+10.2$ [$+5.5,+15.0$]}~\ok & \gd{$+9.2$ [$+4.5,+14.2$]}~\ok & \gd{$+8.8$ [$+3.5,+13.8$]}~\ok\\
+ & cross & $-8.8$ [$-14.0,-3.5$]~\no & $-6.0$ [$-11.0,-0.8$]~\no & $-8.8$ [$-14.8,-2.8$]~\no\\
+ & pooled & $+0.8$ [$-2.9,+4.4$] & $+1.6$ [$-2.1,+5.2$] & $+0.0$ [$-4.0,+4.1$]\\
+\midrule
+\multirow{2}{*}{vs.\ block-mean} & pooled & \gd{$+4.8$ [$+1.8,+7.6$]}~\ok & \gd{$+15.9$ [$+12.5,+19.2$]}~\ok & \gd{$+3.8$ [$+0.6,+7.0$]}~\ok\\
+ & single & \gd{$+7.8$ [$+4.2,+11.5$]}~\ok & \gd{$+15.0$ [$+10.5,+19.5$]}~\ok & \gd{$+5.2$ [$+1.2,+9.2$]}~\ok\\
+\midrule
+vs.\ random cell & pooled & \gd{$+21.8$ [$+17.5,+26.0$]}~\ok & \gd{$+20.2$ [$+16.2,+24.2$]}~\ok & \gd{$+15.6$ [$+11.6,+19.6$]}~\ok\\
+\bottomrule
+\end{tabular}\label{tab:hrpaired}
+\end{table}
+
+The pooled rows against the bar are the scope law in its plainest form. Cropping wins $9$--$10$ points where the
+question is about one instance, loses $6$--$9$ where it is about a relation between two, and the two cancel to
+nothing in aggregate. A paper that reported only the pooled column would conclude the method does not work; a paper
+that reported only the single-instance column would conclude it works everywhere. Neither is true.
+
+\section{The resolution-headroom identity}\label{app:identity}
+
+\begin{table}[h]\centering\small
+\caption{TSR's gain against the headroom $\mathrm{acc}(900)-\mathrm{acc}(600)$, for the ten stratum-cells that
+carry the \texttt{uniform@900} diagnostic. Pearson $r=0.966$, OLS slope $1.01$, mean
+$|{\rm gain}-{\rm headroom}|=0.7$ points. Headroom is measurable from two baseline runs with no method involved.}
+\begin{tabular}{llcc}
+\toprule
+cell & stratum & TSR $-$ bar & headroom\\
+\midrule
+\multirow{2}{*}{\vstar\ Qwen2.5-VL-7B} & single & \gd{$+12.2$}~\ok & $+12.2$\\
+ & cross & $+7.9$ & $+5.2$\\
+\multirow{2}{*}{\vstar\ Qwen3-VL-8B} & single & $+7.0$ & $+7.0$\\
+ & cross & \gd{$+7.9$}~\ok & $+6.6$\\
+\multirow{2}{*}{HR-4K Qwen3-VL-2B} & single & \gd{$+4.0$}~\ok & $+4.0$\\
+ & cross & $-2.8$ & $-3.0$\\
+\multirow{2}{*}{HR-4K Qwen2-VL-7B} & single & $+2.8$ & $+2.8$\\
+ & cross & $+0.8$ & $+0.2$\\
+\multirow{2}{*}{HR-8K Qwen3-VL-2B} & single & \gd{$+6.5$}~\ok & $+6.8$\\
+ & cross & $+1.8$ & $+3.5$\\
+\bottomrule
+\end{tabular}\label{tab:identity}
+\end{table}
+
+Two consequences. First, the sign of the gain is predictable before deployment: the one cell where TSR loses
+(HR-4K cross-instance) is the one cell where the baseline itself is worse at $900$ tokens than at $600$, so nothing
+was available to convert. Second, the pruning contributes nothing on its own. At matched encoding resolution,
+pruned and unpruned agree within $0.5$ points in $9$ of the $10$ cells; the exception is HR-8K cross-instance at
+$-1.8$ [$-3.2,-0.5$], the only measurable cost of discarding $90\%$ of visual tokens anywhere in this work. We
+verified the pruning is applied rather than silently skipped at the distribution level: output probabilities change
+on $99\%$ of items while the arg-max changes on $2\%$. The discarded tokens are inert, not absent.
+
+\section{Designs that did not work}\label{app:neg}
+
+\begin{table}[h]\centering\small
+\caption{Designs intended to extend cropping to cross-instance questions. Each was pre-registered with a primary
+contrast and a guard before it ran. ``Cleared'' counts checkpoints of two on which the primary passed.}
+\begin{tabular}{p{3.2cm}p{3.5cm}cp{4.5cm}}
+\toprule
+design & what it changed & cleared & diagnosed cause\\
+\midrule
+per-item window sizer & crop size from map features & 0/2 & grid inversion, weak features\\
+peak-spanning window & box spanning the top peaks & 0/2 & relative signal, absolute constant\\
+mass-containment window & window holding $x\%$ of mass & 0/2 & boxes far too large\\
+joint cell-window ranking & arg-max over both at once & 0/2 & metric artefact: coverage rises with size\\
+expected-accuracy window & window by predicted accuracy & 0/2 & accuracy--size curve flat against noise\\
+thumbnail in answer pass & crop plus $64$-token scene & 0/2 & second object below the encoding cliff\\
+global--local split & scene@150 plus crop@150 & 0/2 & halving the crop costs more than the scene gives\\
+context-continued crop & scene@300 plus crop@300 & 0/2 & scene costs $8.7$ even with a perfect crop\\
+multi-crop, matched budget & $2\times150$ and $3\times100$ & 0/2 & tax $-11.3$ exceeds coverage gain $+7.8$\\
+funded multi-crop & $2\times300$, pruned, early exit & 0/2 & $+3.7$ on one model, $-2.6$ on the other\\
+ridge-guided early pruning & rank at L4 instead of L16 & 0/2 & $-5.2$: ranking before transport is worthless\\
+\bottomrule
+\end{tabular}\label{tab:neg}
+\end{table}
+
+The last row generalises the rest, and explains why the two policies cannot be merged into one. The ridge's signal
+is produced after the transport boundary, and pruning only saves compute at or before it. A pipeline that prunes
+early enough to save has destroyed the layers the ridge reads, which costs $3.1$ and $12.6$ points of coverage; a
+pipeline that waits for the ridge has nothing left worth pruning. Holding the ranking fixed and moving only the cut
+from L16 to L4 costs $5.2$ points. The incompatibility is structural, not a tuning failure.
+
+\paragraph{Why cropping cannot reach cross-instance questions.} Under \emph{perfect} placement, cross-instance
+accuracy reaches $75.0$ and $77.6$, an irreducible error of $25\%$ and $22\%$, against $3.5\%$ and $6.1\%$ for
+single-instance. Two crops at full resolution covering \emph{both} objects, which raises object coverage by $17$
+points, still score $-2.6$ and $-3.9$ against one crop. Cross-instance error is not predominantly perceptual, so no
+reallocation of perceptual resources reaches it. Resolution does reach part of it, which is what the second policy
+exploits, but cropping does not.
+
+\section{Pipeline faults found, and how they were caught}\label{app:faults}
+
+Two runs in this work produced plausible numbers that were wrong. We report them because the rules that caught them
+are the reason we trust the rest, and because both faults are easy to make and invisible in aggregate accuracy.
+
+\paragraph{A silently unpatched module.} Pruning is injected by monkey-patching the attention forward pass. The
+patch covered two module paths; a third checkpoint's attention lived in a third module, so pruning was a no-op and
+the arm was byte-identical to its unpruned control while reporting a clean $+12.2$. It was caught by a standing
+rule: a contrast of exactly $+0.0$ with a $[+0.0,+0.0]$ interval is a pipeline fault, never a result, because real
+effects do not land on zero to machine precision. The fix asserts at load time that the model's actual attention
+module is one the patch reached, and prints it every run.
+
+\paragraph{A hard-coded depth on a differently-shaped model.} The arm table hard-coded the prune layer at $16$. On
+the $36$-layer checkpoint the correct depth, $0.57\times36=21$, was computed and printed but never used, so the run
+pruned at $44\%$ of depth, inside the transport window. It was caught by the compute budget reading $78\%$ of the
+bar instead of the expected $98\%$. We retain the voided run as accidental evidence for the boundary itself:
+pruning inside the window cost $-7.9$ pooled and $-10.5$ cross-instance on a third model family.
+
+Every arm therefore prints its realised token count and its token-layer budget as a fraction of the bar, and any
+run outside $96$--$104\%$ is discarded rather than reported.
+
 \end{document}
