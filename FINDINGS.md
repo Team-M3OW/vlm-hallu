@@ -7142,6 +7142,12 @@ a **resolution converter**, and the headroom (measurable with two baseline runs 
 This replaces §26's "1 of 2": V*Bench-Qwen3 won cross-instance because headroom there was +9.2; HR-Bench-Qwen3 loses
 cross-instance because headroom there is **−3.0** (900 tokens is *worse* than 600 on HR-Bench cross).
 
+⚠ **CORRECTED (paper appendix F).** The "+0.0 to +0.5 in 9, one exception" line below was written over the
+HR-only set. Against the **ten** stratum-cells that carry the `uniform@900` diagnostic, TSR − u@900 is
++0.0, +0.0, +0.0, +0.0, +0.2, +0.5, −0.2, **+1.3**, **+2.6**, **−1.8** — i.e. within ±0.5 in **7 of 10**, with the
+pruned arm *ahead* in two (read as noise) and exactly one real cost (HR-8K cross −1.8). The claim that survives is
+"pruning never costs more than 0.5 points except in one cell", which is what the paper states.
+
 ### The pruning is free — now 6 of 7 cells
 +0.0, +0.2, +0.0, +0.5, −0.2, −1.0 … and one exception: **HR-8K cross −1.8 [−3.2,−0.5] ✗**, the first measurable cost
 of dropping 90% of visual tokens at L16 in the whole project. Stated, not buried: at 8K resolution on cross-instance
@@ -7389,6 +7395,11 @@ structural, not a tuning failure** — which is why the paper presents two alloc
 Scripts: phase196_merge.py, phase196_analyze.py.
 
 ## §45 ★★★★ NATIVE DYNAMIC RESOLUTION: our methods match it at 18% of the compute; perfect allocation BEATS it (phase 197)
+
+⚠ **UPDATED.** The Qwen2-VL-7B leg finished at **n=191** (the table below and the first paper draft used the
+partial n=187). Recomputed on the completed run, common-item set, B=8000: NATIVE **71.2**; uniform@600 58.1
+(**−13.1 ✗**); block-mean 59.2 (**−12.0 ✗**); LASER 61.3 (**−9.9 ✗**); TSR 61.8 (**−9.4 ✗**); **ridge 70.2 (−1.0 n.s.)**;
+oracle 87.4 (**+16.2 ✔**). Conclusions unchanged; the Qwen3 leg (n=190, one item lacks the LASER arm) is unaffected.
 
 Every prior result sits at an **imposed** 300/600-visual-token budget. The field publishes V*Bench at the model's
 **native dynamic resolution**. This run measures both on the same items, so the evaluation regime can be checked

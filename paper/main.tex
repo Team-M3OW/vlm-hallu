@@ -187,7 +187,9 @@ boundary saves less for no additional accuracy. One cut, at the measured boundar
 \section{Results}\label{sec:results}
 
 \begin{table}[h]\centering\small
-\caption{All placement rules in one run, \vstar, every arm at ${\sim}600$ visual tokens. \ok\ = 95\% CI clear.}
+\caption{All placement rules in one run, \vstar, every arm at ${\sim}600$ visual tokens. \ok\ = 95\% CI clear.
+$n{=}190$ on Qwen3 and $n{=}191$ on Qwen2: one item lacks the LASER arm on Qwen3 and is dropped from every arm so
+all rules are compared on identical items. Table~\ref{tab:native} uses the same item sets.}
 \begin{tabular}{lcccccc}
 \toprule
 & \multicolumn{3}{c}{Qwen3-VL-2B} & \multicolumn{3}{c}{Qwen2-VL-7B}\\
@@ -221,30 +223,30 @@ $3{,}290$ visual tokens --- $5.5\times$ our bar --- and $76.3\%$ accuracy.
 $3{,}290$ (Qwen3) and $4{,}320$ (Qwen2), i.e.\ $5.5\times$ and $7.2\times$ more. \ok/\no\ mark CIs clear of zero.}
 \begin{tabular}{lcccc}
 \toprule
-& \multicolumn{2}{c}{Qwen3-VL-2B ($n{=}190$)} & \multicolumn{2}{c}{Qwen2-VL-7B ($n{=}187$)}\\
+& \multicolumn{2}{c}{Qwen3-VL-2B ($n{=}190$)} & \multicolumn{2}{c}{Qwen2-VL-7B ($n{=}191$)}\\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}
 arm & accuracy & vs.\ NATIVE & accuracy & vs.\ NATIVE\\
 \midrule
-NATIVE dynamic resolution & 76.3 & --- & 71.1 & ---\\
-\texttt{uniform@600} (bar) & 63.7 & \bad{$-12.6$}~\no & 58.3 & \bad{$-12.8$}~\no\\
-block-mean arg-max & 62.1 & \bad{$-14.2$}~\no & 59.4 & \bad{$-11.8$}~\no\\
-LASER \citep{laser} & 64.7 & \bad{$-11.6$}~\no & 61.5 & \bad{$-9.6$}~\no\\
-TSR (ours) & 70.0 & $-6.3$ & 61.5 & \bad{$-9.6$}~\no\\
-\textbf{ridge filter (ours)} & \gd{\textbf{72.6}} & $-3.7$ & \gd{\textbf{70.6}} & $-0.5$\\
+NATIVE dynamic resolution & 76.3 & --- & 71.2 & ---\\
+\texttt{uniform@600} (bar) & 63.7 & \bad{$-12.6$}~\no & 58.1 & \bad{$-13.1$}~\no\\
+block-mean arg-max & 62.1 & \bad{$-14.2$}~\no & 59.2 & \bad{$-12.0$}~\no\\
+LASER \citep{laser} & 64.7 & \bad{$-11.6$}~\no & 61.3 & \bad{$-9.9$}~\no\\
+TSR (ours) & 70.0 & $-6.3$ & 61.8 & \bad{$-9.4$}~\no\\
+\textbf{ridge filter (ours)} & \gd{\textbf{72.6}} & $-3.7$ & \gd{\textbf{70.2}} & $-1.0$\\
 \midrule
-\emph{oracle crop @600} & \emph{87.9} & \gd{$+11.6$}~\ok & \emph{87.7} & \gd{$+16.6$}~\ok\\
+\emph{oracle crop @600} & \emph{87.9} & \gd{$+11.6$}~\ok & \emph{87.4} & \gd{$+16.2$}~\ok\\
 \bottomrule
 \end{tabular}\label{tab:native}
 \end{table}
 
 Three readings, both checkpoints. \textbf{(i)} The ridge filter is \emph{statistically indistinguishable} from
-native dynamic resolution ($-3.7$ and $-0.5$, CIs spanning zero) while using $18\%$ and $14\%$ of native's
-visual-token compute --- whereas every published rule is \emph{significantly worse} than native ($-9.6$ to $-14.2$).
+native dynamic resolution ($-3.7$ and $-1.0$, CIs spanning zero) while using $18\%$ and $14\%$ of native's
+visual-token compute --- whereas every published rule is \emph{significantly worse} than native ($-9.9$ to $-14.2$).
 The separation between our read-out and theirs is therefore not an artefact of the imposed budget; it is larger in the
 regime the field actually publishes in. \textbf{(ii)} Per stratum on Qwen3, the ridge filter at $600$ tokens matches
 native on single-instance ($+2.6$) and TSR matches it on cross-instance ($-2.6$), each at a fifth of the compute.
-\textbf{(iii)} A perfectly placed $600$-token crop \emph{beats} native by $+11.6$ and $+16.6$ pooled, and by $+21.7$
-on single-instance: \textbf{placement is worth more than $5$--$7\times$ the compute}. This is the strongest single
+\textbf{(iii)} A perfectly placed $600$-token crop \emph{beats} native by $+11.6$ and $+16.2$ pooled, and by $+21.7$
+on single-instance (Qwen3): \textbf{placement is worth more than $5$--$7\times$ the compute}. This is the strongest single
 argument for allocation research, and it is a ceiling nobody has approached.
 
 \subsection{A scope law}\label{sec:scope}
@@ -325,7 +327,7 @@ policies into a single pipeline. We report them because the diagnoses
 constrain the design space more than the successes do. Each failed for a measured reason: per-item window
 sizing; peak-spanning and mass-containment windows; joint (cell, window) re-ranking under a coverage objective (a
 metric artefact --- coverage is monotone in window size); expected-accuracy window selection; a downscaled scene
-composed with the crop, which dilutes it by $5$--$9$ points \emph{even at oracle placement}; multi-crop at matched
+composed with the crop, which dilutes it by $8.7$ and $5.2$ points \emph{even at oracle placement}; multi-crop at matched
 budget, where the second crop genuinely converts ($+7.8$\,\ok) but halving each crop costs $-11.3$; and the same at
 full resolution funded by pruning. Depth \emph{selection} rules ported from the LLM literature
 --- DoLa, SLED, confident-layer decoding, attention-JSD, rank-stability --- all fail, for one reason: in these models
@@ -457,27 +459,28 @@ Qwen3-VL-8B & \textbf{36} & L20--L33 & --- & \textbf{L21} & 0.57\\
 \begin{table}[h]\centering\small
 \caption{Ridge filter minus each alternative on V$^*$Bench, paired on identical items, pooled over strata,
 $n=191$ ($190$ for LASER, one item missing). All six published-rule contrasts clear zero on both models.
-Bootstrap $95\%$ CIs, $4{,}000$ resamples.}
+Bootstrap $95\%$ CIs, $8{,}000$ resamples, matching the protocol in Appendix~\ref{app:proto}.}
 \begin{tabular}{lcc}
 \toprule
 contrast & Qwen3-VL-2B & Qwen2-VL-7B\\
 \midrule
-$-$ \texttt{uniform@600} (equal-compute bar) & \gd{$+8.9$ [$+0.5,+17.8$]}~\ok & \gd{$+12.0$ [$+4.2,+19.9$]}~\ok\\
-$-$ fixed-layer crop (L14) & \gd{$+34.6$ [$+25.1,+43.5$]}~\ok & \gd{$+31.9$ [$+24.1,+39.8$]}~\ok\\
+$-$ \texttt{uniform@600} (equal-compute bar) & \gd{$+8.9$ [$+0.5,+17.3$]}~\ok & \gd{$+12.0$ [$+4.7,+19.4$]}~\ok\\
+$-$ fixed-layer crop (L14) & \gd{$+34.6$ [$+25.7,+43.5$]}~\ok & \gd{$+31.9$ [$+24.1,+39.8$]}~\ok\\
 $-$ block-mean arg-max & \gd{$+10.5$ [$+4.2,+16.8$]}~\ok & \gd{$+11.0$ [$+4.7,+17.8$]}~\ok\\
-$-$ LASER & \gd{$+7.9$ [$+0.5,+15.3$]}~\ok & \gd{$+8.9$ [$+3.1,+14.7$]}~\ok\\
+$-$ LASER & \gd{$+7.9$ [$+1.1,+14.7$]}~\ok & \gd{$+8.9$ [$+3.1,+14.7$]}~\ok\\
 \midrule
 \multicolumn{3}{l}{\emph{controls, not baselines}}\\
 $-$ gate-max & $+3.7$ [$-2.1,+9.4$] & \gd{$+9.4$ [$+3.7,+15.2$]}~\ok\\
-$-$ gradient-boosted tree & $-0.5$ [$-4.7,+3.7$] & \gd{$+7.3$ [$+1.6,+13.1$]}~\ok\\
+$-$ gradient-boosted tree & $-0.5$ [$-4.7,+4.2$] & \gd{$+7.3$ [$+2.1,+13.1$]}~\ok\\
 $-$ ridge refit, disjoint fold seeds & $-1.0$ [$-3.1,+1.0$] & $+1.0$ [$-1.0,+3.1$]\\
 $-$ oracle placement & $-15.2$ [$-22.5,-8.4$]~\no & $-17.3$ [$-24.6,-9.9$]~\no\\
 \bottomrule
 \end{tabular}\label{tab:paired}
 \end{table}
 
-Counting the three block-mean contrasts in Table~\ref{tab:hrpaired} alongside these six, the ridge beats a
-published rule in all nine paired contrasts we ran. The fold-seed control matters most. Refitting the ridge under three disjoint fold seeds moves the pooled result by
+Taking these six together with the three pooled block-mean contrasts in Table~\ref{tab:hrpaired}, the ridge
+beats a published rule in nine of nine pooled comparisons. It does not beat the equal-compute bar everywhere, which
+is a separate claim and the subject of the scope law. The fold-seed control matters most. Refitting the ridge under three disjoint fold seeds moves the pooled result by
 $1.0$ point or less on both models, so the margin is not an artefact of which items landed in which fold. The
 oracle row is the remaining headroom: even the best rule we have is $15$--$17$ points below perfect placement.
 
@@ -491,16 +494,16 @@ law replicates with it.}
 & & HR-4K Qwen3-2B & HR-4K Qwen2-7B & HR-8K Qwen3-2B\\
 \midrule
 \multirow{3}{*}{vs.\ bar} & single & \gd{$+10.2$ [$+5.5,+15.0$]}~\ok & \gd{$+9.2$ [$+4.5,+14.2$]}~\ok & \gd{$+8.8$ [$+3.5,+13.8$]}~\ok\\
- & cross & $-8.8$ [$-14.0,-3.5$]~\no & $-6.0$ [$-11.0,-0.8$]~\no & $-8.8$ [$-14.8,-2.8$]~\no\\
- & pooled & $+0.8$ [$-2.9,+4.4$] & $+1.6$ [$-2.1,+5.2$] & $+0.0$ [$-4.0,+4.1$]\\
+ & cross & $-8.8$ [$-14.0,-3.5$]~\no & $-6.0$ [$-11.5,-0.8$]~\no & $-8.8$ [$-14.5,-2.8$]~\no\\
+ & pooled & $+0.8$ [$-2.8,+4.4$] & $+1.6$ [$-1.9,+5.2$] & $+0.0$ [$-3.9,+4.0$]\\
 \midrule
-\multirow{3}{*}{vs.\ block-mean} & single & \gd{$+7.8$ [$+4.2,+11.5$]}~\ok & \gd{$+15.0$ [$+10.5,+19.5$]}~\ok & \gd{$+5.2$ [$+1.2,+9.2$]}~\ok\\
+\multirow{3}{*}{vs.\ block-mean} & single & \gd{$+7.8$ [$+4.0,+11.5$]}~\ok & \gd{$+15.0$ [$+10.2,+19.8$]}~\ok & \gd{$+5.2$ [$+1.2,+9.2$]}~\ok\\
  & cross & $+1.8$ [$-2.8,+6.2$] & \gd{$+16.8$ [$+12.0,+21.5$]}~\ok & $+2.2$ [$-2.5,+6.8$]\\
- & pooled & \gd{$+4.8$ [$+1.8,+7.6$]}~\ok & \gd{$+15.9$ [$+12.5,+19.2$]}~\ok & \gd{$+3.8$ [$+0.6,+7.0$]}~\ok\\
+ & pooled & \gd{$+4.8$ [$+1.9,+7.6$]}~\ok & \gd{$+15.9$ [$+12.6,+19.2$]}~\ok & \gd{$+3.8$ [$+0.6,+6.9$]}~\ok\\
 \midrule
-\multirow{3}{*}{vs.\ random cell} & single & \gd{$+32.8$ [$+26.5,+39.0$]}~\ok & \gd{$+24.8$ [$+18.8,+30.8$]}~\ok & \gd{$+24.2$ [$+18.2,+30.8$]}~\ok\\
- & cross & \gd{$+10.8$ [$+5.2,+16.2$]}~\ok & \gd{$+15.8$ [$+10.5,+21.0$]}~\ok & \gd{$+7.0$ [$+1.8,+12.0$]}~\ok\\
- & pooled & \gd{$+21.8$ [$+17.5,+26.0$]}~\ok & \gd{$+20.2$ [$+16.2,+24.2$]}~\ok & \gd{$+15.6$ [$+11.6,+19.6$]}~\ok\\
+\multirow{3}{*}{vs.\ random cell} & single & \gd{$+32.8$ [$+26.5,+39.0$]}~\ok & \gd{$+24.8$ [$+18.8,+30.5$]}~\ok & \gd{$+24.2$ [$+18.0,+30.2$]}~\ok\\
+ & cross & \gd{$+10.8$ [$+5.0,+16.5$]}~\ok & \gd{$+15.8$ [$+10.5,+21.0$]}~\ok & \gd{$+7.0$ [$+2.0,+12.0$]}~\ok\\
+ & pooled & \gd{$+21.8$ [$+17.5,+26.1$]}~\ok & \gd{$+20.2$ [$+16.4,+24.2$]}~\ok & \gd{$+15.6$ [$+11.6,+19.6$]}~\ok\\
 \bottomrule
 \end{tabular}\label{tab:hrpaired}
 \end{table}
@@ -562,7 +565,7 @@ joint cell-window ranking & arg-max over both at once & 0/2 & metric artefact: c
 expected-accuracy window & window by predicted accuracy & 0/2 & accuracy--size curve flat against noise\\
 thumbnail in answer pass & crop plus $64$-token scene & 0/2 & second object below the encoding cliff\\
 global--local split & scene@150 plus crop@150 & 0/2 & halving the crop costs more than the scene gives\\
-context-continued crop & scene@300 plus crop@300 & 0/2 & scene costs $8.7$ even with a perfect crop\\
+context-continued crop & scene@300 plus crop@300 & 0/2 & scene costs $8.7$ and $5.2$ even with a perfect crop\\
 multi-crop, matched budget & $2\times150$ and $3\times100$ & 0/2 & magnification tax ($-11.3$, $-4.3$) exceeds coverage gain ($+7.8$, $+2.6$)\\
 funded multi-crop & $2\times300$, pruned, early exit & 0/2 & $+3.7$ on one model, $-2.6$ on the other\\
 ridge-guided early pruning & rank at L4 instead of L16 & 0/2 & $-5.2$: ranking before transport is worthless\\
