@@ -289,21 +289,23 @@ predominantly perceptual, and no crop, multi-crop, composition or pruning schedu
 
 \textbf{Attention-guided cropping.} \citet{liu2026vea} document the gap this family exploits, that a model's
 attention can concentrate correctly while its answer is wrong. ViCrop~\citep{vicrop} crops at the peak of a fixed mid-layer attention map;
-ZoomEye~\citep{zoomeye} searches a tree of crops with repeated model queries; VisLens feeds the crop back alongside
-the original image. All fix the read-out depth by hand, and none budget-match against simply spending the same tokens
-on resolution --- Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
+ZoomEye~\citep{zoomeye} searches a tree of crops with repeated model queries. VisLens~\citep{vislens} reaches the
+same place without attention at all, decoding visual tokens through a tuned logit lens, matching them against the
+query, and feeding the crop back alongside the original image in one pass. Every attention-based member fixes the
+read-out depth by hand, and none of them budget-match against simply spending the same tokens on resolution ---
+Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
 
 \textbf{Layer-adaptive read-outs.} LASER~\citep{laser} selects the attention layer per sample by contrasting the map
 with and without the query, and reports that no single ``magic layer'' suffices --- a conclusion we reach
-independently and extend causally. ILVAD accumulates newly-activated tokens across adjacent layers;
-TRACE identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo reports our cross-instance
-finding (``patch-based zooming can destroy global spatial context'') and resolves it with a three-way router keyed on
-object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
+independently and extend causally. ILVAD~\citep{ilvad} accumulates newly-activated tokens across adjacent layers;
+TRACE~\citep{trace} identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo~\citep{virgo}
+reports our cross-instance finding (``patch-based zooming \ldots\ can split large objects and destroy global spatial
+context'') and resolves it with a three-way router keyed on object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
 (i) the causal localisation of the transport window rather than a correlational choice of layer, (ii) a signed
 \emph{re-weighting} across all depths rather than a selection among them, and (iii) budget-matched, stratified
 evaluation including against native resolution.
 
-\textbf{Depth selection in language models.} DoLa~\citep{dola} contrasts a mature and a premature layer; SLED
+\textbf{Depth selection in language models.} DoLa~\citep{dola} contrasts a mature and a premature layer; SLED~\citep{sled}
 weights all early layers by gradient alignment; confident-layer decoding stops at an entropy valley near the output.
 We port each to this setting and all fail (\S\ref{sec:neg}) for one measurable reason: in these vision--language
 models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\%$ reported for language models ---
@@ -311,7 +313,7 @@ yet per-layer accuracy still climbs monotonically to the last layer. There is no
 re-weighting works where selection does not.
 
 \textbf{Visual-token pruning.} FastV~\citep{chen2024fastv} prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
-fixed ratio; HiRED allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
+fixed ratio; HiRED~\citep{hired} allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
 derive the pruning depth from the transport measurement rather than tuning it, and show that at that depth the
 \emph{choice} of surviving tokens is irrelevant --- random keep matches attention keep --- while one layer earlier it
 is worth $+8.4$ and $+8.9$ points.
