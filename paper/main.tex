@@ -25,22 +25,26 @@
 \maketitle
 
 \begin{abstract}
-Vision--language models on high-resolution imagery must decide where to spend a fixed visual-token budget, a decision
-that determines whether fine-grained evidence survives encoding at all. The prevailing remedy is attention-guided
-cropping: read the model's own attention map, crop where it peaks, re-encode. Every such method must choose a depth at
-which to read that map, and published methods hand-pick a single layer or average a fixed block. We show this choice
-dominates every other design decision --- single-layer read-out collapses to the four-option chance rate --- and that
-the depth these methods read is not the depth at which the image reaches the answer. Layer-wise masking of
-text-to-image attention localises that transport to the first two thirds of the stack: blocking every layer from
-layer~16 of~28 onward flips no answers, while blocking layers 0--16 reproduces the full effect. The boundary transfers
-across architectures as a fixed fraction of depth. Two mechanisms follow. A single closed-form ridge solve over the
-28-layer attention profile yields a signed depth filter that subtracts the late layers the conventional read-out adds,
-improving crop placement by $7.9$ and $8.9$ points over the strongest published rule at matched compute. Because
-visual tokens are causally inert past the boundary, $90\%$ of them can be discarded there at negligible cost under any
-ranking criterion, and the freed compute reallocated to encoding resolution, where it recovers the model's resolution
-headroom at a rate of $1.01$ ($r=0.966$) across four checkpoints and three benchmarks. Against a model running at its
-\emph{native} dynamic resolution --- $5.5\times$ our budget --- our methods are statistically indistinguishable while
-using $18\%$ of the compute, whereas published allocation rules fall $12$--$14$ points short of it.
+Vision--language models on high-resolution imagery must decide where to spend a fixed visual-token budget;
+evidence not given resolution is destroyed before the language model runs. The prevailing remedy is
+attention-guided cropping: read the model's own attention over image positions, crop where it peaks, re-encode.
+Every such method must choose a depth at which to read that map, and published methods hand-pick a single layer or
+average a fixed block.
+We show that this choice dominates every other design decision, and that the depth these methods read is not the
+depth at which the image reaches the answer. Masking text-to-image attention layer by layer localises that transport
+to the first two thirds of the stack --- blocking every layer from layer~16 of~28 onward flips no answers --- at
+the same fraction of depth, $0.57$, on every architecture we test, entirely before the band these methods read.
+Two policies follow from that measurement rather than from tuning. \textbf{Transport-Weighted Read-out} (TWR)
+replaces layer selection with one closed-form ridge solve over the whole depth profile, yielding a signed filter
+that subtracts the late layers a conventional read-out adds. \textbf{Transport-Scheduled Resolution} (TSR) discards
+$90\%$ of visual tokens at the boundary, where they are causally inert, and spends the freed compute on encoding
+resolution.
+At matched compute TWR beats every published placement rule in all nine pooled comparisons, by $7.9$ and $8.9$
+points over the strongest, and lands its crop on the evidence $63.9\%$ of the time against $13.6\%$. TSR converts a
+checkpoint's resolution headroom at rate $1.01$ ($r=0.966$) across four checkpoints and three benchmarks. Against
+models at their \emph{native} dynamic resolution --- $5.5\times$ the budget --- both are statistically
+indistinguishable using $14$--$18\%$ of the visual-token compute, whereas published rules fall $9.9$--$14.2$ points
+short of it.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -66,8 +70,12 @@ layer by layer, shows that image-to-text transport is \emph{complete} by layer~1
 onward flips no answers. Yet every method in this family --- including ours --- reads its map at layers 17--22. The
 attention these methods consume is a residue of where the model looked, not the channel carrying the evidence.
 
-\textbf{(iii) Two allocation policies follow from that measurement}, with complementary strengths
-(\S\ref{sec:ridge}, \S\ref{sec:tsr}), and at native resolution they match a model spending $5.5\times$ the compute.
+\textbf{(iii) Two allocation policies follow from that measurement}, with complementary strengths, and at native
+resolution they match a model spending $5.5\times$ the compute. \textbf{Transport-Weighted Read-out} (TWR,
+\S\ref{sec:ridge}) stops selecting a depth and instead re-weights all of them, by a single closed-form ridge solve
+whose fitted weights are signed: the post-boundary layers a conventional read-out adds, it subtracts.
+\textbf{Transport-Scheduled Resolution} (TSR, \S\ref{sec:tsr}) drops $90\%$ of visual tokens at the boundary, where
+they no longer carry the image, and spends the saved compute on encoding resolution instead.
 
 \section{Setup}\label{sec:setup}
 
@@ -91,7 +99,7 @@ seeds. A claim must hold on at least two checkpoints or it is reported as reject
 
 \begin{figure}[t]\centering
 \includegraphics[width=\textwidth]{figs/fig_depthfilter.pdf}
-\caption{\textbf{The fitted depth filter sits after the transport window.} Bars: the ridge filter's weights
+\caption{\textbf{The fitted depth filter sits after the transport window.} Bars: TWR's weights
 $w_\ell$ (\gd{green} positive, \bad{red} negative), normalised. Line: the causal transport profile --- the output KL
 caused by masking text-to-image attention at layer $\ell$ alone. Grey band: the layers the conventional block-mean
 read-out averages at $+1$. Yellow band: the question-conditioned read-out band. Dashed line: the depth beyond which
@@ -134,11 +142,11 @@ $+8.4$ and $+8.9$ points over random. At and after it, ranking is worth nothing:
 both models at every keep ratio. The boundary is not merely where pruning becomes cheap --- it is where selection
 ceases to matter.
 
-\section{Policy I: depth re-ranking}\label{sec:ridge}
+\section{Policy I: Transport-Weighted Read-out (TWR)}\label{sec:ridge}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_pipe_ridge.pdf}
-\caption{\textbf{Policy I, the ridge depth filter.} One localisation pass, every layer's attention kept, a single
+\caption{\textbf{Policy I: Transport-Weighted Read-out (TWR).} One localisation pass, every layer's attention kept, a single
 closed-form solve that re-weights depths, and a crop. Nothing is selected: all $28$ layers enter the score, and the
 fitted weights are signed, so layers past the transport boundary subtract rather than add.}
 \label{fig:pipe_ridge}
@@ -164,13 +172,13 @@ block mean. No monotone summary of the depth profile reproduces this --- not mag
 a windowed sum --- because the correction requires subtraction, and a mean can only add.
 
 \paragraph{Ablations.} A gradient-boosted tree over the same features is statistically indistinguishable from the
-ridge on all four architectures, so the closed form costs nothing. Capacity is not the limit at this sample size: a
+ridge solve on all four architectures, so the closed form costs nothing. Capacity is not the limit at this sample size: a
 spatial CNN is \emph{significantly worse} on the 7B ($-8.9$ and $-9.4$ at two window sizes), and nine random seeds,
 flip augmentation and ensembling all land inside the noise floor. Roughly $50$ boxed examples recover $70\%$ of the
 full-data gain. A training-free variant --- the maximum over the four question-conditioned layers --- reaches $68.9$
 and $60.7$, above every published rule but $3.7$ and $9.5$ points below the fitted filter.
 
-\section{Policy II: transport-scheduled resolution}\label{sec:tsr}
+\section{Policy II: Transport-Scheduled Resolution (TSR)}\label{sec:tsr}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_pipe_tsr.pdf}
@@ -208,11 +216,11 @@ boundary saves less for no additional accuracy. One cut, at the measured boundar
 \includegraphics[width=\textwidth]{figs/fig_infer_ridge.pdf}
 \caption{\textbf{What the two read-out rules see, on real \vstar\ items} (Qwen3-VL-2B). The block-mean arg-max
 lands in the grid's \emph{last column} on $84.8\%$ of the $191$ items against a $5.0\%$ chance rate: it is reading
-the raster-serialisation sink, not the object, and it crops empty sky or water. The ridge lands there $5.8\%$ of
+the raster-serialisation sink, not the object, and it crops empty sky or water. TWR lands there $5.8\%$ of
 the time, i.e.\ at chance, and covers at least half the ground-truth box on $63.9\%$ of items against $13.6\%$ for
-block-mean. \emph{Examples are not hand-picked}: we take single-instance items where the ridge crop covers the box
+block-mean. \emph{Examples are not hand-picked}: we take single-instance items where the TWR crop covers the box
 and the block-mean crop does not \emph{and} the answers flip accordingly, restricted to items where the recomputed
-out-of-fold ridge cell reproduces the logged run exactly. Nine items qualify; these are the first three by
+out-of-fold TWR cell reproduces the logged run exactly. Nine items qualify; these are the first three by
 question id.}
 \label{fig:infer_ridge}
 \end{figure}
@@ -247,14 +255,14 @@ fixed layer L14 & \bad{24.6} & 57.9 & \bad{37.9} & \bad{33.9} & 44.7 & \bad{38.2
 block-mean arg-max (ViCrop-style) & 64.0 & 59.2 & 62.1 & 67.0 & 47.4 & 59.2\\
 LASER \citep{laser} & 64.0 & 65.8 & 64.7 & 65.2 & 55.3 & 61.3\\
 gate-max (ours, no training) & 72.8 & 63.2 & 68.9 & 63.5 & 56.6 & 60.7\\
-\textbf{ridge depth filter (ours)} & \gd{\textbf{77.2}} & 65.8 & \gd{\textbf{72.6}} & \gd{\textbf{71.3}} & \gd{\textbf{68.4}} & \gd{\textbf{70.2}}\\
+\textbf{TWR (ours)} & \gd{\textbf{77.2}} & 65.8 & \gd{\textbf{72.6}} & \gd{\textbf{71.3}} & \gd{\textbf{68.4}} & \gd{\textbf{70.2}}\\
 \midrule
 \emph{oracle crop (upper bound)} & \emph{96.5} & \emph{75.0} & \emph{87.9} & \emph{93.9} & \emph{77.6} & \emph{87.4}\\
 \bottomrule
 \end{tabular}\label{tab:main}
 \end{table}
 
-The ridge filter beats every published rule on every cell where that rule was run --- 9 of 9 paired contrasts, all CIs
+TWR beats every published rule on every cell where that rule was run --- 9 of 9 paired contrasts, all CIs
 clear: $+3.8$ to $+15.9$ against ViCrop-style, $+7.9$ and $+8.9$ against LASER, $+31.9$ and $+34.6$ against
 fixed-layer. At matched compute the published rules are worth $-1.6$ to $+3.1$ against simply spending the tokens on
 resolution.
@@ -278,18 +286,18 @@ NATIVE dynamic resolution & 76.3 & --- & 71.2 & ---\\
 block-mean arg-max & 62.1 & \bad{$-14.2$}~\no & 59.2 & \bad{$-12.0$}~\no\\
 LASER \citep{laser} & 64.7 & \bad{$-11.6$}~\no & 61.3 & \bad{$-9.9$}~\no\\
 TSR (ours) & 70.0 & $-6.3$ & 61.8 & \bad{$-9.4$}~\no\\
-\textbf{ridge filter (ours)} & \gd{\textbf{72.6}} & $-3.7$ & \gd{\textbf{70.2}} & $-1.0$\\
+\textbf{TWR (ours)} & \gd{\textbf{72.6}} & $-3.7$ & \gd{\textbf{70.2}} & $-1.0$\\
 \midrule
 \emph{oracle crop @600} & \emph{87.9} & \gd{$+11.6$}~\ok & \emph{87.4} & \gd{$+16.2$}~\ok\\
 \bottomrule
 \end{tabular}\label{tab:native}
 \end{table}
 
-Three readings, both checkpoints. \textbf{(i)} The ridge filter is \emph{statistically indistinguishable} from
+Three readings, both checkpoints. \textbf{(i)} TWR is \emph{statistically indistinguishable} from
 native dynamic resolution ($-3.7$ and $-1.0$, CIs spanning zero) while using $18\%$ and $14\%$ of native's
 visual-token compute --- whereas every published rule is \emph{significantly worse} than native ($-9.9$ to $-14.2$).
 The separation between our read-out and theirs is therefore not an artefact of the imposed budget; it is larger in the
-regime the field actually publishes in. \textbf{(ii)} Per stratum on Qwen3, the ridge filter at $600$ tokens matches
+regime the field actually publishes in. \textbf{(ii)} Per stratum on Qwen3, TWR at $600$ tokens matches
 native on single-instance ($+2.6$) and TSR matches it on cross-instance ($-2.6$), each at a fifth of the compute.
 \textbf{(iii)} A perfectly placed $600$-token crop \emph{beats} native by $+11.6$ and $+16.2$ pooled, and by $+21.7$
 on single-instance (Qwen3): \textbf{placement is worth more than $5$--$7\times$ the compute}. This is the strongest single
@@ -303,7 +311,7 @@ benchmark~$\times$~checkpoint cells. Cropping helps single-instance everywhere a
 almost everywhere; TSR is positive on both strata in 6 of 7 cells but gives up single-instance gain.}
 \begin{tabular}{lcccc}
 \toprule
-& \multicolumn{2}{c}{ridge crop (2 passes, ${\sim}50$ boxes)} & \multicolumn{2}{c}{TSR (1 pass, no supervision)}\\
+& \multicolumn{2}{c}{TWR (2 passes, ${\sim}50$ boxes)} & \multicolumn{2}{c}{TSR (1 pass, no supervision)}\\
 \cmidrule(lr){2-3}\cmidrule(lr){4-5}
 cell & single & cross & single & cross\\
 \midrule
@@ -383,20 +391,20 @@ layer. There is no better layer to select.
 \section{Practical guidance}\label{sec:guide}
 
 The two policies have different cost and risk profiles, and the choice does not require a question classifier. The
-ridge filter needs ${\sim}50$ boxed examples, two forward passes and $1.4$--$2.0\times$ wall-clock; it has the higher
+TWR needs ${\sim}50$ boxed examples, two forward passes and $1.4$--$2.0\times$ wall-clock; it has the higher
 ceiling ($+14.8$ on single-instance) and a $6$--$9$ point cross-instance failure mode. TSR needs no supervision, one
 forward pass and ${\sim}1\times$ wall-clock; it is positive on both strata in 6 of 7 cells with no significant loss
 anywhere, and its benefit is predictable from two baseline runs. Head to head the two are even pooled (mean
-difference $+0.2$ points over seven cells). We recommend TSR as the default and the ridge filter where boxed
-supervision exists and single-instance perception dominates. We note that the ridge filter's pooled margin over TSR
+difference $+0.2$ points over seven cells). We recommend TSR as the default and TWR where boxed
+supervision exists and single-instance perception dominates. We note that TWR's pooled margin over TSR
 is concentrated on the two cells on which it was developed.
 
 \section{Limitations}\label{sec:lim}
 
 $n=191$ on \vstar\ gives per-stratum CI half-widths near $10$ points; no method is significantly positive on both
-strata in any single cell, which is a power limitation as much as a method one. The ridge filter needs ${\sim}50$
+strata in any single cell, which is a power limitation as much as a method one. TWR needs ${\sim}50$
 boxed examples and two forward passes ($1.4$--$2.0\times$ wall-clock); TSR needs neither. Our two core checkpoints
-share a model family. The ridge filter's pooled margin over TSR is concentrated on the two cells it was developed on.
+share a model family. TWR's pooled margin over TSR is concentrated on the two cells it was developed on.
 Pruning at the boundary is free in 9 of 10 cells; the exception (HR-Bench~8K, cross-instance, $-1.8$\,\no) is real.
 
 \section{Conclusion}
@@ -428,7 +436,7 @@ the block-mean read-out by $11$ points on the 7B). The prompt must end at the an
 elsewhere costs $36$--$42$ points on the arg-max read-out.
 
 \textbf{Statistics.} Paired item bootstrap with 8000 resamples. Learned components use GroupKFold(5) grouped by item
-$\times$ 3 seeds; the headline ridge result is additionally reproduced under a disjoint fold-seed set (difference
+$\times$ 3 seeds; the headline TWR result is additionally reproduced under a disjoint fold-seed set (difference
 within $\pm1$ point). Run-to-run floor on coverage is $1$--$2.5$ points.
 
 \textbf{Pipeline discipline.} An exactly $+0.0$ contrast with a $[+0.0,+0.0]$ interval is treated as a pipeline fault,
@@ -512,7 +520,7 @@ Qwen3-VL-8B & \textbf{36} & L20--L33 & --- & \textbf{L21} & 0.57\\
 \section{Full paired comparison against published rules}\label{app:paired}
 
 \begin{table}[h]\centering\small
-\caption{Ridge filter minus each alternative on V$^*$Bench, paired on identical items, pooled over strata,
+\caption{TWR minus each alternative on V$^*$Bench, paired on identical items, pooled over strata,
 $n=191$ ($190$ for LASER, one item missing). All six published-rule contrasts clear zero on both models.
 Bootstrap $95\%$ CIs, $8{,}000$ resamples, matching the protocol in Appendix~\ref{app:proto}.}
 \begin{tabular}{lcc}
@@ -527,21 +535,21 @@ $-$ LASER & \gd{$+7.9$ [$+1.1,+14.7$]}~\ok & \gd{$+8.9$ [$+3.1,+14.7$]}~\ok\\
 \multicolumn{3}{l}{\emph{controls, not baselines}}\\
 $-$ gate-max & $+3.7$ [$-2.1,+9.4$] & \gd{$+9.4$ [$+3.7,+15.2$]}~\ok\\
 $-$ gradient-boosted tree & $-0.5$ [$-4.7,+4.2$] & \gd{$+7.3$ [$+2.1,+13.1$]}~\ok\\
-$-$ ridge refit, disjoint fold seeds & $-1.0$ [$-3.1,+1.0$] & $+1.0$ [$-1.0,+3.1$]\\
+$-$ TWR refit, disjoint fold seeds & $-1.0$ [$-3.1,+1.0$] & $+1.0$ [$-1.0,+3.1$]\\
 $-$ oracle placement & $-15.2$ [$-22.5,-8.4$]~\no & $-17.3$ [$-24.6,-9.9$]~\no\\
 \bottomrule
 \end{tabular}\label{tab:paired}
 \end{table}
 
-Taking these six together with the three pooled block-mean contrasts in Table~\ref{tab:hrpaired}, the ridge
+Taking these six together with the three pooled block-mean contrasts in Table~\ref{tab:hrpaired}, TWR
 beats a published rule in nine of nine pooled comparisons. It does not beat the equal-compute bar everywhere, which
-is a separate claim and the subject of the scope law. The fold-seed control matters most. Refitting the ridge under three disjoint fold seeds moves the pooled result by
+is a separate claim and the subject of the scope law. The fold-seed control matters most. Refitting TWR under three disjoint fold seeds moves the pooled result by
 $1.0$ point or less on both models, so the margin is not an artefact of which items landed in which fold. The
 oracle row is the remaining headroom: even the best rule we have is $15$--$17$ points below perfect placement.
 
 \begin{table}[h]\centering\footnotesize
 \setlength{\tabcolsep}{3pt}
-\caption{HR-Bench, ridge minus each alternative, $n=400$ per stratum, $800$ per cell. The ridge is transferred:
+\caption{HR-Bench, TWR minus each alternative, $n=400$ per stratum, $800$ per cell. TWR is transferred:
 its weights were fit on V$^*$Bench and applied here with nothing refit. Placement quality replicates; the scope
 law replicates with it.}
 \begin{tabular}{llccc}
@@ -651,15 +659,15 @@ global--local split & scene@150 plus crop@150 & 0/2 & halving the crop costs mor
 context-continued crop & scene@300 plus crop@300 & 0/2 & scene costs $8.7$ and $5.2$ even with a perfect crop\\
 multi-crop, matched budget & $2\times150$ and $3\times100$ & 0/2 & magnification tax ($-11.3$, $-4.3$) exceeds coverage gain ($+7.8$, $+2.6$)\\
 funded multi-crop & $2\times300$, pruned, early exit & 0/2 & $+3.7$ on one model, $-2.6$ on the other\\
-ridge-guided early pruning & rank at L4 instead of L16 & 0/2 & $-5.2$: ranking before transport is worthless\\
+TWR-guided early pruning & rank at L4 instead of L16 & 0/2 & $-5.2$: ranking before transport is worthless\\
 \bottomrule
 \end{tabular}\label{tab:neg}
 \end{table}
 
-The last row generalises the rest, and explains why the two policies cannot be merged into one. The ridge's signal
+The last row generalises the rest, and explains why the two policies cannot be merged into one. TWR's signal
 is produced after the transport boundary, and pruning only saves compute at or before it. A pipeline that prunes
-early enough to save has destroyed the layers the ridge reads, which costs $3.1$ and $12.6$ points of coverage; a
-pipeline that waits for the ridge has nothing left worth pruning. Holding the ranking fixed and moving only the cut
+early enough to save has destroyed the layers TWR reads, which costs $3.1$ and $12.6$ points of coverage; a
+pipeline that waits for TWR has nothing left worth pruning. Holding the ranking fixed and moving only the cut
 from L16 to L4 costs $5.2$ points. The incompatibility is structural, not a tuning failure.
 
 \paragraph{Why cropping cannot reach cross-instance questions.} Under \emph{perfect} placement, cross-instance

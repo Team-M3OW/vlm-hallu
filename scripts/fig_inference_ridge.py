@@ -56,7 +56,7 @@ for r,q in enumerate(PICKS):
     # 3 ridge score
     a=ax[r,2]; s=np.asarray(m['score']); a.imshow(s,cmap="viridis"); a.set_xticks([]); a.set_yticks([])
     iy,ix=np.unravel_index(np.argmax(s),s.shape); a.plot(ix,iy,"x",color=GREEN,ms=11,mew=3)
-    if r==0: a.set_title("ridge score (out-of-fold)",fontsize=10)
+    if r==0: a.set_title("TWR score (out-of-fold)",fontsize=10)
     # 4/5 the crops the model actually answers from
     for k,(cell,col,ans,name) in enumerate([(m['block_cell'],ORANGE,ab,"block-mean crop"),
                                             (m['ridge_cell'],GREEN,ar,"ridge crop")]):
