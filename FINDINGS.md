@@ -7175,3 +7175,17 @@ gain within ~2pp of the measured resolution headroom.
 differ on **99%** of items (median max-|Δp| 0.019) while the argmax is unchanged on **98%** — so identical accuracy is
 *decisions not changing*, not the patch failing to apply. This is the strongest form of the "inert after transport"
 claim in the project. Scripts: phase192_tsr_newmodel.py, phase192_analyze.py.
+
+### §38C Qwen3-VL-8B (36 layers, prune at L21 = the same 57% stack fraction) — clears on EVERY stratum
+| stratum | bar | **tsr900 (97% of bar)** | TSR − bar | headroom (u@900−u@600) | pruning cost |
+|---|---|---|---|---|---|
+| single | 64.3 | **71.3** | **+7.0 [+0.9,+13.9] ✔** | +7.0 | +0.0 |
+| cross | 72.4 | **80.3** | **+7.9 [+1.3,+15.8] ✔** | +6.6 | +1.3 |
+| **ALL** | 67.5 | **74.9** | **+7.3 [+2.6,+12.1] ✔** | +6.8 ✔ | +0.5 |
+
+**First cell in the project where a single question-agnostic method clears the equal-compute bar on BOTH strata.**
+It is also the checkpoint the crop-based method could never beat (§34: ridge +6.1 single n.s., −3.9 cross).
+The transport boundary **transfers as a fraction of depth**: 0.57·36 = L21 on a 36-layer model, and the identity holds
+(+7.0 vs +7.0 single, +7.3 vs +6.8 pooled) — **11 of 12 stratum-cells** now within ~2pp of the measured headroom.
+Prune-applied check: probabilities differ on 75% of items (median max|Δp| 1e-4 — small because only 90 of ~900 tokens
+survive into layers the answer depends on, and this model is deeper).
