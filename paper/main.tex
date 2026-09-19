@@ -51,7 +51,7 @@ gone before the language model runs. The model still \emph{localises} it --- its
 region --- but it cannot \emph{perceive} it.
 
 The standard remedy is attention-guided cropping: run the model once, read its attention over image positions, crop
-where the attention peaks, and re-encode that crop at higher density~\citep{vicrop,zoomeye,vea}. Every method in this
+where the attention peaks, and re-encode that crop at higher density~\citep{vicrop,zoomeye}. Every method in this
 family faces one decision that is rarely examined: \textbf{at which layer should the attention map be read?}
 Published methods pick a single mid-network layer or average a fixed block of late layers.
 
@@ -287,7 +287,8 @@ predominantly perceptual, and no crop, multi-crop, composition or pruning schedu
 
 \section{Related work}\label{sec:related}
 
-\textbf{Attention-guided cropping.} ViCrop~\citep{vicrop} crops at the peak of a fixed mid-layer attention map;
+\textbf{Attention-guided cropping.} \citet{liu2026vea} document the gap this family exploits, that a model's
+attention can concentrate correctly while its answer is wrong. ViCrop~\citep{vicrop} crops at the peak of a fixed mid-layer attention map;
 ZoomEye~\citep{zoomeye} searches a tree of crops with repeated model queries; VisLens feeds the crop back alongside
 the original image. All fix the read-out depth by hand, and none budget-match against simply spending the same tokens
 on resolution --- Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
@@ -317,7 +318,8 @@ is worth $+8.4$ and $+8.9$ points.
 
 \section{What does not work}\label{sec:neg}
 
-Eleven designs failed to make cropping serve cross-instance questions. We report them because the diagnoses
+Ten designs failed to make cropping serve cross-instance questions, and an eleventh failed to merge the two
+policies into a single pipeline. We report them because the diagnoses
 constrain the design space more than the successes do. Each failed for a measured reason: per-item window
 sizing; peak-spanning and mass-containment windows; joint (cell, window) re-ranking under a coverage objective (a
 metric artefact --- coverage is monotone in window size); expected-accuracy window selection; a downscaled scene
@@ -452,7 +454,7 @@ Qwen3-VL-8B & \textbf{36} & L20--L33 & --- & \textbf{L21} & 0.57\\
 
 \begin{table}[h]\centering\small
 \caption{Ridge filter minus each alternative on V$^*$Bench, paired on identical items, pooled over strata,
-$n=191$ ($190$ for LASER, one item missing). All nine published-rule contrasts clear zero on both models.
+$n=191$ ($190$ for LASER, one item missing). All six published-rule contrasts clear zero on both models.
 Bootstrap $95\%$ CIs, $4{,}000$ resamples.}
 \begin{tabular}{lcc}
 \toprule
@@ -472,7 +474,8 @@ $-$ oracle placement & $-15.2$ [$-22.5,-8.4$]~\no & $-17.3$ [$-24.6,-9.9$]~\no\\
 \end{tabular}\label{tab:paired}
 \end{table}
 
-The fold-seed control matters most. Refitting the ridge under three disjoint fold seeds moves the pooled result by
+Counting the three block-mean contrasts in Table~\ref{tab:hrpaired} alongside these six, the ridge beats a
+published rule in all nine paired contrasts we ran. The fold-seed control matters most. Refitting the ridge under three disjoint fold seeds moves the pooled result by
 $1.0$ point or less on both models, so the margin is not an artefact of which items landed in which fold. The
 oracle row is the remaining headroom: even the best rule we have is $15$--$17$ points below perfect placement.
 
@@ -489,10 +492,13 @@ law replicates with it.}
  & cross & $-8.8$ [$-14.0,-3.5$]~\no & $-6.0$ [$-11.0,-0.8$]~\no & $-8.8$ [$-14.8,-2.8$]~\no\\
  & pooled & $+0.8$ [$-2.9,+4.4$] & $+1.6$ [$-2.1,+5.2$] & $+0.0$ [$-4.0,+4.1$]\\
 \midrule
-\multirow{2}{*}{vs.\ block-mean} & pooled & \gd{$+4.8$ [$+1.8,+7.6$]}~\ok & \gd{$+15.9$ [$+12.5,+19.2$]}~\ok & \gd{$+3.8$ [$+0.6,+7.0$]}~\ok\\
- & single & \gd{$+7.8$ [$+4.2,+11.5$]}~\ok & \gd{$+15.0$ [$+10.5,+19.5$]}~\ok & \gd{$+5.2$ [$+1.2,+9.2$]}~\ok\\
+\multirow{3}{*}{vs.\ block-mean} & single & \gd{$+7.8$ [$+4.2,+11.5$]}~\ok & \gd{$+15.0$ [$+10.5,+19.5$]}~\ok & \gd{$+5.2$ [$+1.2,+9.2$]}~\ok\\
+ & cross & $+1.8$ [$-2.8,+6.2$] & \gd{$+16.8$ [$+12.0,+21.5$]}~\ok & $+2.2$ [$-2.5,+6.8$]\\
+ & pooled & \gd{$+4.8$ [$+1.8,+7.6$]}~\ok & \gd{$+15.9$ [$+12.5,+19.2$]}~\ok & \gd{$+3.8$ [$+0.6,+7.0$]}~\ok\\
 \midrule
-vs.\ random cell & pooled & \gd{$+21.8$ [$+17.5,+26.0$]}~\ok & \gd{$+20.2$ [$+16.2,+24.2$]}~\ok & \gd{$+15.6$ [$+11.6,+19.6$]}~\ok\\
+\multirow{3}{*}{vs.\ random cell} & single & \gd{$+32.8$ [$+26.5,+39.0$]}~\ok & \gd{$+24.8$ [$+18.8,+30.8$]}~\ok & \gd{$+24.2$ [$+18.2,+30.8$]}~\ok\\
+ & cross & \gd{$+10.8$ [$+5.2,+16.2$]}~\ok & \gd{$+15.8$ [$+10.5,+21.0$]}~\ok & \gd{$+7.0$ [$+1.8,+12.0$]}~\ok\\
+ & pooled & \gd{$+21.8$ [$+17.5,+26.0$]}~\ok & \gd{$+20.2$ [$+16.2,+24.2$]}~\ok & \gd{$+15.6$ [$+11.6,+19.6$]}~\ok\\
 \bottomrule
 \end{tabular}\label{tab:hrpaired}
 \end{table}
@@ -528,17 +534,21 @@ cell & stratum & TSR $-$ bar & headroom\\
 
 Two consequences. First, the sign of the gain is predictable before deployment: the one cell where TSR loses
 (HR-4K cross-instance) is the one cell where the baseline itself is worse at $900$ tokens than at $600$, so nothing
-was available to convert. Second, the pruning contributes nothing on its own. At matched encoding resolution,
-pruned and unpruned agree within $0.5$ points in $9$ of the $10$ cells; the exception is HR-8K cross-instance at
-$-1.8$ [$-3.2,-0.5$], the only measurable cost of discarding $90\%$ of visual tokens anywhere in this work. We
+was available to convert. Second, the pruning contributes nothing on its own. Comparing TSR against \texttt{uniform@900}, which encodes at the
+same resolution and prunes nothing, the two agree within $0.5$ points in $7$ of the $10$ cells
+($+0.0$, $+0.0$, $+0.0$, $+0.0$, $+0.2$, $+0.5$, $-0.2$). In two more the pruned arm is \emph{ahead}, by $+1.3$ and
+$+2.6$, which we read as noise rather than a benefit of pruning. Exactly one cell shows a real cost: HR-8K
+cross-instance at $-1.8$ [$-3.2,-0.5$], the only measurable price of discarding $90\%$ of visual tokens anywhere in
+this work. Pruning at the boundary is therefore free everywhere we have measured it but that one cell. We
 verified the pruning is applied rather than silently skipped at the distribution level: output probabilities change
 on $99\%$ of items while the arg-max changes on $2\%$. The discarded tokens are inert, not absent.
 
 \section{Designs that did not work}\label{app:neg}
 
 \begin{table}[h]\centering\small
-\caption{Designs intended to extend cropping to cross-instance questions. Each was pre-registered with a primary
-contrast and a guard before it ran. ``Cleared'' counts checkpoints of two on which the primary passed.}
+\caption{The ten designs intended to extend cropping to cross-instance questions, and the eleventh that tried to
+merge the two policies. Each was pre-registered with a primary contrast and a guard before it ran. ``Cleared''
+counts checkpoints of two on which the primary passed.}
 \begin{tabular}{p{3.2cm}p{3.5cm}cp{4.5cm}}
 \toprule
 design & what it changed & cleared & diagnosed cause\\
