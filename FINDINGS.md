@@ -7189,3 +7189,38 @@ The transport boundary **transfers as a fraction of depth**: 0.57·36 = L21 on a
 (+7.0 vs +7.0 single, +7.3 vs +6.8 pooled) — **11 of 12 stratum-cells** now within ~2pp of the measured headroom.
 Prune-applied check: probabilities differ on 75% of items (median max|Δp| 1e-4 — small because only 90 of ~900 tokens
 survive into layers the answer depends on, and this model is deeper).
+
+## §39 ★★★ THE TSR IDENTITY, COMPLETE: gain = resolution headroom, slope 1.01, r = 0.966 (4 checkpoints x 3 benchmarks)
+
+Full breadth table (TSR − uniform@600, at 96–100% of the bar's token-layers; ✔ = CI clear of zero):
+
+| cell | single | cross | pooled |
+|---|---|---|---|
+| V* Qwen3-VL-2B | +3.5 | **+10.5 ✔** | **+6.3 ✔** |
+| V* Qwen2-VL-7B | +3.5 | +1.3 | +2.6 |
+| V* Qwen2.5-VL-7B | **+12.2 ✔** | +7.9 | **+10.5 ✔** |
+| V* Qwen3-VL-8B (36 layers, prune L21) | +7.0 | **+7.9 ✔** | **+7.3 ✔** |
+| HR-4K Qwen3-VL-2B | **+4.0 ✔** | −2.8 | +0.6 |
+| HR-4K Qwen2-VL-7B | +2.8 | +0.8 | +1.8 |
+| HR-8K Qwen3-VL-2B | **+6.5 ✔** | +1.8 | **+4.1 ✔** |
+
+**Single-instance 7/7 positive. Pooled 7/7 positive, 4 with CIs clear.**
+
+### The identity (10 stratum-cells with the uniform@900 diagnostic)
+**corr(gain, headroom) = +0.966 · slope = +1.01 · mean |gain − headroom| = 0.7pp**
+where headroom = acc(uniform@900) − acc(uniform@600), measurable from two baseline runs with **no method involved**.
+TSR converts the checkpoint's available resolution at a rate of 1.0 and never loses more than the headroom does.
+This replaces §26's "1 of 2": V*-Qwen3 won cross-instance (headroom +9.2), HR-4K-Qwen3 lost it (headroom **−3.0** —
+900 tokens is genuinely worse than 600 there), and both are the same mechanism.
+
+### What this makes TSR
+Not a method with variable efficacy but a **resolution converter with a free pruning step**, whose benefit is
+*predictable before deployment*. Practical rule: measure acc@900 − acc@600 on a held-out slice; that is what TSR will
+give you, at the compute of acc@600. Pruning cost across the 10 cells: +0.0 to +0.5 in 9, one exception
+(**HR-8K cross −1.8 ✗**). Prune-applied verified at the distribution level, not inferred (99% / 75% of items' output
+probabilities change while accuracy does not).
+
+### Depth transfers as a FRACTION of the stack
+Qwen3-VL-8B has **36** layers; pruning at 0.57·36 = **L21** reproduces the behaviour of L16/28, and pruning at the
+naive L16 (44% depth, inside its transport window) costs **−7.9 pooled / −10.5 cross ✗** (the voided run, retained).
+This is an independent generalisation test of §20B's transport boundary on a differently-shaped model.
