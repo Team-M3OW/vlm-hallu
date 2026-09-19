@@ -28,7 +28,8 @@ from transformers import AutoProcessor, AutoModelForImageTextToText
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; MODEL_ARG=sys.argv[2]
 MODEL_ID=MODEL_ARG
 OUT=f"{D}/data/phase192_tsr_{WHICH}.jsonl"; NL=28; P=16; Image.MAX_IMAGE_PIXELS=None
-ARMS={"tsr900":(900,16,0.10,"win")}
+E_ARM,K_ARM=900,0.10
+ARMS={"tsr900":(E_ARM,16,K_ARM,"win")}   # the 16 here is a placeholder; main() rebuilds it as round(0.57*NL)
 def make_patched(QM):
     def patched(module, query, key, value, attention_mask, scaling, dropout=0.0, **kw):
         ks=QM.repeat_kv(key,module.num_key_value_groups); vs=QM.repeat_kv(value,module.num_key_value_groups)
@@ -48,10 +49,11 @@ def main():
     model=AutoModelForImageTextToText.from_pretrained(MODEL_ID,dtype=torch.bfloat16,device_map={"":0},attn_implementation="eager").eval()
     pr=AutoProcessor.from_pretrained(MODEL_ID); tok=pr.tokenizer; itid=model.config.image_token_id
     layers=model.model.language_model.layers; NL=len(layers); globals()["NL"]=NL; P=int(round(0.57*NL)); globals()["P"]=P
+    globals()["ARMS"]={"tsr900":(E_ARM,P,K_ARM,"win")}   # rebuild with the PER-MODEL prune depth
     _own=type(layers[0].self_attn).__module__
     assert any(_own==_M.__name__ for _M in _QMODS), f"attention module {_own} was NOT patched -- prune bias would be silently ignored"
     print(f"  prune patch verified on {_own}",flush=True)
-    print(f"{WHICH}: NL={NL}, prune at L{P} (same stack fraction as L16/28)",flush=True)
+    print(f"{WHICH}: NL={NL}, ARMS={globals()['ARMS']}, prune at L{P} (same stack fraction as L16/28)",flush=True)
     opt=[sorted({tok(x,add_special_tokens=False)["input_ids"][-1] for x in [c,f" {c}"]}) for c in "ABCD"]
     def chat(t): return pr.apply_chat_template([{"role":"user","content":[{"type":"image"},{"type":"text","text":t}]}],tokenize=False,add_generation_prompt=True)
     def build(i,t): return pr(images=i,text=chat(t),return_tensors="pt")
