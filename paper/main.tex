@@ -561,7 +561,7 @@ expected-accuracy window & window by predicted accuracy & 0/2 & accuracy--size c
 thumbnail in answer pass & crop plus $64$-token scene & 0/2 & second object below the encoding cliff\\
 global--local split & scene@150 plus crop@150 & 0/2 & halving the crop costs more than the scene gives\\
 context-continued crop & scene@300 plus crop@300 & 0/2 & scene costs $8.7$ even with a perfect crop\\
-multi-crop, matched budget & $2\times150$ and $3\times100$ & 0/2 & tax $-11.3$ exceeds coverage gain $+7.8$\\
+multi-crop, matched budget & $2\times150$ and $3\times100$ & 0/2 & magnification tax ($-11.3$, $-4.3$) exceeds coverage gain ($+7.8$, $+2.6$)\\
 funded multi-crop & $2\times300$, pruned, early exit & 0/2 & $+3.7$ on one model, $-2.6$ on the other\\
 ridge-guided early pruning & rank at L4 instead of L16 & 0/2 & $-5.2$: ranking before transport is worthless\\
 \bottomrule
@@ -576,8 +576,8 @@ from L16 to L4 costs $5.2$ points. The incompatibility is structural, not a tuni
 
 \paragraph{Why cropping cannot reach cross-instance questions.} Under \emph{perfect} placement, cross-instance
 accuracy reaches $75.0$ and $77.6$, an irreducible error of $25\%$ and $22\%$, against $3.5\%$ and $6.1\%$ for
-single-instance. Two crops at full resolution covering \emph{both} objects, which raises object coverage by $17$
-points, still score $-2.6$ and $-3.9$ against one crop. Cross-instance error is not predominantly perceptual, so no
+single-instance. Two crops at full resolution covering \emph{both} objects, which raises cross-instance object coverage by
+$17.1$ and $15.8$ points, still score $-2.6$ and $-3.9$ against a single crop. Cross-instance error is not predominantly perceptual, so no
 reallocation of perceptual resources reaches it. Resolution does reach part of it, which is what the second policy
 exploits, but cropping does not.
 
