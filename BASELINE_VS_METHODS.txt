@@ -1,13 +1,53 @@
 ========================================================================================================================
-OUR TWO METHODS vs EVERY BASELINE, paired on identical items (positive = OUR method better)
+OUR TWO METHODS vs EVERY BASELINE, paired on identical items (positive = OUR method is better)
 ========================================================================================================================
-  V*   Qwen3-VL-2B  (n=191 common items)
-                baseline     acc |              RIDGE CROP − baseline |                     TSR − baseline
-                                 |      single      cross        ALL |      single      cross        ALL
-             no-crop bar   63.9% |      +14.8✔      +0.0       +8.9✔ |       +3.5      +10.5✔      +6.3✔
-         fixed layer L14   38.2% |      +52.2✔      +7.9      +34.6✔ |      +40.9✔     +18.4✔     +31.9✔
-       ViCrop block-mean   62.3% |      +13.0✔      +6.6      +10.5✔ |       +1.7      +17.1✔      +7.9 
-Traceback (most recent call last):
-  File "<stdin>", line 35, in <module>
-  File "<stdin>", line 27, in <lambda>
-KeyError: 'laser'
+  V*   Qwen3-VL-2B
+                 baseline     acc     n |               RIDGE CROP − baseline |                      TSR − baseline
+                                        |      single      cross         ALL |      single      cross         ALL
+              no-crop bar   63.9%   191 |      +14.8✔      +0.0        +8.9✔ |       +3.5      +10.5✔       +6.3✔
+          fixed layer L14   38.2%   191 |      +52.2✔      +7.9       +34.6✔ |      +40.9✔     +18.4✔      +31.9✔
+        ViCrop block-mean   62.3%   191 |      +13.0✔      +6.6       +10.5✔ |       +1.7      +17.1✔       +7.9 
+             LASER (2026)   64.7%   190 |      +13.2✔      +0.0        +7.9✔ |       +1.8      +10.5        +5.3 
+    gate-max (ours, free)   69.1%   191 |       +4.3       +2.6        +3.7  |       -7.0      +13.2        +1.0 
+          GBT head (ours)   73.3%   191 |       -0.9       +0.0        -0.5  |      -12.2✗     +10.5        -3.1 
+        >> OUR ridge crop   72.8%   191 |           —          —           — |      -11.3✗     +10.5        -2.6 
+               >> OUR TSR   70.2%   191 |
+  V*   Qwen2-VL-7B
+                 baseline     acc     n |               RIDGE CROP − baseline |                      TSR − baseline
+                                        |      single      cross         ALL |      single      cross         ALL
+              no-crop bar   58.1%   191 |      +13.9✔      +9.2       +12.0✔ |       +4.3       +2.6        +3.7 
+          fixed layer L14   38.2%   191 |      +37.4✔     +23.7✔      +31.9✔ |      +27.8✔     +17.1✔      +23.6✔
+        ViCrop block-mean   59.2%   191 |       +4.3      +21.1✔      +11.0✔ |       -5.2      +14.5✔       +2.6 
+             LASER (2026)   61.3%   191 |       +6.1      +13.2✔       +8.9✔ |       -3.5       +6.6        +0.5 
+    gate-max (ours, free)   60.7%   191 |       +7.8✔     +11.8✔       +9.4✔ |       -1.7       +5.3        +1.0 
+          GBT head (ours)   62.8%   191 |       +5.2      +10.5        +7.3✔ |       -4.3       +3.9        -1.0 
+        >> OUR ridge crop   70.2%   191 |           —          —           — |       -9.6✗      -6.6        -8.4✗
+               >> OUR TSR   61.8%   191 |
+  HR4K Qwen3-VL-2B
+                 baseline     acc     n |               RIDGE CROP − baseline |                      TSR − baseline
+                                        |      single      cross         ALL |      single      cross         ALL
+              no-crop bar   59.9%   800 |      +10.2✔      -8.8✗       +0.8  |       +4.0✔      -2.8        +0.6 
+            ViCrop argmax   55.9%   800 |       +7.8✔      +1.8        +4.8✔ |       +1.5       +7.8✔       +4.6✔
+          GBT head (ours)   56.8%   800 |       +2.8       +5.0✔       +3.9✔ |       -3.5      +11.0✔       +3.8 
+              random crop   38.9%   800 |      +32.8✔     +10.8✔      +21.8✔ |      +26.5✔     +16.8✔      +21.6✔
+        >> OUR ridge crop   60.6%   800 |           —          —           — |       -6.2✗      +6.0✔       -0.1 
+               >> OUR TSR   60.5%   800 |
+  HR4K Qwen2-VL-7B
+                 baseline     acc     n |               RIDGE CROP − baseline |                      TSR − baseline
+                                        |      single      cross         ALL |      single      cross         ALL
+              no-crop bar   56.6%   800 |       +9.2✔      -6.0✗       +1.6  |       +2.8       +0.8        +1.8 
+            ViCrop argmax   42.4%   800 |      +15.0✔     +16.8✔      +15.9✔ |       +8.5✔     +23.5✔      +16.0✔
+          GBT head (ours)   56.5%   800 |       +0.8       +2.8        +1.8  |       -5.8✗      +9.5✔       +1.9 
+              random crop   38.0%   800 |      +24.8✔     +15.8✔      +20.2✔ |      +18.2✔     +22.5✔      +20.4✔
+        >> OUR ridge crop   58.2%   800 |           —          —           — |       -6.5✗      +6.8✔       +0.1 
+               >> OUR TSR   58.4%   800 |
+  HR8K Qwen3-VL-2B
+                 baseline     acc     n |               RIDGE CROP − baseline |                      TSR − baseline
+                                        |      single      cross         ALL |      single      cross         ALL
+              no-crop bar   50.9%   800 |       +8.8✔      -8.8✗       +0.0  |       +6.5✔      +1.8        +4.1✔
+            ViCrop argmax   47.1%   800 |       +5.2✔      +2.2        +3.8✔ |       +3.0      +12.8✔       +7.9✔
+          GBT head (ours)   51.5%   800 |       -1.8       +0.5        -0.6  |       -4.0      +11.0✔       +3.5 
+              random crop   35.2%   800 |      +24.2✔      +7.0✔      +15.6✔ |      +22.0✔     +17.5✔      +19.8✔
+        >> OUR ridge crop   50.9%   800 |           —          —           — |       -2.2      +10.5✔       +4.1✔
+               >> OUR TSR   55.0%   800 |
+  ✔ = 95% bootstrap CI clear of zero (our method better)    ✗ = our method significantly worse
