@@ -7047,7 +7047,11 @@ single-instance, both n.s. alone but same-signed; §26C's free L16 pruning plus 
 inside the bar (17,160 TL = 102%). That is the only multi-crop form still open.
 Scripts: phase193_multicrop.py, phase193_analyze.py.
 
-## §36 ★★★ WHY CROSS-INSTANCE CANNOT BE FIXED BY ALLOCATION: the oracle ceiling, and a tenth failed design
+## §36 ★★★ WHY CROSS-INSTANCE CANNOT BE FIXED BY **CROPPING**: the oracle-CROP ceiling, and a tenth failed design
+> ⚠ **TITLE CORRECTED (see §40).** This section originally read "cannot be fixed by allocation". That is too broad:
+> TSR is allocation (of resolution, not of a crop) and it DOES fix cross-instance — 4/4 checkpoints positive,
+> 2 significant, and on Qwen3-VL-2B it scores **76.3 vs the 75.0 oracle crop**. The 75–81% figure below is the
+> ceiling of a *perfectly placed crop*, not a ceiling on the task.
 
 ### §36A ✗ Centroid placement (on disk, both models): rejected
 Keep W=0.25, move the centre from the ridge's argmax to a centroid of its top-k cells. Rationale (§33): the
@@ -7071,8 +7075,8 @@ Hard midpoint is catastrophic on single-object (−35.7 / −32.2); the soft ver
 | single-instance | 96.5 / 93.9 | **3.5% / 6.1%** |
 | cross-instance | 75.0 / 77.6 | **25.0% / 22.4%** |
 
-**With perfect placement cross-instance still fails a quarter of the time — 7× the irreducible error of
-single-instance.** Allocation methods repair *perception*; the residual cross-instance error is reasoning about
+**With perfect CROP placement cross-instance still fails a quarter of the time — 7× the irreducible error of
+single-instance.** *Crop-based* allocation repairs *perception within one window*; the residual cross-instance error is reasoning about
 spatial relations, which no crop, multi-crop, centroid, composition or pruning schedule can reach. This is the
 single explanation for all ten failed designs (§14U, §18B, §18D, §18F, §18G, §18H, §18L, §32, §35, §36A) and for why
 §33's +17pp of object coverage converted to −2.6: the coverage was never the binding constraint.
@@ -7224,3 +7228,31 @@ probabilities change while accuracy does not).
 Qwen3-VL-8B has **36** layers; pruning at 0.57·36 = **L21** reproduces the behaviour of L16/28, and pruning at the
 naive L16 (44% depth, inside its transport window) costs **−7.9 pooled / −10.5 cross ✗** (the voided run, retained).
 This is an independent generalisation test of §20B's transport boundary on a differently-shaped model.
+
+## §40 ★★★ CROSS-INSTANCE IS SOLVED — BY RESOLUTION, NOT BY CROPPING (corrects §36B's scope)
+
+V*Bench cross-instance (n=76), every arm at ~the 600-token bar:
+
+| checkpoint | bar | ridge **crop** | **TSR (no crop)** | oracle *crop* | crop − bar | **TSR − bar** |
+|---|---|---|---|---|---|---|
+| Qwen3-VL-2B | 65.8 | 65.8 | **76.3** | 75.0 | +0.0 | **+10.5 [+2.6,+18.4] ✔** |
+| Qwen2-VL-7B | 59.2 | 68.4 | 61.8 | 77.6 | +9.2 | +1.3 |
+| Qwen2.5-VL-7B | 67.1 | 64.5 | **72.4** | 80.3 | −2.6 | +7.9 [−1.3,+17.1] |
+| Qwen3-VL-8B | 73.7 | 69.7 | **80.3** | 81.6 | −3.9 | **+7.9 [+1.3,+15.8] ✔** |
+
+**Cropping on cross-instance: 1 of 4 positive. TSR on cross-instance: 4 of 4 positive, 2 with CIs clear.**
+
+**The decisive number:** on Qwen3-VL-2B, TSR scores **76.3 against a 75.0 oracle crop** — it *exceeds the best
+possible crop*. §36B's "25% irreducible error at perfect placement" is therefore a property of the **crop primitive**,
+not of the task. A method that never crops is not bound by it.
+
+⇒ **Corrected statement of the scope law.** It is a law about **cropping**, not about allocation:
+*magnifying one region wins single-instance perception and costs cross-instance perception, for every
+attention-guided cropping method including ours (§34: single 7/7 positive, cross 6/7 non-positive).* Reallocating
+**resolution** — §26/§38/§39's TSR, question-agnostic, no crop, no router, at the bar's compute — wins cross-instance
+instead, in proportion to the checkpoint's measurable resolution headroom (§39: r=0.966, slope 1.01).
+
+⇒ **Paper consequence.** The honest structure is **two primitives with a measurable, label-free selection rule**, not
+one method with a scope limit: crop where the question is single-instance-like; reallocate resolution where headroom
+exists, measured offline as acc@900 − acc@600 on a held-out slice. That is not a router — no question classifier is
+involved, and the quantity is measured before deployment, not predicted per item.
