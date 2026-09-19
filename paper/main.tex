@@ -411,7 +411,8 @@ Pruning at the boundary is free in 9 of 10 cells; the exception (HR-Bench~8K, cr
 
 Attention-guided cropping reads the model's attention at a depth where that attention no longer carries the image to
 the answer. Measuring where it does --- a causal masking experiment, not a heuristic --- yields both a better
-read-out and a free pruning point, and the two together match a model running at $5.5\times$ the visual-token budget.
+read-out (TWR) and a free pruning point (TSR), and the two together match a model running at $5.5\times$ the
+visual-token budget.
 The remaining gap is placement: perfect placement at $600$ tokens exceeds native dynamic resolution by $11.6$ points.
 
 
