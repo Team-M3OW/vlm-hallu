@@ -136,6 +136,15 @@ ceases to matter.
 
 \section{Policy I: depth re-ranking}\label{sec:ridge}
 
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_pipe_ridge.pdf}
+\caption{\textbf{Policy I, the ridge depth filter.} One localisation pass, every layer's attention kept, a single
+closed-form solve that re-weights depths, and a crop. Nothing is selected: all $28$ layers enter the score, and the
+fitted weights are signed, so layers past the transport boundary subtract rather than add.}
+\label{fig:pipe_ridge}
+\end{figure}
+
+
 Localise at $300$ tokens with the full prompt (the read-out must be taken at the answer-emission position; without the
 answer instruction the map loses $36$--$42$ points). Read the final prompt token's attention over image cells at all
 $28$ layers. Score each cell by a single closed-form ridge solve,
@@ -163,6 +172,15 @@ and $60.7$, above every published rule but $3.7$ and $9.5$ points below the fitt
 
 \section{Policy II: transport-scheduled resolution}\label{sec:tsr}
 
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_pipe_tsr.pdf}
+\caption{\textbf{Policy II, transport-scheduled resolution.} Spend the compute the inert late-layer visual tokens
+would have used on resolution inside the window where the image is actually read. The prune depth is read off the
+causal measurement rather than tuned, and nothing spatial is discarded before the boundary.}
+\label{fig:pipe_tsr}
+\end{figure}
+
+
 Because visual tokens are inert past the boundary, discard them there and spend the saving on pixels: encode at $900$
 tokens, run full width through L0--L16, keep the top $10\%$ at L16, run L17--27 narrow. Token-layers
 $900{\times}17+90{\times}11=16{,}290$ --- $96\%$ of the bar, for $1.5\times$ the resolution. No crop.
@@ -185,6 +203,32 @@ depth rather than $0.57$ on the 36-layer checkpoint costs $7.9$ points pooled. C
 boundary saves less for no additional accuracy. One cut, at the measured boundary, dominates every schedule we tried.
 
 \section{Results}\label{sec:results}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_infer_ridge.pdf}
+\caption{\textbf{What the two read-out rules see, on real \vstar\ items} (Qwen3-VL-2B). The block-mean arg-max
+lands in the grid's \emph{last column} on $84.8\%$ of the $191$ items against a $5.0\%$ chance rate: it is reading
+the raster-serialisation sink, not the object, and it crops empty sky or water. The ridge lands there $5.8\%$ of
+the time, i.e.\ at chance, and covers at least half the ground-truth box on $63.9\%$ of items against $13.6\%$ for
+block-mean. \emph{Examples are not hand-picked}: we take single-instance items where the ridge crop covers the box
+and the block-mean crop does not \emph{and} the answers flip accordingly, restricted to items where the recomputed
+out-of-fold ridge cell reproduces the logged run exactly. Nine items qualify; these are the first three by
+question id.}
+\label{fig:infer_ridge}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_infer_tsr.pdf}
+\caption{\textbf{What survives the transport boundary, and why the choice of survivor does not matter}
+(Qwen3-VL-2B). Of $888$ visual tokens, $89$ are carried past L16. Ranking them by attention selects mostly border
+tokens --- the same sink Figure~\ref{fig:infer_ridge} exposes --- while a random keep of the same size overlaps it
+by only $7$--$9\%$, at the $10\%$ chance rate. Both give the same answer, and so does not pruning at all, on all
+three items; across the benchmark attention-keep and random-keep agree on $96.3\%$ of items ($70.2\%$ vs
+$68.6\%$ accuracy). The gain over the bar is resolution, not selection. Selection rule for the examples: TSR
+correct, the equal-compute bar wrong, and random keep agreeing with attention keep; $15$ items qualify.}
+\label{fig:infer_tsr}
+\end{figure}
+
 
 \begin{table}[h]\centering\small
 \caption{All placement rules in one run, \vstar, every arm at ${\sim}600$ visual tokens. \ok\ = 95\% CI clear.
@@ -425,6 +469,15 @@ Qwen2 suffix (answers flipped) & 53\% & 47\% & 40\% & 5\% & 3\% & \textbf{0\%}\\
 \end{tabular}\label{tab:prefix}
 \end{table}
 
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_transport.pdf}
+\caption{\textbf{The transport measurement.} (a) Masking one layer's image attention at a time: the effect is
+concentrated well before the boundary and is at or below $0.0023$ from L20 on both models. (b) Masking a prefix
+$L_0..\ell$ reaches the full-mask value (dotted) once $\ell$ passes the window. (c) Masking a suffix
+$L_\ell..\text{end}$ costs nothing once $\ell$ is past it. Three readings, one boundary.}
+\label{fig:transport}
+\end{figure}
+
 Single-layer masks peak at L11 on Qwen3 (KL $0.504$; next highest L13 at $0.101$) and at L15/L14 on Qwen2
 ($0.118$/$0.096$). From L20 onward every layer is at or below $0.0023$ on both models. On Qwen3-VL-8B, which has
 $36$ layers, the same behaviour appears at L21, i.e.\ the same $0.57$ fraction of depth.
@@ -515,6 +568,15 @@ that reported only the single-instance column would conclude it works everywhere
 
 \section{The resolution-headroom identity}\label{app:identity}
 
+\begin{figure}[h]\centering
+\includegraphics[width=0.52\textwidth]{figs/fig_identity.pdf}
+\caption{\textbf{TSR is a resolution converter.} Its gain over the equal-compute bar tracks the headroom the
+checkpoint already has, at rate $1.0$. The one cell where TSR loses is the one cell where the baseline itself is
+worse at $900$ tokens than at $600$.}
+\label{fig:identity}
+\end{figure}
+
+
 \begin{table}[h]\centering\small
 \caption{TSR's gain against the headroom $\mathrm{acc}(900)-\mathrm{acc}(600)$, for the ten stratum-cells that
 carry the \texttt{uniform@900} diagnostic. Pearson $r=0.966$, OLS slope $1.01$, mean
@@ -547,6 +609,25 @@ cross-instance at $-1.8$ [$-3.2,-0.5$], the only measurable price of discarding 
 this work. Pruning at the boundary is therefore free everywhere we have measured it but that one cell. We
 verified the pruning is applied rather than silently skipped at the distribution level: output probabilities change
 on $99\%$ of items while the arg-max changes on $2\%$. The discarded tokens are inert, not absent.
+
+\section{Scope and compute, as figures}\label{app:figs}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_scope.pdf}
+\caption{\textbf{The scope law.} Cropping is worth $+6$ to $+15$ points on single-instance questions in all seven
+cells and is negative on cross-instance in six of them. TSR is positive on both strata in six of seven, and gives
+up most of the single-instance gain to get there. The two policies are not variants of one method.}
+\label{fig:scope}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_native.pdf}
+\caption{\textbf{Accuracy against visual-token compute}, \vstar. The dashed line is the model run at its own
+native dynamic resolution. Our two policies sit on it at $14$--$18\%$ of its compute; the published rules sit
+significantly below it; and a perfectly placed $600$-token crop sits well above it. Placement is worth more than
+$5$--$7\times$ the tokens.}
+\label{fig:native}
+\end{figure}
 
 \section{Designs that did not work}\label{app:neg}
 

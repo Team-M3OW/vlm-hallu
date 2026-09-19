@@ -1,0 +1,9 @@
+flowchart LR
+  IMG["full image<br/>encode @300 tokens"] --> PASS["localisation pass<br/>attention from<br/><b>all 28 layers</b> kept"]
+  PASS --> RIDGE["<b>ridge depth filter</b><br/>s = Σ w_l·log A_l + Σ v_l·rank_l + geometry<br/>one closed-form solve, about 65 weights<br/><i>w_l is signed: layers past the boundary subtract</i>"]
+  RIDGE --> CELL["arg max cell<br/>0.25 × 0.25 window"]
+  CELL --> ANS["crop, re-encode @300<br/><b>answer</b><br/>600 tokens total = the bar"]
+  classDef m fill:#dbeafe,stroke:#1e40af,stroke-width:1.4px,color:#0b2545
+  classDef k fill:#dcfce7,stroke:#1a7f37,stroke-width:2.2px,color:#052e16
+  class RIDGE k
+  class IMG,PASS,CELL,ANS m

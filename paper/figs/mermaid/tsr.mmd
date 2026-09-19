@@ -1,0 +1,9 @@
+flowchart LR
+  IMG["full image<br/>encode @900 tokens<br/>1.5× the bar's resolution"] --> EARLY["layers 0–16, full width<br/>all 900 visual tokens<br/><i>the transport window</i>"]
+  EARLY --> BND["<b>transport boundary</b><br/>L16 = 0.57 × depth<br/>measured causally, not tuned<br/>keep 10%, drop the other 90%<br/><i>random keep matches<br/>attention keep on 96% of items</i>"]
+  BND --> LATE["layers 17–27<br/>90 visual tokens<br/><i>image already transported</i>"]
+  LATE --> ANS["<b>answer</b><br/>900×17 + 90×11 = 16,290<br/>token-layers<br/>vs uniform@600 = 16,800"]
+  classDef m fill:#dbeafe,stroke:#1e40af,stroke-width:1.4px,color:#0b2545
+  classDef k fill:#dcfce7,stroke:#1a7f37,stroke-width:2.2px,color:#052e16
+  class BND k
+  class IMG,EARLY,LATE,ANS m
