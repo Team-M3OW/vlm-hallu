@@ -7187,7 +7187,10 @@ claim in the project. Scripts: phase192_tsr_newmodel.py, phase192_analyze.py.
 | cross | 72.4 | **80.3** | **+7.9 [+1.3,+15.8] ✔** | +6.6 | +1.3 |
 | **ALL** | 67.5 | **74.9** | **+7.3 [+2.6,+12.1] ✔** | +6.8 ✔ | +0.5 |
 
-**First cell in the project where a single question-agnostic method clears the equal-compute bar on BOTH strata.**
+**Positive on both strata with the pooled CI clear** — the strongest single-cell result in the project.
+⚠ **CORRECTED (§43):** an earlier draft of this line claimed it "clears the bar on BOTH strata" with CIs clear. A
+paired re-check on the common item set gives single **+7.0 [+0.0,+13.9]** — borderline, not clear. **No cell in the
+project has any method significantly positive on both strata simultaneously** (see §43).
 It is also the checkpoint the crop-based method could never beat (§34: ridge +6.1 single n.s., −3.9 cross).
 The transport boundary **transfers as a fraction of depth**: 0.57·36 = L21 on a 36-layer model, and the identity holds
 (+7.0 vs +7.0 single, +7.3 vs +6.8 pooled) — **11 of 12 stratum-cells** now within ~2pp of the measured headroom.
@@ -7324,3 +7327,32 @@ intermediate-metric gap (§14W, §24, §30B, §29, now here).
 prefill reduction, versus TSR's 35% at the boundary. For deployments that are compute-bound rather than
 accuracy-bound this dominates TSR; for accuracy at fixed compute it does not.
 Scripts: phase189a_hidden_probe_dump.py, phase189f_objprune.py, phase189f_analyze.py.
+
+## §43 IS THERE ONE METHOD THAT WORKS ON BOTH STRATA? Yes for "never hurts"; no for "significantly wins both"
+
+Per-cell check, both strata simultaneously, everything at the ~600-token bar:
+
+| cell | TSR single | TSR cross | both +? | CROP single | CROP cross | both +? |
+|---|---|---|---|---|---|---|
+| V* Qwen3-VL-2B | +3.5 | **+10.5 ✔** | **YES** | **+14.8 ✔** | +0.0 | no |
+| V* Qwen2-VL-7B | +3.5 | +1.3 | **YES** | **+13.9 ✔** | +9.2 | YES |
+| V* Qwen2.5-VL-7B | **+12.2 ✔** | +7.9 | **YES** | **+12.2 ✔** | −2.6 | no |
+| V* Qwen3-VL-8B | +7.0 | **+7.9 ✔** | **YES** | +6.1 | −3.9 | no |
+| HR-4K Qwen3-VL-2B | **+4.0 ✔** | −2.8 | no | **+10.2 ✔** | **−8.8 ✗** | no |
+| HR-4K Qwen2-VL-7B | +2.8 | +0.8 | **YES** | **+9.2 ✔** | **−6.0 ✗** | no |
+| HR-8K Qwen3-VL-2B | **+6.5 ✔** | +1.8 | **YES** | **+8.8 ✔** | **−8.8 ✗** | no |
+
+```
+TSR : positive on BOTH strata in 6/7 cells | significant on both in 0/7 | significantly NEGATIVE on either in 0/7
+CROP: positive on BOTH strata in 1/7 cells | significant on both in 0/7 | significantly negative on cross in 3/7
+```
+
+**Answer, stated two ways.**
+1. *"A method that never hurts either question type"* — **yes, TSR.** 13/14 stratum-cells positive, zero significant
+   losses, one forward pass, no boxed supervision. Its single failure to be positive (HR-4K-Qwen3 cross, −2.8 n.s.)
+   is a cell where the *baseline itself* degrades with resolution (headroom −3.0), so nothing was available to win.
+2. *"A method that significantly wins both question types on the same cell"* — **no, and neither method does anywhere.**
+   At n=76 per stratum on V*Bench the per-stratum CI half-width is ~10pp, so a simultaneous double-significant result
+   may not be reachable at this sample size regardless of the method. **This is a power limitation as much as a
+   method limitation and must be stated as such in the paper.** HR-Bench (n=400/stratum) has the power but is the
+   benchmark where cross-instance resolution headroom is smallest (−3.0 to +3.5).
