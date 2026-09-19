@@ -88,6 +88,17 @@ oppositely and that pooling them conceals it.
 \textbf{Statistics.} Paired item bootstrap, 8000 resamples. Learned components use GroupKFold(5) by item $\times$ 3
 seeds. A claim must hold on at least two checkpoints or it is reported as rejected.
 
+
+\begin{figure}[t]\centering
+\includegraphics[width=\textwidth]{figs/fig_depthfilter.pdf}
+\caption{\textbf{The fitted depth filter sits after the transport window.} Bars: the ridge filter's weights
+$w_\ell$ (\gd{green} positive, \bad{red} negative), normalised. Line: the causal transport profile --- the output KL
+caused by masking text-to-image attention at layer $\ell$ alone. Grey band: the layers the conventional block-mean
+read-out averages at $+1$. Yellow band: the question-conditioned read-out band. Dashed line: the depth beyond which
+masking \emph{all} remaining layers flips no answers. The filter assigns negative weight to 7 of the 11 block-mean
+layers, and its positive mass lies where transport has already finished.}\label{fig:filter}
+\end{figure}
+
 \section{Where the image reaches the answer}\label{sec:transport}
 
 We install a hook that masks a chosen set of query positions from attending to the image-token columns, at chosen
@@ -133,9 +144,22 @@ s(\text{cell})=\textstyle\sum_\ell w_\ell\log A_\ell+\sum_\ell v_\ell\,\mathrm{r
 \]
 fit on as few as $50$ boxed examples. Crop $W{=}0.25$ at the arg-max, re-encode at $300$ tokens, answer.
 
-The fitted $w_\ell$ \emph{is} the depth filter. It takes both signs: it assigns \emph{negative} weight to 7 of the 11
-layers the conventional block-mean read-out adds at $+1$, and its largest positive weight falls in the band where
-attention first becomes question-conditioned. There is no boosting, no learning rate, no early stopping.
+The fitted $w_\ell$ \emph{is} the depth filter (Figure~\ref{fig:filter}). It takes both signs: it assigns
+\emph{negative} weight to 7 of the 11 layers the conventional block-mean read-out adds at $+1$, and its largest
+positive weight falls in the band where attention first becomes question-conditioned. There is no boosting, no
+learning rate, no early stopping, no seed averaging --- given the data the solution is unique.
+
+\paragraph{Why re-weighting and not selection.} On the items the conventional read-out gets wrong, the filter ranks
+the target cell above the cell the arg-max chose on $57\%$ and $71\%$ of items, against $13\%$ and $12\%$ for the
+block mean. No monotone summary of the depth profile reproduces this --- not magnitude, neighbourhood, isolation, or
+a windowed sum --- because the correction requires subtraction, and a mean can only add.
+
+\paragraph{Ablations.} A gradient-boosted tree over the same features is statistically indistinguishable from the
+ridge on all four architectures, so the closed form costs nothing. Capacity is not the limit at this sample size: a
+spatial CNN is \emph{significantly worse} on the 7B ($-8.9$ and $-9.4$ at two window sizes), and nine random seeds,
+flip augmentation and ensembling all land inside the noise floor. Roughly $50$ boxed examples recover $70\%$ of the
+full-data gain. A training-free variant --- the maximum over the four question-conditioned layers --- reaches $68.9$
+and $60.7$, above every published rule but $3.7$ and $9.5$ points below the fitted filter.
 
 \section{Policy II: transport-scheduled resolution}\label{sec:tsr}
 
@@ -149,8 +173,16 @@ inert, not absent.
 
 \paragraph{An identity.} Across $4$ checkpoints $\times$ $3$ benchmarks, TSR's gain equals the checkpoint's
 \emph{measurable resolution headroom} $\mathrm{acc}(900)-\mathrm{acc}(600)$ on that stratum: $r=0.966$, slope $1.01$,
-mean absolute error $0.7$ points over 10 stratum-cells. The headroom needs two baseline runs and no method, so TSR's
-benefit is predictable before deployment.
+mean absolute error $0.7$ points over 10 stratum-cells. The headroom needs two baseline runs and no method at all, so
+TSR's benefit is \emph{predictable before deployment} --- and it explains the cells where TSR gains little: those are
+the cells where the checkpoint gains little from resolution in the first place, including one where the baseline
+itself degrades from $600$ to $900$ tokens.
+
+\paragraph{The boundary is the right depth, not merely a cheap one.} Pruning the same fraction at layer~2 (the FastV
+default) costs $4.7$ points more; a causally-scheduled taper that prunes $50\%$ inside the transport window costs
+$5.8$ points more than one cut at the boundary and loses to PyramidDrop's fixed schedule; and pruning at $0.14$ of
+depth rather than $0.57$ on the 36-layer checkpoint costs $7.9$ points pooled. Conversely, pruning \emph{after} the
+boundary saves less for no additional accuracy. One cut, at the measured boundary, dominates every schedule we tried.
 
 \section{Results}\label{sec:results}
 
@@ -185,30 +217,62 @@ The field publishes these benchmarks at the model's native dynamic resolution. O
 $3{,}290$ visual tokens --- $5.5\times$ our bar --- and $76.3\%$ accuracy.
 
 \begin{table}[h]\centering\small
-\caption{Against native dynamic resolution, Qwen3-VL-2B, \vstar, $n=190$. Our arms use $18\%$ of native's compute.}
+\caption{\textbf{Against native dynamic resolution.} \vstar. Our arms use $600$ visual tokens; native uses
+$3{,}290$ (Qwen3) and $4{,}320$ (Qwen2), i.e.\ $5.5\times$ and $7.2\times$ more. \ok/\no\ mark CIs clear of zero.}
 \begin{tabular}{lcccc}
 \toprule
-arm & visual tokens & single & cross & vs.\ NATIVE (pooled)\\
+& \multicolumn{2}{c}{Qwen3-VL-2B ($n{=}190$)} & \multicolumn{2}{c}{Qwen2-VL-7B ($n{=}187$)}\\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+arm & accuracy & vs.\ NATIVE & accuracy & vs.\ NATIVE\\
 \midrule
-NATIVE dynamic resolution & $3{,}290$ & 74.6 & 78.9 & ---\\
-\texttt{uniform@600} (bar) & $600$ & 62.3 & 65.8 & \bad{$-12.6$\ci{-19.5}{-5.8}} \no\\
-block-mean arg-max & $600$ & 64.0 & 59.2 & \bad{$-14.2$\ci{-22.6}{-5.8}} \no\\
-LASER & $600$ & 64.0 & 65.8 & \bad{$-11.6$\ci{-20.0}{-3.2}} \no\\
-TSR (ours) & $600$ & 65.8 & \gd{76.3} & $-6.3$\ci{-12.6}{+0.0}\\
-\textbf{ridge filter (ours)} & $600$ & \gd{\textbf{77.2}} & 65.8 & $-3.7$\ci{-12.1}{+4.2}\\
+NATIVE dynamic resolution & 76.3 & --- & 71.1 & ---\\
+\texttt{uniform@600} (bar) & 63.7 & \bad{$-12.6$}~\no & 58.3 & \bad{$-12.8$}~\no\\
+block-mean arg-max & 62.1 & \bad{$-14.2$}~\no & 59.4 & \bad{$-11.8$}~\no\\
+LASER \citep{laser} & 64.7 & \bad{$-11.6$}~\no & 61.5 & \bad{$-9.6$}~\no\\
+TSR (ours) & 70.0 & $-6.3$ & 61.5 & \bad{$-9.6$}~\no\\
+\textbf{ridge filter (ours)} & \gd{\textbf{72.6}} & $-3.7$ & \gd{\textbf{70.6}} & $-0.5$\\
 \midrule
-\emph{oracle crop} & $600$ & \emph{96.5} & \emph{75.0} & \gd{$+11.6$\ci{+4.2}{+18.9}} \ok\\
+\emph{oracle crop @600} & \emph{87.9} & \gd{$+11.6$}~\ok & \emph{87.7} & \gd{$+16.6$}~\ok\\
 \bottomrule
 \end{tabular}\label{tab:native}
 \end{table}
 
-Three readings. Our methods are \emph{statistically indistinguishable} from native resolution at $18\%$ of its
-compute, while the published rules are \emph{significantly worse} than native. Per stratum, the ridge filter at $600$
-tokens matches native on single-instance ($+2.6$) and TSR matches it on cross-instance ($-2.6$). And a perfectly
-placed $600$-token crop \emph{beats} native by $+11.6$ pooled and $+21.7$ on single-instance: placement is worth more
-than $5.5\times$ the compute.
+Three readings, both checkpoints. \textbf{(i)} The ridge filter is \emph{statistically indistinguishable} from
+native dynamic resolution ($-3.7$ and $-0.5$, CIs spanning zero) while using $18\%$ and $14\%$ of native's
+visual-token compute --- whereas every published rule is \emph{significantly worse} than native ($-9.6$ to $-14.2$).
+The separation between our read-out and theirs is therefore not an artefact of the imposed budget; it is larger in the
+regime the field actually publishes in. \textbf{(ii)} Per stratum on Qwen3, the ridge filter at $600$ tokens matches
+native on single-instance ($+2.6$) and TSR matches it on cross-instance ($-2.6$), each at a fifth of the compute.
+\textbf{(iii)} A perfectly placed $600$-token crop \emph{beats} native by $+11.6$ and $+16.6$ pooled, and by $+21.7$
+on single-instance: \textbf{placement is worth more than $5$--$7\times$ the compute}. This is the strongest single
+argument for allocation research, and it is a ceiling nobody has approached.
 
 \subsection{A scope law}\label{sec:scope}
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The scope law.} Accuracy difference vs.\ the equal-compute bar, per stratum, all seven
+benchmark~$\times$~checkpoint cells. Cropping helps single-instance everywhere and is non-positive on cross-instance
+almost everywhere; TSR is positive on both strata in 6 of 7 cells but gives up single-instance gain.}
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{ridge crop (2 passes, ${\sim}50$ boxes)} & \multicolumn{2}{c}{TSR (1 pass, no supervision)}\\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+cell & single & cross & single & cross\\
+\midrule
+\vstar\ Qwen3-VL-2B & \gd{+14.8}~\ok & +0.0 & +3.5 & \gd{+10.5}~\ok \\
+\vstar\ Qwen2-VL-7B & \gd{+13.9}~\ok & +9.2 & +3.5 & +1.3 \\
+\vstar\ Qwen2.5-VL-7B & \gd{+12.2}~\ok & $-2.6$ & \gd{+12.2}~\ok & +7.9 \\
+\vstar\ Qwen3-VL-8B & +6.1 & $-3.9$ & +7.0 & \gd{+7.9}~\ok \\
+HR-4K Qwen3-VL-2B & \gd{+10.2}~\ok & \bad{$-8.8$}~\no & \gd{+4.0}~\ok & $-2.8$ \\
+HR-4K Qwen2-VL-7B & \gd{+9.2}~\ok & \bad{$-6.0$}~\no & +2.8 & +0.8 \\
+HR-8K Qwen3-VL-2B & \gd{+8.8}~\ok & \bad{$-8.8$}~\no & \gd{+6.5}~\ok & +1.8 \\
+\midrule
+positive cells & \textbf{7/7} & 1/7 & \textbf{7/7} & \textbf{6/7}\\
+significant losses & 0 & \textbf{3} & 0 & \textbf{0}\\
+\bottomrule
+\end{tabular}\label{tab:scope}
+\end{table}
+
 
 Across 14 cells (3 benchmarks $\times$ 4 checkpoints $\times$ 2 strata), attention-guided cropping helps
 single-instance perception in $7/7$ and is non-positive on cross-instance in $6/7$, significantly negative in three
@@ -220,9 +284,41 @@ The ceiling explains why cropping cannot be repaired here. With \emph{perfect} p
 $25\%$ and $22\%$ of the time against $3.5\%$ and $6.1\%$ for single-instance. Cross-instance error is not
 predominantly perceptual, and no crop, multi-crop, composition or pruning schedule reached it (\S\ref{sec:neg}).
 
+
+\section{Related work}\label{sec:related}
+
+\textbf{Attention-guided cropping.} ViCrop~\citep{vicrop} crops at the peak of a fixed mid-layer attention map;
+ZoomEye~\citep{zoomeye} searches a tree of crops with repeated model queries; VisLens feeds the crop back alongside
+the original image. All fix the read-out depth by hand, and none budget-match against simply spending the same tokens
+on resolution --- Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
+
+\textbf{Layer-adaptive read-outs.} LASER~\citep{laser} selects the attention layer per sample by contrasting the map
+with and without the query, and reports that no single ``magic layer'' suffices --- a conclusion we reach
+independently and extend causally. ILVAD accumulates newly-activated tokens across adjacent layers;
+TRACE identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo reports our cross-instance
+finding (``patch-based zooming can destroy global spatial context'') and resolves it with a three-way router keyed on
+object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
+(i) the causal localisation of the transport window rather than a correlational choice of layer, (ii) a signed
+\emph{re-weighting} across all depths rather than a selection among them, and (iii) budget-matched, stratified
+evaluation including against native resolution.
+
+\textbf{Depth selection in language models.} DoLa~\citep{dola} contrasts a mature and a premature layer; SLED
+weights all early layers by gradient alignment; confident-layer decoding stops at an entropy valley near the output.
+We port each to this setting and all fail (\S\ref{sec:neg}) for one measurable reason: in these vision--language
+models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\%$ reported for language models ---
+yet per-layer accuracy still climbs monotonically to the last layer. There is no better layer to select, which is why
+re-weighting works where selection does not.
+
+\textbf{Visual-token pruning.} FastV prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
+fixed ratio; HiRED allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
+derive the pruning depth from the transport measurement rather than tuning it, and show that at that depth the
+\emph{choice} of surviving tokens is irrelevant --- random keep matches attention keep --- while one layer earlier it
+is worth $+8.4$ and $+8.9$ points.
+
 \section{What does not work}\label{sec:neg}
 
-Eleven designs failed to make cropping serve cross-instance questions, each for a diagnosed reason: per-item window
+Eleven designs failed to make cropping serve cross-instance questions. We report them because the diagnoses
+constrain the design space more than the successes do. Each failed for a measured reason: per-item window
 sizing; peak-spanning and mass-containment windows; joint (cell, window) re-ranking under a coverage objective (a
 metric artefact --- coverage is monotone in window size); expected-accuracy window selection; a downscaled scene
 composed with the crop, which dilutes it by $5$--$9$ points \emph{even at oracle placement}; multi-crop at matched
@@ -231,6 +327,17 @@ full resolution funded by pruning. Depth \emph{selection} rules ported from the 
 --- DoLa, SLED, confident-layer decoding, attention-JSD, rank-stability --- all fail, for one reason: in these models
 final-layer entropy rises on $54$--$88\%$ of items while per-layer accuracy still climbs monotonically to the last
 layer. There is no better layer to select.
+
+\section{Practical guidance}\label{sec:guide}
+
+The two policies have different cost and risk profiles, and the choice does not require a question classifier. The
+ridge filter needs ${\sim}50$ boxed examples, two forward passes and $1.4$--$2.0\times$ wall-clock; it has the higher
+ceiling ($+14.8$ on single-instance) and a $6$--$9$ point cross-instance failure mode. TSR needs no supervision, one
+forward pass and ${\sim}1\times$ wall-clock; it is positive on both strata in 6 of 7 cells with no significant loss
+anywhere, and its benefit is predictable from two baseline runs. Head to head the two are even pooled (mean
+difference $+0.2$ points over seven cells). We recommend TSR as the default and the ridge filter where boxed
+supervision exists and single-instance perception dominates. We note that the ridge filter's pooled margin over TSR
+is concentrated on the two cells on which it was developed.
 
 \section{Limitations}\label{sec:lim}
 
@@ -246,6 +353,41 @@ Attention-guided cropping reads the model's attention at a depth where that atte
 the answer. Measuring where it does --- a causal masking experiment, not a heuristic --- yields both a better
 read-out and a free pruning point, and the two together match a model running at $5.5\times$ the visual-token budget.
 The remaining gap is placement: perfect placement at $600$ tokens exceeds native dynamic resolution by $11.6$ points.
+
+
+\appendix
+\section{Experimental protocol}\label{app:proto}
+
+\textbf{Models.} Qwen3-VL-2B-Instruct and Qwen2-VL-7B-Instruct (core pair), Qwen2.5-VL-7B-Instruct, Qwen3-VL-8B-Instruct
+(36 layers), LLaVA-NeXT-7B and LLaVA-OneVision-7B (attention analyses only). \texttt{bfloat16}; eager attention
+wherever hooks or a prune bias are required, SDPA otherwise. We note a ${\sim}2$ point kernel-dependent difference on
+the 7B between the two implementations and always compare arms computed under the same kernel.
+
+\textbf{Budgets.} Images are resized so that the processor's own \texttt{image\_grid\_thw} yields the target token
+count ($\pm 8\%$); realised counts are recorded per arm and a contrast is voided if budgets drift by more than $10\%$.
+Where pruning changes cost mid-network we report token-layers.
+
+\textbf{Read-out.} The attention map is the final prompt token's attention over image-token columns, averaged over
+heads \emph{before} normalising (the order matters: normalising per head first up-weights sink-heavy heads and shifts
+the block-mean read-out by $11$ points on the 7B). The prompt must end at the answer-emission point; a prompt ending
+elsewhere costs $36$--$42$ points on the arg-max read-out.
+
+\textbf{Statistics.} Paired item bootstrap with 8000 resamples. Learned components use GroupKFold(5) grouped by item
+$\times$ 3 seeds; the headline ridge result is additionally reproduced under a disjoint fold-seed set (difference
+within $\pm1$ point). Run-to-run floor on coverage is $1$--$2.5$ points.
+
+\textbf{Pipeline discipline.} An exactly $+0.0$ contrast with a $[+0.0,+0.0]$ interval is treated as a pipeline fault,
+never a result; this rule caught a monkey-patch that silently failed to reach one model family. Every pruning run
+asserts at runtime that the loaded model's attention module is the one that was patched.
+
+\section{Intermediate metrics systematically over-report}\label{app:proxy}
+
+Five times in this work an intermediate metric improved while end-task accuracy did not: a read-out that closed the
+coverage gap but converted $3.1$ points worse; a ridge variant that tied on coverage and differed on the chosen cell
+for two-thirds of items; an early-exit localiser free in coverage but $-3.7$ pooled at the end task; a
+higher-resolution localiser that gained $+4.2$ coverage and $-3.7$ accuracy; and an objectness probe that retains the
+evidence box far better than attention ($87\%$ vs.\ $72\%$) and converts to $-1.6$. We therefore report coverage only
+as a diagnostic and gate every claim on end-task accuracy at matched compute.
 
 \bibliography{refs}
 \bibliographystyle{iclr2027_conference}
