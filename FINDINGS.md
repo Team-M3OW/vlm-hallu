@@ -7256,3 +7256,35 @@ instead, in proportion to the checkpoint's measurable resolution headroom (§39:
 one method with a scope limit: crop where the question is single-instance-like; reallocate resolution where headroom
 exists, measured offline as acc@900 − acc@600 on a held-out slice. That is not a router — no question classifier is
 involved, and the quantity is measured before deployment, not predicted per item.
+
+## §41 ★★★ RISK PROFILES: TSR never hurts; the crop has a 6-9 point failure mode. Pooled they are even.
+
+Prompted by the question "does TSR hurt single-object questions?" — it does not. Full comparison, both strata, all
+seven benchmark-checkpoint cells, everything at the ~600-token bar:
+
+| cell | TSR single | TSR cross | CROP single | CROP cross |
+|---|---|---|---|---|
+| V* Qwen3-VL-2B | +3.5 | **+10.5 ✔** | **+14.8 ✔** | +0.0 |
+| V* Qwen2-VL-7B | +3.5 | +1.3 | **+13.9 ✔** | +9.2 |
+| V* Qwen2.5-VL-7B | **+12.2 ✔** | +7.9 | **+12.2 ✔** | −2.6 |
+| V* Qwen3-VL-8B | +7.0 | **+7.9 ✔** | +6.1 | −3.9 |
+| HR-4K Qwen3-VL-2B | **+4.0 ✔** | −2.8 | **+10.2 ✔** | **−8.8 ✗** |
+| HR-4K Qwen2-VL-7B | +2.8 | +0.8 | **+9.2 ✔** | **−6.0 ✗** |
+| HR-8K Qwen3-VL-2B | **+6.5 ✔** | +1.8 | **+8.8 ✔** | **−8.8 ✗** |
+
+```
+TSR  vs bar:  single 7/7 positive (min +2.8)   cross 6/7 positive (min −2.8)   → 13/14 cells positive, 0 significant losses
+CROP vs bar:  single 7/7 positive (min +6.1)   cross 1/7 positive (min −8.8)   →  8/14 cells positive, 3 significant losses
+POOLED (natural benchmark mix): TSR better on 3 cells, CROP better on 2, tied on 2.
+```
+
+⇒ **TSR is the better single question-agnostic method, despite being weaker on single-instance.** It trades 3–10
+points of single-instance gain for the removal of a 6–9 point cross-instance failure mode, lands **even pooled**,
+needs **no boxed supervision** (the crop's ridge needs ~50), and adds no second forward pass. The crop wins only
+where the benchmark is single-instance-heavy *and* the checkpoint has little resolution headroom — i.e. V*Bench on
+Qwen3-VL-2B and Qwen2-VL-7B, **the two cells the method was developed on**. This is a selection-bias warning about
+our own development set and belongs in the paper as one.
+
+⇒ **Revised recommendation.** Lead with TSR as the default allocation policy; present depth re-ranking as the
+higher-ceiling option for single-instance-dominated deployments where ~50 boxes are available. The depth-filter
+mechanism (§19/§21) and the transport measurement (§20B/§39) underpin both and are unchanged.
