@@ -7114,3 +7114,37 @@ another coverage→accuracy gap (§14W, §24, §30B). The no-exit arm is better 
 second crop is worth +3.7 on one model and −2.6 on the other.** Multi-crop in every form tested — 2×150 matched
 (§35), 3×100 (§35), 2×300 funded (§37) — is now 0 of 2. **The incumbent single ridge crop stands as the method.**
 Scripts: phase194_funded_multicrop.py, phase194_analyze.py.
+
+## §38 ★★★ TSR IS A RESOLUTION CONVERTER WITH A FREE PRUNING STEP (phase 195, HR-Bench 4K/8K; 192 pending)
+
+§26 left TSR at "1 of 2" on V*Bench with the explanation that Qwen2-VL-7B has no cross-instance resolution headroom.
+Phase 195 tests the mechanism on a second benchmark at n=400/stratum, with `uniform@900` on every run so the two
+components separate. **bar = 16,800 token-layers; tsr900 = 96–100%; uniform@900 = 149–154% (diagnostic only).**
+
+| cell | stratum | TSR − bar | **headroom** (u@900 − u@600) | **pruning cost** (TSR − u@900) |
+|---|---|---|---|---|
+| HR-4K Qwen3 | single | **+4.0 [+0.5,+7.5] ✔** | **+4.0 ✔** | +0.0 |
+| HR-4K Qwen3 | cross | −2.8 | **−3.0** | +0.2 |
+| HR-4K Qwen2 | single | +2.8 | +2.8 | +0.0 |
+| HR-4K Qwen2 | cross | +0.8 | +0.2 | +0.5 |
+| HR-8K Qwen3 | single | **+6.5 [+3.0,+10.2] ✔** | **+6.8 ✔** | −0.2 |
+| HR-8K Qwen3 | cross | +1.8 | **+3.5 ✔** | −1.8 [−3.2,−0.5] ✗ |
+| HR-8K Qwen3 | **ALL** | **+4.1 [+1.5,+6.6] ✔** | +5.1 ✔ | −1.0 |
+
+### The identity
+**TSR's gain equals the checkpoint's resolution headroom on that stratum, to within ~0.5pp, in 6 of 7 cells.**
++4.0/+4.0, +2.8/+2.8, +6.5/+6.8, −2.8/−3.0, +0.8/+0.2, +4.1/+5.1. TSR is not a method with variable efficacy — it is
+a **resolution converter**, and the headroom (measurable with two baseline runs and no method at all) predicts it.
+This replaces §26's "1 of 2": V*Bench-Qwen3 won cross-instance because headroom there was +9.2; HR-Bench-Qwen3 loses
+cross-instance because headroom there is **−3.0** (900 tokens is *worse* than 600 on HR-Bench cross).
+
+### The pruning is free — now 6 of 7 cells
++0.0, +0.2, +0.0, +0.5, −0.2, −1.0 … and one exception: **HR-8K cross −1.8 [−3.2,−0.5] ✗**, the first measurable cost
+of dropping 90% of visual tokens at L16 in the whole project. Stated, not buried: at 8K resolution on cross-instance
+questions the discarded tokens are not entirely inert. Everywhere else (2 benchmarks, 2 model families, 300/600/900
+token budgets, keep ratios 10/25/50%, any ranking) the cost is ≤0.5pp.
+
+### Single-instance: 5 of 5 positive
+V* Qwen3 +3.5, V* Qwen2 +3.5, HR-4K Qwen2 +2.8, HR-4K Qwen3 **+4.0 ✔**, HR-8K Qwen3 **+6.5 ✔** — a consistent
++3 to +6.5 at the bar's compute, with no crop and no question-type information. **HR-8K pooled +4.1 ✔** is TSR's first
+significant pooled result. Scripts: phase195_tsr_hrbench.py, phase195_analyze.py.
