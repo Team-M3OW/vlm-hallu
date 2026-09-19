@@ -7429,3 +7429,42 @@ rather than assumed. Qwen3-VL-2B, V*Bench, n=190. **Native = 3,290 visual tokens
    fifth of the compute, where published allocation methods fall 12-14 points short of it**".
 
 Qwen2-VL-7B leg pending. Script: phase197_native.py.
+
+## §46 ★★ THE BLOCK-MEAN ARG-MAX IS READING THE SINK — measured directly, for the paper's inference figures
+
+Computed while building the paper's qualitative figures (`scripts/fig_ridge_scores.py`, Qwen3-VL-2B, V*Bench,
+n=191, 300-token maps, BLK=L16–26, W=0.25). All three numbers are from the cached maps, no model run:
+
+| quantity | block-mean arg-max | ridge | chance |
+|---|---|---|---|
+| pick lands in the grid's **last column** | **84.8%** | **5.8%** | 5.0% |
+| pick lands in the top row | 80.1% | 0.5% | — |
+| pick lands in the first column | 2.1% | 4.2% | 5.0% |
+| **coverage ≥ 0.5 of the GT box** | **13.6%** | **63.9%** | — |
+| mean coverage | 0.139 | 0.642 | — |
+
+**The deployed block-mean read-out picks a last-column cell on 85% of items, 17× chance.** This is §6A's columnar
+sink (col = gw−1, the token before a raster row-wrap), not a corner effect — the first column is at chance and the
+top-row co-occurrence is a consequence of the argmax within that column, not a row effect. It is the mechanistic
+reason fixed-layer and block-mean cropping are catastrophic (24.6/33.9 in §25): they crop the serialization artifact.
+**The ridge is at chance on the last column (5.8% vs 5.0%)** — the signed negative weights on post-boundary layers
+are what remove it.
+
+⚠ Consistent with §6A (columnar), *not* with the withdrawn Phase 30b "sinks sit at the corners" reading.
+
+### §46B  The TSR survivor set is mostly sink tokens — which is why random keep matches it
+`scripts/fig_tsr_dump.py` (reuses phase185 machinery verbatim, runtime assert on the patched attention module),
+3 items, encode target 900 (realised 888), keep 10% (89 tokens):
+
+| item | attention-keep vs random-keep overlap | tsr900 | tsr900_rand | uniform@900 | uniform@600 |
+|---|---|---|---|---|---|
+| direct_attributes/9 | 9% | ✔ | ✔ | ✔ | ✗ |
+| direct_attributes/32 | 7% | ✔ | ✔ | ✔ | ✗ |
+| relative_position/129 | 8% | ✔ | ✔ | ✔ | ✗ |
+
+Overlap is at the 10% chance rate, yet the answer is identical, and identical to not pruning at all. Benchmark-wide
+(phase185, n=191): **attention-keep and random-keep give the same answer on 96.3% of items** (70.2% vs 68.6%).
+Visually the attention ranking selects mostly border tokens — the same columnar sink as §46 — so "rank by attention
+at L16" is close to "rank by sinkiness", which carries no object information. This is the mechanism behind §42's
+"the choice of surviving tokens is irrelevant at the boundary".
+
