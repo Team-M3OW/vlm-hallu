@@ -7148,3 +7148,30 @@ token budgets, keep ratios 10/25/50%, any ranking) the cost is ≤0.5pp.
 V* Qwen3 +3.5, V* Qwen2 +3.5, HR-4K Qwen2 +2.8, HR-4K Qwen3 **+4.0 ✔**, HR-8K Qwen3 **+6.5 ✔** — a consistent
 +3 to +6.5 at the bar's compute, with no crop and no question-type information. **HR-8K pooled +4.1 ✔** is TSR's first
 significant pooled result. Scripts: phase195_tsr_hrbench.py, phase195_analyze.py.
+
+### §38B Qwen2.5-VL-7B — TSR's best checkpoint result, and a distribution-level proof the pruning is real
+| stratum | bar | **tsr900 (96% of bar)** | TSR − bar | headroom (u@900−u@600) | pruning cost (TSR−u@900) |
+|---|---|---|---|---|---|
+| single | 54.8 | **67.0** | **+12.2 [+4.3,+20.0] ✔** | +12.2 | +0.0 |
+| cross | 64.5 | **72.4** | +7.9 [−1.3,+17.1] | +5.2 | +2.6 |
+| **ALL** | 58.6 | **69.1** | **+10.5 [+4.2,+16.8] ✔** | +9.5 | +1.0 |
+
+**The identity holds again** (+12.2 vs +12.2 single, +10.5 vs +9.5 pooled): **8 of 9 stratum-cells** now have TSR's
+gain within ~2pp of the measured resolution headroom.
+
+⚠ **Two pipeline faults found and voided in this phase — both by the project's own rules.**
+1. **`qwen2_5_vl` was never patched.** The prune bias is injected by monkey-patching `eager_attention_forward`, which
+   covered `qwen3_vl`/`qwen2_vl` only. Qwen2.5-VL's attention lives in a third module, so pruning was a silent no-op:
+   `tsr900` was byte-identical to `uniform@900` (149% of bar) and would have been reported as +12.2/+9.4 ✔.
+   Caught by the **exact +0.0 [+0.0,+0.0] = pipeline fault** rule (§93b). Fix: patch every `qwen*_vl` module and
+   **assert at runtime that the loaded model's attention module is one we patched** (now printed per run).
+2. **The `ARMS` tuple hardcoded prune layer 16.** On Qwen3-VL-8B (**36 layers**) the per-model depth
+   `round(0.57·NL)=21` was computed and printed but never used, so it pruned at 44% depth — *inside* the transport
+   window. Caught by the budget reading 78% of bar instead of ~98%. The voided run is retained
+   (`phase192_VOID_wrongdepth_q3_8b.jsonl`) as an accidental third-family confirmation of §28: in-window pruning costs
+   **−7.9 pooled / −10.5 cross ✗**. Fix: rebuild `ARMS` per model; budgets now 97% (NL=28) and 98% (NL=36).
+
+**Verification that the pruning is real, at the distribution level** (Qwen2.5-VL, after the fix): output probabilities
+differ on **99%** of items (median max-|Δp| 0.019) while the argmax is unchanged on **98%** — so identical accuracy is
+*decisions not changing*, not the patch failing to apply. This is the strongest form of the "inert after transport"
+claim in the project. Scripts: phase192_tsr_newmodel.py, phase192_analyze.py.

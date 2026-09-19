@@ -11,6 +11,6 @@ for t,m in [("single",cat=="direct_attributes"),("relational",cat=="relative_pos
     print(f"  {t:>11} "+" ".join(f"{acc[k][m].mean()*100:11.1f}%" for k in arms))
 for t,m in [("single",cat=="direct_attributes"),("relational",cat=="relative_position"),("ALL",np.ones(n,bool))]:
     out=[]
-    for nm,a,b in [("P1 tsr-bar",acc["tsr900"],acc["uniform@600"]),("S1 tsr-u900",acc["tsr900"],acc.get("uniform@900",acc["tsr900"])),("headroom u600-u300",acc["uniform@600"],acc["uniform@300"])]:
+    for nm,a,b in [("P1 tsr-bar",acc["tsr900"],acc["uniform@600"]),("S1 tsr-u900",acc["tsr900"],acc.get("uniform@900",acc["tsr900"])),("headroom u900-u600",acc.get("uniform@900",acc["uniform@600"]),acc["uniform@600"])]:
         d,lo,hi=ci((a-b)[m]); out.append(f"{nm} {d:+5.1f}[{lo:+5.1f},{hi:+5.1f}]{'✔' if lo>0 else ('✗' if hi<0 else ' ')}")
     print(f"  {t:>11}  "+"   ".join(out))
