@@ -7356,3 +7356,34 @@ CROP: positive on BOTH strata in 1/7 cells | significant on both in 0/7 | signif
    may not be reachable at this sample size regardless of the method. **This is a power limitation as much as a
    method limitation and must be stated as such in the paper.** HR-Bench (n=400/stratum) has the power but is the
    benchmark where cross-instance resolution headroom is smallest (−3.0 to +3.5).
+
+## §44 ✗ MERGE (ridge + TSR) REJECTED — 0 of 2; the two methods are incompatible by depth, not by tuning (phase 196)
+
+Design: localise@300 exit L20 -> ridge score map -> encode the FULL image at 900 tokens (no crop) -> prune at **L4**
+keeping the top 25% by the ridge map -> answer. 95% of the bar. The ridge chooses *where*, pruning chooses *how much*,
+and the frame survives (what cross-instance needs) while survivors sit at 1.5x resolution (what single needs).
+
+| | bar | ridge1@300 | tsr900 | **merge** | merge_attn | merge_L16 |
+|---|---|---|---|---|---|---|
+| **Qwen3** single | 62.6 | **76.5** | 66.1 | 60.9 | 56.5 | 63.5 |
+| **Qwen3** cross | 65.8 | 64.5 | **75.0** | 67.1 | 61.8 | 76.3 |
+| **Qwen3** ALL | 63.9 | **71.7** | 69.6 | 63.4 | 58.6 | 68.6 |
+| **Qwen2** single | 58.3 | **66.1** | 63.5 | 60.0 | 59.1 | 62.6 |
+| **Qwen2** cross | 60.5 | 65.8 | 60.5 | 65.8 | 63.2 | 63.2 |
+| **Qwen2** ALL | 59.2 | **66.0** | 62.3 | 62.3 | 60.7 | 62.8 |
+
+P1 merge−bar: −0.5 (Q3) / +3.1 (Q2), both n.s. **P2 merge−tsr: −6.3 ✗ (Q3) / +0.0 (Q2) → 0 of 2, rejected.**
+merge−ridge1: −8.4 ✗ / −3.7.
+
+### The two controls make this a mechanism result, not just a failure
+**S1 (ridge vs attention ranking at L4):** +4.7 (Q3) / +1.6 (Q2) — **ranking does matter at L4**, consistent with §42
+(+8.4/+8.9 over random). Targeting works there; it is simply not enough to pay for pruning that early.
+**S2 (prune at L4 vs at L16, ranking held fixed):** −5.2 ✗ (Q3) / −0.5 (Q2), and `merge_L16` lands on plain `tsr900`
+(68.6 vs 69.6; 62.8 vs 62.3) — confirming §26C once more: **after the boundary the ranking stops mattering.**
+
+⇒ **Why no merge can work.** The ridge's signal is produced at **L17–L20**; pruning only pays at **L16 or later**
+(§42: before the boundary, pruning costs; §26C: after it, ranking is worthless). Any pipeline that prunes early enough
+to save compute has already destroyed the layers the ridge reads (§29: pruning the localiser costs −3.1 / −12.6 in
+coverage), and any pipeline that waits for the ridge has nothing left worth pruning. **The incompatibility is
+structural, not a tuning failure** — which is why the paper presents two allocation policies rather than one hybrid.
+Scripts: phase196_merge.py, phase196_analyze.py.
