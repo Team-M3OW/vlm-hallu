@@ -19,8 +19,11 @@ usage: phase192_tsr_newmodel.py <tag> <MODEL_ID>
 import json, os, sys, time, random, numpy as np, torch
 from PIL import Image
 os.environ.setdefault("HF_HUB_CACHE","/media/kavinder/hdd2/hf_cache"); os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF","expandable_segments:True")
-import transformers.models.qwen3_vl.modeling_qwen3_vl as QM3
-import transformers.models.qwen2_vl.modeling_qwen2_vl as QM2
+import importlib
+_QMODS=[]
+for _m in ("qwen3_vl.modeling_qwen3_vl","qwen2_vl.modeling_qwen2_vl","qwen2_5_vl.modeling_qwen2_5_vl"):
+    try: _QMODS.append(importlib.import_module(f"transformers.models.{_m}"))
+    except Exception as _e: print(f"  (no module {_m}: {_e})")
 from transformers import AutoProcessor, AutoModelForImageTextToText
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; WHICH=sys.argv[1]; MODEL_ARG=sys.argv[2]
 MODEL_ID=MODEL_ARG
@@ -36,13 +39,18 @@ def make_patched(QM):
         w=torch.nn.functional.softmax(w,dim=-1,dtype=torch.float32).to(query.dtype)
         return torch.matmul(w,vs).transpose(1,2).contiguous(), w
     return patched
-QM3.eager_attention_forward=make_patched(QM3); QM2.eager_attention_forward=make_patched(QM2)
+for _M in _QMODS:
+    if hasattr(_M,"eager_attention_forward"): _M.eager_attention_forward=make_patched(_M)
+print("patched attention in:", [m.__name__.split(".")[-1] for m in _QMODS])
 def main():
     from huggingface_hub import snapshot_download; from datasets import load_dataset
     root=snapshot_download("craigwu/vstar_bench",repo_type="dataset"); ds=load_dataset("craigwu/vstar_bench")["test"]
     model=AutoModelForImageTextToText.from_pretrained(MODEL_ID,dtype=torch.bfloat16,device_map={"":0},attn_implementation="eager").eval()
     pr=AutoProcessor.from_pretrained(MODEL_ID); tok=pr.tokenizer; itid=model.config.image_token_id
     layers=model.model.language_model.layers; NL=len(layers); globals()["NL"]=NL; P=int(round(0.57*NL)); globals()["P"]=P
+    _own=type(layers[0].self_attn).__module__
+    assert any(_own==_M.__name__ for _M in _QMODS), f"attention module {_own} was NOT patched -- prune bias would be silently ignored"
+    print(f"  prune patch verified on {_own}",flush=True)
     print(f"{WHICH}: NL={NL}, prune at L{P} (same stack fraction as L16/28)",flush=True)
     opt=[sorted({tok(x,add_special_tokens=False)["input_ids"][-1] for x in [c,f" {c}"]}) for c in "ABCD"]
     def chat(t): return pr.apply_chat_template([{"role":"user","content":[{"type":"image"},{"type":"text","text":t}]}],tokenize=False,add_generation_prompt=True)
