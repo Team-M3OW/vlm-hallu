@@ -45,10 +45,17 @@ out=[]; off=0
 for m in meta:
     n=m["n"]; gh,gw=m["grid"]
     sc=Pr[off:off+n].reshape(gh,gw); off+=n
-    iy,ix=np.unravel_index(np.argmax(sc),sc.shape)
-    m["score"]=sc.tolist(); m["ridge_cell"]=[float((ix+.5)/gw),float((iy+.5)/gh)]
-    d=np.asarray(m["dep"]); jy,jx=np.unravel_index(np.argmax(d),d.shape)
+    # the deployed pipeline masks the outer ring for EVERY placement rule (phase179/phase184)
+    rm=np.zeros((gh,gw),bool)
+    if gh>2 and gw>2: rm[1:-1,1:-1]=True
+    else: rm[:]=True
+    iy,ix=np.unravel_index(np.argmax(np.where(rm,sc,-1e9)),sc.shape)
+    m["score"]=sc.tolist(); m["ring_mask"]=rm.tolist()
+    m["ridge_cell"]=[float((ix+.5)/gw),float((iy+.5)/gh)]
+    d=np.asarray(m["dep"]); jy,jx=np.unravel_index(np.argmax(np.where(rm,d,-1e9)),d.shape)
     m["block_cell"]=[float((jx+.5)/gw),float((jy+.5)/gh)]
+    jy2,jx2=np.unravel_index(np.argmax(d),d.shape)
+    m["block_cell_raw"]=[float((jx2+.5)/gw),float((jy2+.5)/gh)]
     out.append(m)
 assert off==len(Pr)
 np.save(f"{D}/data/fig_ridge_w_{WHICH}.npy", Wsum/nfit)

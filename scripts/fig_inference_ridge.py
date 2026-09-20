@@ -46,20 +46,22 @@ for r,q in enumerate(PICKS):
         a.set_title("input image",fontsize=10)
         from matplotlib.lines import Line2D
         a.legend(handles=[Line2D([],[],color=RED,ls='--',lw=2,label='ground truth'),
-                          Line2D([],[],color=ORANGE,lw=2,label='block-mean crop'),
-                          Line2D([],[],color=GREEN,lw=2,label='ridge crop')],
+                          Line2D([],[],color=ORANGE,lw=2,label='block-mean crop (ring-masked)'),
+                          Line2D([],[],color=GREEN,lw=2,label='TWR crop')],
                  loc='lower left',fontsize=7.6,framealpha=0.9,handlelength=1.6)
     # 2 block-mean attention
     a=ax[r,1]; dep=np.asarray(m['dep']); a.imshow(dep,cmap="magma"); a.set_xticks([]); a.set_yticks([])
-    jy,jx=np.unravel_index(np.argmax(dep),dep.shape); a.plot(jx,jy,"x",color=ORANGE,ms=11,mew=3)
+    gh,gw=dep.shape
+    jx,jy=int(m['block_cell'][0]*gw),int(m['block_cell'][1]*gh); a.plot(jx,jy,"x",color=ORANGE,ms=11,mew=3)
     if r==0: a.set_title("block-mean attention L16--26",fontsize=10)
     # 3 ridge score
     a=ax[r,2]; s=np.asarray(m['score']); a.imshow(s,cmap="viridis"); a.set_xticks([]); a.set_yticks([])
-    iy,ix=np.unravel_index(np.argmax(s),s.shape); a.plot(ix,iy,"x",color=GREEN,ms=11,mew=3)
+    gh2,gw2=s.shape
+    ix,iy=int(m['ridge_cell'][0]*gw2),int(m['ridge_cell'][1]*gh2); a.plot(ix,iy,"x",color=GREEN,ms=11,mew=3)
     if r==0: a.set_title("TWR score (out-of-fold)",fontsize=10)
     # 4/5 the crops the model actually answers from
     for k,(cell,col,ans,name) in enumerate([(m['block_cell'],ORANGE,ab,"block-mean crop"),
-                                            (m['ridge_cell'],GREEN,ar,"ridge crop")]):
+                                            (m['ridge_cell'],GREEN,ar,"TWR crop")]):
         a=ax[r,3+k]; x0,y0,x1,y1=win(*cell)
         a.imshow(im.crop((int(x0*Wp),int(y0*Hp),int(x1*Wp),int(y1*Hp)))); a.set_xticks([]); a.set_yticks([])
         good=ans==lab

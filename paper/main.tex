@@ -40,7 +40,7 @@ that subtracts the late layers a conventional read-out adds. \textbf{Transport-S
 $90\%$ of visual tokens at the boundary, where they are causally inert, and spends the freed compute on encoding
 resolution.
 At matched compute TWR beats every published placement rule in all nine pooled comparisons, by $7.9$ and $8.9$
-points over the strongest, and lands its crop on the evidence $63.9\%$ of the time against $13.6\%$. TSR converts a
+points over the strongest, and lands its crop on the evidence $63.9\%$ of the time against $46.6\%$. TSR converts a
 checkpoint's resolution headroom at rate $1.01$ ($r=0.966$) across four checkpoints and three benchmarks. Against
 models at their \emph{native} dynamic resolution --- $5.5\times$ the budget --- both are statistically
 indistinguishable using $14$--$18\%$ of the visual-token compute, whereas published rules fall $9.9$--$14.2$ points
@@ -215,10 +215,13 @@ boundary saves less for no additional accuracy. One cut, at the measured boundar
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_infer_ridge.pdf}
 \caption{\textbf{What the two read-out rules see, on real \vstar\ items} (Qwen3-VL-2B). The block-mean arg-max
-lands in the grid's \emph{last column} on $84.8\%$ of the $191$ items against a $5.0\%$ chance rate: it is reading
-the raster-serialisation sink, not the object, and it crops empty sky or water. TWR lands there $5.8\%$ of
-the time, i.e.\ at chance, and covers at least half the ground-truth box on $63.9\%$ of items against $13.6\%$ for
-block-mean. \emph{Examples are not hand-picked}: we take single-instance items where the TWR crop covers the box
+is shown as the paper evaluates it, which masks the grid's outer ring before taking the arg-max --- and that mask
+is doing very unequal amounts of work. Without it, the block-mean arg-max lands in the grid's \emph{last column},
+the position before a raster row-wrap, on $84.8\%$ and $61.8\%$ of items across the two checkpoints against a
+$5.0\%$ chance rate, and covers half the ground-truth box on only $13.6\%$ of items; the ring mask lifts that to
+$46.6\%$. TWR covers $63.9\%$ with the mask and $62.8\%$ without it. It removes the serialisation sink by giving
+the post-boundary layers negative weight, rather than by an ad-hoc spatial patch, which is why the mask is worth
+$+0.012$ mean coverage to TWR and $+0.336$ to block-mean. \emph{Examples are not hand-picked}: we take single-instance items where the TWR crop covers the box
 and the block-mean crop does not \emph{and} the answers flip accordingly, restricted to items where the recomputed
 out-of-fold TWR cell reproduces the logged run exactly. Nine items qualify; these are the first three by
 question id.}

@@ -7430,6 +7430,10 @@ rather than assumed. Qwen3-VL-2B, V*Bench, n=190. **Native = 3,290 visual tokens
 
 Qwen2-VL-7B leg pending. Script: phase197_native.py.
 
+## §46 ⚠ CORRECTED BELOW — see §46C. The first version of this section measured the block-mean arg-max WITHOUT
+## the outer-ring mask that phase179/phase184 apply to every placement rule, so it described the literal ViCrop
+## recipe, not the baseline this project evaluates. Numbers for the deployed baseline are in §46C.
+
 ## §46 ★★ THE BLOCK-MEAN ARG-MAX IS READING THE SINK — measured directly, for the paper's inference figures
 
 Computed while building the paper's qualitative figures (`scripts/fig_ridge_scores.py`, Qwen3-VL-2B, V*Bench,
@@ -7467,4 +7471,126 @@ Overlap is at the 10% chance rate, yet the answer is identical, and identical to
 Visually the attention ranking selects mostly border tokens — the same columnar sink as §46 — so "rank by attention
 at L16" is close to "rank by sinkiness", which carries no object information. This is the mechanism behind §42's
 "the choice of surviving tokens is irrelevant at the boundary".
+
+
+### §20P  ⚠ LAYER-WISE PRUNING RANKED BY THE DPR HEAD — directionally better, never significant; L2 pruning is near-lossless either way (Phase 188)
+First pruning arm in this repo to use the 65-feature GBT head as the token ranker (phases 75/83/87/93
+used layer-K, the block mean, or §14F's signed *linear* combination), and the first progressive
+schedule (cuts at L2/L8/L16 vs one cut at L2). n=190, V\*Bench, matched token counts.
+
+| keep | ranker | Qwen3 single / progressive | Qwen2 single / progressive |
+|---|---|---|---|
+| 10% | rand | 35.8 / 43.2 | 43.2 / 45.8 |
+| 10% | layer2 | **34.7** / — | 40.0 / — |
+| 10% | blockmean | 55.8 / 57.9 | 51.1 / 50.5 |
+| 10% | **head** | **58.9 / 58.9** | **52.1 / 52.6** |
+| 25% | head | 59.5 / 56.3 | 53.7 / 54.7 |
+| — | *no pruning* | *56.3* | *52.6* |
+
+**P1 (head − blockmean, single cut) is positive in all four cells — +3.2, +1.6, +1.1, +4.2 — and clears
+in none.** P2 (progressive − single) is null: +0.0 / −3.2 on Qwen3, +0.5 / +1.1 on Qwen2. The **GUARD
+passes everywhere** (head − rand +23.2 / +14.2 / +8.9 / +8.9, all clear), so the setup is measuring
+ranking quality.
+
+**Two things worth keeping.**
+1. **Track A replicates independently.** Ranking by layer-2 attention scores **34.7%** on Qwen3 against
+   a random control at 35.8% — *worse than random*, reproducing §14L's −3.7/−4.7pp from a different
+   script and a different ranker set.
+2. **Pruning 90% of visual tokens at L2 is near-lossless** — head@10% vs no pruning is +2.6 [−3.2,+8.4]
+   and −0.5 [−5.8,+4.2]. But **blockmean is near-lossless too** (−0.5 / −1.5), so the head is not
+   required for it. Consistent with §26's TSR result at L16; this is the same phenomenon at a much
+   earlier cut, where the compute saving is larger.
+
+**Verdict:** the head is a better pruning ranker in direction on both models and at both keep
+fractions, but n=190 cannot resolve a ~2-4pp effect, and the cheaper block mean already buys the
+efficiency. Not adopted. Progressive scheduling adds nothing over a single early cut.
+
+### §20Q  ★ THE VRH GATE ON THE TWO FINALISED POLICIES — TWR does not need it, TSR is not rescued by it (Phase 189)
+§20I's gate was built on the GBT head. Tested on the paper's two finalised policies. (Name mapping
+assumed from the user: DWA → TWR/ridge, AVR → TSR; neither name appears in the repo.) Ridge
+placements recomputed with phase 182's exact spec; threshold = training-fold median, OOF.
+
+| | Qwen3 vs uniform@600 | Qwen2 vs uniform@600 |
+|---|---|---|
+| **LEG A** always-on TWR | **+8.9 [+0.5,+17.3]** ✔ | **+12.0 [+4.2,+19.9]** ✔ |
+| LEG A gated TWR (≈51% on) | +6.8 [+1.0,+12.6] ✔ | +5.8 [+0.5,+11.0] ✔ |
+| **LEG B** always-on TSR | +6.3 [+2.1,+11.0] ✔ | +2.6 [−2.1,+7.9] ✗ |
+| LEG B gated TSR (≈51% on) | +3.1 [+0.0,+6.3] ✗ | +3.1 [−0.5,+7.3] ✗ |
+| *(§20I reference)* always-on GBT head | +7.9 [−0.5,+16.2] ✗ | +6.8 [−1.0,+14.1] ✗ |
+| *(§20I reference)* gated GBT head | **+8.4 [+2.6,+14.1]** ✔ | **+6.3 [+1.0,+11.5]** ✔ |
+
+**1. TWR does not need the gate.** Always-on TWR already clears pooled on **both** models, and gating
+**costs** it 2.1pp / 6.2pp. The gate's value in §20I was specific to the GBT head's failure mode —
+the head loses on the items it mis-proposes, and skipping those rescued the pooled contrast. TWR
+apparently does not fail the same way, so declining to crop half the time just forfeits its wins.
+
+**2. TSR is not rescued by the gate.** Always-on is 1 of 2 (reproducing §26B's rejection from a
+different script), and gating is 0 of 2 — it helps Qwen2 marginally (+2.6→+3.1) and costs Qwen3 half
+its gain (+6.3→+3.1). ⚠ Leg B is also a weaker construct by design: TSR proposes no region, so the
+"verifier" is a policy selector fed the localiser's window as a proxy, not a verifier of TSR itself.
+
+> **Consequence for the §20 line.** The gated verifier was the one thing in §20 that converted, but it
+> converted *on a localiser the paper no longer uses*. Against TWR it is a net negative. The honest
+> conclusion is that §20H/§20I stand as a mechanism result — attention-head verification predicts
+> proposal quality at AUROC 0.76 on both models — and **not** as a component of the final pipeline.
+
+### §20R  ✅ IMPLEMENTATION VERIFICATION — the §20 negatives are real (Phase 190)
+Six controls on the VRH verifier before trusting any §20 negative.
+
+| check | result |
+|---|---|
+| C1 positive: mass in GT window / DPR window / random window | 0.219 / 0.245 / **0.043** — both windows ≈5× random ✅ |
+| C2 negative: random-window AUROC vs coverage | 0.425 / 0.448 ≈ chance ✅ |
+| C3 **random head subset** (same size) | **0.694 / 0.693** — VRH − random **+0.069 [+0.034,+0.103]**, **+0.062 [+0.023,+0.100]** ✔ |
+| C4 shuffled referents (item i scored on item j's box) | 0.761 / 0.723 — VRH − shuffled +0.002 / +0.031, **n.s.** |
+| C5 strict VRH (global top-20 pairs, GT-box keys — the paper's actual prescription) | **0.749 / 0.768** vs per-layer-25% 0.762 / 0.755 — same conclusions |
+| C6 reproduce §20H (VRH − all-heads) | **+0.045 [+0.023,+0.070] / +0.038 [+0.015,+0.063]** — exact ✅ |
+
+⚠ C1's stated expectation (GT window > DPR window) was **wrong, not the code**: the DPR window sits
+where attention *is*, so it must hold more mass than the window where the *evidence* is. Both being
+≈5× a random window is the meaningful control, and it passes.
+
+**★ C3 refutes the obvious suspicion.** A random sparse subset scores **0.694/0.693 — worse than
+all-heads (0.717/0.716)**. So §20H's +0.045 is *not* "sparsity helps"; the VRH criterion picks heads
+that genuinely carry the signal, and picking the wrong sparse set is worse than not selecting at all.
+
+**⚠ C4 narrows what the criterion is doing.** Scoring heads against *mismatched* referent boxes still
+yields 0.761/0.723 — statistically indistinguishable from the real criterion. So the GT boxes
+contribute little: what the criterion mostly finds is heads that attend to the image at all, i.e. the
+label-free `S_v` axis of §15C. Consistent with §20L's `y_acc` result. **Practical consequence: the
+verifier needs no box annotation**, which removes the last cost objection independently.
+
+**Verdict: the §20 negatives stand.** The hybrid (1 of 2), the attention reinforcement (null on both),
+the dynamic-head idea, the thirteen verifier variants, and the gate hurting TWR (§20Q) are not
+artefacts of a broken VRH port. The verifier itself is real and reproduces at 0.76 under both my
+looser setup and the paper's strict prescription.
+
+### §46C ★★ CORRECTION AND THE REAL RESULT: the outer-ring mask is load-bearing for block-mean and inert for TWR
+
+**The fault.** §46 computed the block-mean arg-max as a plain arg-max over the map. Every placement rule this
+project evaluates (`phase179_placements.py:25`, `phase184_allarms.py`) instead masks the outer ring
+(`rm[1:-1,1:-1]`) before the arg-max. §46's numbers therefore described ViCrop's literal recipe, not our
+`vicrop_block` baseline. Caught while checking a figure in which the drawn box came from the unmasked rule and the
+answer came from the masked one. `scripts/fig_ridge_scores.py` now applies the ring mask and **reproduces the
+logged phase193 ridge cell on 191/191 items** (it was 169/191 without the mask — the 22 disagreements were the
+mask, not RNG). Our recomputed masked block-mean cell equals phase179's `vicrop_block` on **191/191**.
+
+| rule (Qwen3-VL-2B, V*Bench, n=191, W=0.25) | coverage ≥ 0.5 | mean coverage |
+|---|---|---|
+| **TWR, ring-masked (deployed)** | **63.9%** | **0.655** |
+| TWR, no ring mask | 62.8% | 0.642 |
+| **block-mean, ring-masked (our baseline)** | **46.6%** | **0.475** |
+| block-mean, no ring mask (literal recipe) | 13.6% | 0.139 |
+
+**The ring mask is worth +0.012 mean coverage to TWR and +0.336 to block-mean — a 28× difference.** The sink
+statistic itself stands and replicates on two models: without the mask the block-mean arg-max lands in the grid's
+**last column** on **84.8% (Qwen3) / 61.8% (Qwen2)** of items against a **5.0%** chance rate. Top-row rate is
+80.1% (Qwen3) and **0.0%** (Qwen2), which is further confirmation of §6A's **columnar**, not cornered, reading —
+the column effect is shared across models, the row effect is not.
+
+**What this means for the paper.** (1) Our `vicrop_block` baseline is a *strengthened* ViCrop, not the literal
+recipe; the comparison is therefore conservative and should be described that way. (2) The interesting claim is
+not "block-mean reads the sink" but **"the incumbent read-out needs an ad-hoc spatial patch to be usable at all,
+and TWR does not"** — TWR achieves the same effect by giving post-boundary layers negative weight, which is the
+mechanism the ridge was derived from. (3) The abstract's coverage contrast is now 63.9% vs **46.6%** (was 13.6%).
 
