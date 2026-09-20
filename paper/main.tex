@@ -61,9 +61,11 @@ Published methods pick a single mid-network layer or average a fixed block of la
 
 We show three things.
 
-\textbf{(i) The depth choice dominates.} Cropping at the peak of one hand-picked mid layer scores $24.6\%$ and
-$33.9\%$ on two checkpoints --- the four-option chance rate, and far below not cropping at all ($62.3\%$, $57.4\%$).
-The same pipeline with a better depth read-out scores $77.2\%$ and $71.3\%$.
+\textbf{(i) The depth choice dominates.} We crop at every one of the $28$ layers' arg-max in turn and answer
+(Figure~\ref{fig:layeracc}). End-task accuracy ranges from $34.6\%$ to $70.2\%$ --- a $35.6$-point spread driven by
+nothing but the depth at which the map is read. Every layer inside the transport window scores below not cropping at
+all, and the published fixed-layer recipe lands $31.9$ points below the best layer. The same pipeline with a better
+depth read-out scores $77.2\%$ and $71.3\%$ on two checkpoints.
 
 \textbf{(ii) Everyone reads at the wrong depth, and we can say why.} Masking text tokens' attention to the image,
 layer by layer, shows that image-to-text transport is \emph{complete} by layer~16 of~28: blocking every layer from 16
@@ -373,8 +375,11 @@ evaluation including against native resolution.
 weights all early layers by gradient alignment; confident-layer decoding stops at an entropy valley near the output.
 We port each to this setting and all fail (\S\ref{sec:neg}) for one measurable reason: in these vision--language
 models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\%$ reported for language models ---
-yet per-layer accuracy still climbs monotonically to the last layer. There is no better layer to select, which is why
-re-weighting works where selection does not.
+yet per-layer accuracy still climbs monotonically to the last layer, so on the \emph{decoding} axis there is no
+better layer to select. The \emph{read-out} axis is different and we are explicit about it: a well-chosen fixed
+layer does work (L17 scores $70.2\%$ against a $63.7\%$ no-crop bar), but it cannot be identified without labels,
+the published choice is $31.9$ points worse than it, and per-sample selection (LASER) reaches only $64.7\%$.
+Re-weighting matches the oracle fixed layer without needing to know it.
 
 \textbf{Visual-token pruning.} FastV~\citep{chen2024fastv} prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
 fixed ratio; HiRED~\citep{hired} allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
@@ -654,6 +659,17 @@ $5$--$7\times$ the tokens.}
 \end{figure}
 
 \section{Additional visualisations}\label{app:vis}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.86\textwidth]{figs/fig_layer_accuracy.pdf}
+\caption{\textbf{End-task accuracy of cropping at each layer's arg-max.} Every arm answers at ${\sim}600$ visual
+tokens, so only the read-out depth varies. Inside the transport window no layer beats simply not cropping. The curve
+steps up at the boundary and peaks at L17. TWR, which reads all $28$ layers with signed weights, sits above every
+single layer; against the best one --- chosen \emph{on the test set}, so an optimistic baseline --- it is
+$+2.6$ [$-3.1,+8.9$], i.e.\ it matches an oracle choice of layer without being told which layer that is. The
+published fixed choice is $31.9$ points below that oracle.}
+\label{fig:layeracc}
+\end{figure}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_layer_disagreement.pdf}

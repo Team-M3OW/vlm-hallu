@@ -7768,3 +7768,35 @@ does not capture. We have the *what* causally; we do not yet have the *how*.
 
 Scripts: `phase201_ablate_nuisance.py`, `phase202_feature_ablation.py`.
 
+## §51 ★★★ THE FULL READ-OUT DEPTH CURVE AT THE END TASK (phase 199, Qwen3-VL-2B, n=191, all 28 layers)
+
+Crop at each layer's ring-masked arg-max, answer @300 on the crop. Only the read-out depth varies.
+
+| band | min | mean | max |
+|---|---|---|---|
+| L0–L15 (transport window) | 34.6 | 41.7 | 53.4 |
+| **L16–L21** | 50.8 | **60.6** | **70.2 (L17)** |
+| L22–L27 | 36.6 | 51.3 | 58.1 |
+
+Reference arms on the same items: bar `uniform@600` **63.7**, block-mean 62.1, LASER 64.7, fixed L14 **37.9**,
+TWR **72.6**, oracle crop 87.9.
+
+**Findings.**
+1. **Spread 34.6 → 70.2, a 35.6-point range from depth alone.** This is §1's "the depth choice dominates" measured
+   across the whole stack instead of at one hand-picked layer.
+2. **No layer inside the transport window beats not cropping at all** (max 53.4 vs the 63.7 bar). The usable band
+   begins exactly at the boundary. This is the end-task version of §48(b)'s coverage curve, so §93b's
+   "intermediate metrics over-report" caveat is now discharged for this claim.
+3. **TWR − best single layer = +2.6 [−3.1,+8.9] n.s.** The best layer (L17) was chosen *on the test set*, so this
+   is an optimistic baseline. The honest claim is therefore **TWR matches an oracle choice of read-out layer
+   without being told which layer it is** — not that it beats it. Block-mean − best layer is **−7.9 ✗**.
+4. **The published fixed choice (L14) is 31.9 points below the oracle layer.**
+
+### ⚠ A claim disambiguated in the paper as a result
+"There is no better layer to select" was written about the **decoding** axis (DoLa/SLED/confident-layer decoding,
+where per-layer lens accuracy climbs monotonically). On the **read-out** axis it is false: L17 at 70.2 clearly beats
+the bar. The paper now states both, and states that the read-out optimum is unidentifiable without labels, which is
+what makes re-weighting worth having.
+
+Scripts: `phase199_layersweep.py`, `fig_layer_accuracy.py`. Data: `phase199_layersweep_qwen3.jsonl`.
+
