@@ -7689,3 +7689,36 @@ The end-task version (crop at every layer's arg-max and answer) is phase 199, ru
 Scripts: `fig_layer_disagreement.py` (both figures), `fig_galleries.py`, `fig_gallery_tsr.py`,
 `fig_rule_comparison.py`.
 
+## §49 ⚠ CORRECTION + a REJECTED theory: what the fitted depth weights actually do (phase 200, CPU)
+
+Pre-registered test of the account the paper was implicitly giving ("signed weights cancel the serialisation
+sink"). Definitions fixed **before** computing: nuisance at layer l = the item-MEAN map (the component that does
+not depend on which image it is; §6A showed it is positionally stable); nuisance loading L_l = mean_i cos(A_l^i,
+mbar_l); signal loading S_l = mean_i cos(A_l^i, GT-box mask). Maps UNMASKED (the deployed ring mask already
+removes most of the nuisance, so a masked test would measure nothing). n=126 items on the modal grid, both models.
+
+| | Qwen3-VL-2B | Qwen2-VL-7B | verdict |
+|---|---|---|---|
+| corr(w_l, **nuisance** loading) — predicted < −0.3 | **−0.284** ✗ | −0.401 ✔ | **1 of 2 → REJECTED** |
+| corr(w_l, **signal** loading) — predicted > 0 | **+0.365** ✔ | **+0.425** ✔ | **2 of 2 → holds** |
+
+⇒ **The "signed weights cancel the sink" story is not supported and must not be written.** What survives is weaker
+and nearly tautological: the fitted weights track how well each layer's map aligns with the object.
+
+### ⚠ Two paper claims corrected as a result
+1. **"TWR subtracts the late layers a conventional read-out adds"** — overstated. The block-mean band's *net*
+   weight is **+0.0006 (Q3) / −0.0005 (Q2)**, i.e. ≈ 0, not negative. What is true on **2 of 2**: of the layers the
+   block mean adds at +1, **7 of 11 (Q3) and 7 of 12 (Q2) receive negative weight**. Reworded to that.
+2. **"its positive mass lies where transport has already finished"** (fig. caption) — **1 of 2, REJECTED.**
+   Positive mass before/after the boundary is 0.093/0.149 on Qwen3 (after wins) but **0.077/0.071 on Qwen2**
+   (before wins, and by 7%, i.e. noise). Caption now says explicitly that we do not claim it.
+
+### What the weights are actually made of (both models)
+Mixed sign at **every** depth band, not a clean early/late split: 7/16 and 5/16 positive before the boundary,
+4/11 and 5/11 in the block-mean band. Feature mass splits |log-A| : |rank| : |geometry| = 0.55 : 0.33 : 0.26
+(Q3) and 0.38 : 0.26 : 0.26 (Q2) — **log-attention carries only about half the fitted weight; rank and geometry
+carry the rest.** This is consistent with §21B's withdrawal of the "high-frequency filter" reading: the structure
+is real but the story we told about it was not.
+
+Script: `phase200_nuisance.py`.
+

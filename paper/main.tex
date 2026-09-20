@@ -36,7 +36,7 @@ to the first two thirds of the stack --- blocking every layer from layer~16 of~2
 the same fraction of depth, $0.57$, on every architecture we test, entirely before the band these methods read.
 Two policies follow from that measurement rather than from tuning. \textbf{Transport-Weighted Read-out} (TWR)
 replaces layer selection with one closed-form ridge solve over the whole depth profile, yielding a signed filter
-that subtracts the late layers a conventional read-out adds. \textbf{Transport-Scheduled Resolution} (TSR) discards
+that gives \emph{negative} weight to most of the layers a conventional read-out adds at $+1$. \textbf{Transport-Scheduled Resolution} (TSR) discards
 $90\%$ of visual tokens at the boundary, where they are causally inert, and spends the freed compute on encoding
 resolution.
 At matched compute TWR beats every published placement rule in all nine pooled comparisons, by $7.9$ and $8.9$
@@ -73,7 +73,8 @@ attention these methods consume is a residue of where the model looked, not the 
 \textbf{(iii) Two allocation policies follow from that measurement}, with complementary strengths, and at native
 resolution they match a model spending $5.5\times$ the compute. \textbf{Transport-Weighted Read-out} (TWR,
 \S\ref{sec:ridge}) stops selecting a depth and instead re-weights all of them, by a single closed-form ridge solve
-whose fitted weights are signed: the post-boundary layers a conventional read-out adds, it subtracts.
+whose fitted weights are signed: of the layers the conventional block mean adds at $+1$, seven receive
+negative weight on both checkpoints, and the band's net weight is close to zero rather than positive.
 \textbf{Transport-Scheduled Resolution} (TSR, \S\ref{sec:tsr}) drops $90\%$ of visual tokens at the boundary, where
 they no longer carry the image, and spends the saved compute on encoding resolution instead.
 
@@ -103,8 +104,11 @@ seeds. A claim must hold on at least two checkpoints or it is reported as reject
 $w_\ell$ (\gd{green} positive, \bad{red} negative), normalised. Line: the causal transport profile --- the output KL
 caused by masking text-to-image attention at layer $\ell$ alone. Grey band: the layers the conventional block-mean
 read-out averages at $+1$. Yellow band: the question-conditioned read-out band. Dashed line: the depth beyond which
-masking \emph{all} remaining layers flips no answers. The filter assigns negative weight to 7 of the 11 block-mean
-layers, and its positive mass lies where transport has already finished.}\label{fig:filter}
+masking \emph{all} remaining layers flips no answers. The filter assigns negative weight to seven of the eleven
+block-mean layers here, and to seven of twelve on the other checkpoint; the band's net weight is $+0.0006$ and
+$-0.0005$, i.e.\ approximately zero, against the $+1$ per layer a block mean applies. We do \emph{not} claim the
+positive mass sits after the boundary: that holds on this checkpoint and reverses on the other, so by the
+two-model rule of \S\ref{app:proto} it is not a result.}\label{fig:filter}
 \end{figure}
 
 \section{Where the image reaches the answer}\label{sec:transport}
