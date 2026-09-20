@@ -7662,3 +7662,30 @@ structural argument: even where the composition is mechanically sound, there is 
 
 Scripts: `phase198_stack.py`, `phase198_analyze.py`. Data: `phase198_stack_{qwen3,qwen2}.jsonl`.
 
+## §48 ★★ LAYER DISAGREEMENT, QUANTIFIED — and the usable read-out band is visible in one curve (figure work)
+
+Computed from the cached 300-token maps, both core models, n=191, ring-masked arg-max (the deployed convention).
+
+**(a) Two layers rarely agree on where to crop.** Mean off-diagonal arg-max agreement across the 28×28 layer pairs:
+**13.8% (Qwen3-VL-2B) / 38.1% (Qwen2-VL-7B)**. The agreement matrix has visible block structure that splits at the
+transport boundary — layers before and after it form separate clusters. "Which layer you read" is not a detail.
+
+**(b) Only the layers AFTER the boundary carry a usable placement signal.** Fraction of items whose single-layer
+crop covers ≥50% of the GT box, by read-out depth:
+
+| | before the boundary (L0–L15) | just after (L17–L22) | near the output (L25–L27) |
+|---|---|---|---|
+| Qwen3-VL-2B | ≤ 20% (mostly 3–15%) | **41–56%** | 3–28% |
+| Qwen2-VL-7B | ≤ 5% (mostly 0–4%) | **33–53%** | 5–9% |
+
+The curve is flat-and-low through the transport window, **steps up immediately at the boundary**, peaks in the
+read-out band the whole family uses, and decays toward the output. This is §20B's consequence stated as a
+measurement on the placement task rather than as a KL: the attention that is causally carrying the image is not
+the attention that predicts where the object is, and the two occupy disjoint depth ranges.
+
+⚠ Note this is *coverage*, not end-task accuracy; §93b's warning that intermediate metrics over-report applies.
+The end-task version (crop at every layer's arg-max and answer) is phase 199, running.
+
+Scripts: `fig_layer_disagreement.py` (both figures), `fig_galleries.py`, `fig_gallery_tsr.py`,
+`fig_rule_comparison.py`.
+

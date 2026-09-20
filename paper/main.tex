@@ -649,6 +649,76 @@ $5$--$7\times$ the tokens.}
 \label{fig:native}
 \end{figure}
 
+\section{Additional visualisations}\label{app:vis}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_layer_disagreement.pdf}
+\caption{\textbf{The same image, the same question, a different answer about where to look at every depth.}
+Each panel is one layer's attention over image cells (colour clipped at the 98th percentile so the serialisation
+sink does not wash out the structure); the cross is that layer's ring-masked arg-max, green where the resulting
+crop would cover the evidence and red where it would not. Nothing about the input changes across a row. Only the
+read-out depth does.}
+\label{fig:layerdis}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_layer_agreement.pdf}
+\caption{\textbf{Left, centre: two layers rarely choose the same cell.} Mean off-diagonal agreement is $13.8\%$
+and $38.1\%$; the block structure splits at the transport boundary (dashed). \textbf{Right: and only the layers
+after the boundary are worth reading.} The fraction of items whose single-layer crop covers the evidence is at or
+below $20\%$ everywhere before the boundary, jumps immediately after it, and decays again toward the output. This
+is the paper's central claim in one curve: the usable placement signal exists only after transport has finished.}
+\label{fig:layeragree}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_rule_comparison.pdf}
+\caption{\textbf{Five placement rules, same items, same budget.} Selection rule: single-instance items on which
+the oracle crop is correct, so the ceiling behaves like a ceiling, and on which TWR is correct while the
+fixed-layer rule is not; $61$ items qualify and the first four by question id are shown. The fixed mid-layer
+recipe crops glass, masonry and sky.}
+\label{fig:rulecmp}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_gallery_twr_q3.pdf}
+\caption{\textbf{Eight inferences, Qwen3-VL-2B.} Top of each cell: the image with the ground-truth box, the
+block-mean crop and the TWR crop. Below: the two crops the model actually answers from, with its answer.}
+\label{fig:galtwr3}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_gallery_twr_q2.pdf}
+\caption{\textbf{The same eight-item view on Qwen2-VL-7B.} The failure mode is the same on a different model
+family and a different parameter count.}
+\label{fig:galtwr2}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_gallery_tsr.pdf}
+\caption{\textbf{Twelve inferences under TSR.} For each item: the image, the tokens kept by attention at the
+boundary, and an equally sized random keep. The two keep-sets overlap at close to the $10\%$ chance rate and the
+model answers identically under both, and identically again without pruning at all.}
+\label{fig:galtsr}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_sink_map.pdf}
+\caption{\textbf{The serialisation sink, averaged over the benchmark.} Each item's read-out map is resampled to a
+common grid and averaged over all $191$ items. Mass concentrates in the last column --- the token before a raster
+row-wrap --- on both checkpoints, at roughly four times the uniform share. This is what the outer-ring mask in
+every deployed implementation is patching around.}
+\label{fig:sink}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.56\textwidth]{figs/fig_coverage_cdf.pdf}
+\caption{\textbf{Crop quality over the whole benchmark.} Cumulative distribution of the fraction of the
+ground-truth box captured by the crop. Without the ring mask the block-mean rule is close to useless; with it,
+it is usable; TWR is better than both and barely uses the mask.}
+\label{fig:covcdf}
+\end{figure}
+
 \section{Designs that did not work}\label{app:neg}
 
 \begin{table}[h]\centering\small
