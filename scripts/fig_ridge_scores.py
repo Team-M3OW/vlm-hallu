@@ -15,11 +15,14 @@ def cov(cx,cy,gt):
     gx0,gy0,gx1,gy1=gt
     inter=max(0.,min(gx1,x1)-max(gx0,x0))*max(0.,min(gy1,y1)-max(gy0,y0))
     return inter/max((gx1-gx0)*(gy1-gy0),1e-12)
-rows=[json.loads(l) for l in open(f"{D}/data/phase30c_attn_maps_all.jsonl")]
+MAPS={"qwen3":"phase30c_attn_maps_all.jsonl","qwen2":"phase74_Qwen2_VL_7B_Instruct.jsonl"}[WHICH]
+rows=[json.loads(l) for l in open(f"{D}/data/{MAPS}")]
+rows=[r for r in rows if "attn" in r and "grid" in r and "gt_box_frac" in r]
 Xr=[];Yr=[];Gr=[];meta=[]
 for gi,q in enumerate(rows):
     gh,gw=q["grid"]; n=q["n_img_tokens"]
-    A=np.stack([np.asarray(q["attn"][f"L{i}"],float) for i in range(NL)]); A=A/np.maximum(A.sum(1,keepdims=True),1e-12)
+    NLq=len(q["attn"]); A=np.stack([np.asarray(q["attn"][f"L{i}"],float) for i in range(NLq)]); A=A/np.maximum(A.sum(1,keepdims=True),1e-12)
+    assert NLq==NL, f"map has {NLq} layers, expected {NL}"
     LA=np.log(A+1e-12).T; R=(np.argsort(np.argsort(-A,axis=1),axis=1)/max(n-1,1)).T
     dep=A[BLK[0]:BLK[1]].mean(0).reshape(gh,gw); pad=np.pad(dep,1,mode="edge")
     nb=(sum(pad[i:i+gh,j:j+gw] for i in range(3) for j in range(3))/9.0).ravel()

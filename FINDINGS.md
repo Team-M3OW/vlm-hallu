@@ -7582,6 +7582,19 @@ mask, not RNG). Our recomputed masked block-mean cell equals phase179's `vicrop_
 | **block-mean, ring-masked (our baseline)** | **46.6%** | **0.475** |
 | block-mean, no ring mask (literal recipe) | 13.6% | 0.139 |
 
+**REPLICATED on Qwen2-VL-7B** (its own maps, `phase74_Qwen2_VL_7B_Instruct.jsonl`, BLK=L15–26; the recomputed
+ridge cell reproduces phase193 on **191/191** there too):
+
+| rule (Qwen2-VL-7B, V*Bench, n=191) | coverage ≥ 0.5 | mean coverage |
+|---|---|---|
+| **TWR, ring-masked (deployed)** | **55.0%** | **0.565** |
+| TWR, no ring mask | 54.5% | 0.562 |
+| **block-mean, ring-masked (our baseline)** | **39.3%** | **0.392** |
+| block-mean, no ring mask (literal recipe) | 30.9% | 0.313 |
+
+Ring mask worth on Qwen2: **TWR +0.003, block-mean +0.079** — the same order-of-magnitude asymmetry (26×) as
+Qwen3's (28×). **TWR beats the ring-masked baseline on coverage on 2 of 2 models** (+17.3 and +15.7 points).
+
 **The ring mask is worth +0.012 mean coverage to TWR and +0.336 to block-mean — a 28× difference.** The sink
 statistic itself stands and replicates on two models: without the mask the block-mean arg-max lands in the grid's
 **last column** on **84.8% (Qwen3) / 61.8% (Qwen2)** of items against a **5.0%** chance rate. Top-row rate is
