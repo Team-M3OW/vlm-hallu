@@ -380,7 +380,7 @@ is worth $+8.4$ and $+8.9$ points.
 
 \section{What does not work}\label{sec:neg}
 
-Ten designs failed to make cropping serve cross-instance questions, and an eleventh failed to merge the two
+Ten designs failed to make cropping serve cross-instance questions, and two more failed to combine the two
 policies into a single pipeline. We report them because the diagnoses
 constrain the design space more than the successes do. Each failed for a measured reason: per-item window
 sizing; peak-spanning and mass-containment windows; joint (cell, window) re-ranking under a coverage objective (a
@@ -614,6 +614,11 @@ cell & stratum & TSR $-$ bar & headroom\\
 \end{tabular}\label{tab:identity}
 \end{table}
 
+The identity also holds where it predicts \emph{nothing}. Applying TSR to a crop rather than to the full image
+gives eight further cells whose headroom is near zero; gain tracks headroom there with $r=0.911$ and slope $1.03$
+(mean error $0.40$ points), and TSR correctly does nothing. Across both settings the identity is supported on
+$18$ stratum-cells, and it is the only component of this work that predicted a negative result before we ran it.
+
 Two consequences. First, the sign of the gain is predictable before deployment: the one cell where TSR loses
 (HR-4K cross-instance) is the one cell where the baseline itself is worse at $900$ tokens than at $600$, so nothing
 was available to convert. Second, the pruning contributes nothing on its own. Comparing TSR against \texttt{uniform@900}, which encodes at the
@@ -647,8 +652,8 @@ $5$--$7\times$ the tokens.}
 \section{Designs that did not work}\label{app:neg}
 
 \begin{table}[h]\centering\small
-\caption{The ten designs intended to extend cropping to cross-instance questions, and the eleventh that tried to
-merge the two policies. Each was pre-registered with a primary contrast and a guard before it ran. ``Cleared''
+\caption{The ten designs intended to extend cropping to cross-instance questions, and the two that tried to
+combine the two policies. Each was pre-registered with a primary contrast and a guard before it ran. ``Cleared''
 counts checkpoints of two on which the primary passed.}
 \begin{tabular}{p{3.2cm}p{3.5cm}cp{4.5cm}}
 \toprule
@@ -665,6 +670,7 @@ context-continued crop & scene@300 plus crop@300 & 0/2 & scene costs $8.7$ and $
 multi-crop, matched budget & $2\times150$ and $3\times100$ & 0/2 & magnification tax ($-11.3$, $-4.3$) exceeds coverage gain ($+7.8$, $+2.6$)\\
 funded multi-crop & $2\times300$, pruned, early exit & 0/2 & $+3.7$ on one model, $-2.6$ on the other\\
 TWR-guided early pruning & rank at L4 instead of L16 & 0/2 & $-5.2$: ranking before transport is worthless\\
+TSR stacked on a placement rule & crop@$460$ pruned at L16, same budget & 0/2 & no resolution headroom left on a crop ($+0.8$ vs $+4.5$)\\
 \bottomrule
 \end{tabular}\label{tab:neg}
 \end{table}
@@ -674,6 +680,17 @@ is produced after the transport boundary, and pruning only saves compute at or b
 early enough to save has destroyed the layers TWR reads, which costs $3.1$ and $12.6$ points of coverage; a
 pipeline that waits for TWR has nothing left worth pruning. Holding the ranking fixed and moving only the cut
 from L16 to L4 costs $5.2$ points. The incompatibility is structural, not a tuning failure.
+
+\paragraph{The two policies are substitutes, not complements.} The structural argument above is not the only
+reason they do not combine. We also tested the composition that \emph{is} mechanically sound: hold the token-layer
+budget fixed, and let any placement rule spend its answer pass on a crop encoded at $460$ tokens and pruned $90\%$
+at the boundary instead of a plain crop at $300$. Applied to ViCrop-style block-mean, to LASER, to TWR and to
+oracle placement, on both checkpoints, every one of the eight contrasts spans zero. The diagnostic says why: the
+resolution headroom left \emph{on a crop} averages $+0.8$ points, against $+4.5$ on the full image. A
+$0.25\times0.25$ window re-encoded at $300$ tokens has already lifted the object above the encoding cliff, so the
+magnification TSR would buy has already been spent. Both policies spend the same resource, effective resolution on
+the region that matters; cropping spends it in a targeted way and TSR spends it uniformly. That is why their
+\emph{scope} is complementary while their \emph{gains} are not additive.
 
 \paragraph{Why cropping cannot reach cross-instance questions.} Under \emph{perfect} placement, cross-instance
 accuracy reaches $75.0$ and $77.6$, an irreducible error of $25\%$ and $22\%$, against $3.5\%$ and $6.1\%$ for

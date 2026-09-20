@@ -7607,3 +7607,58 @@ not "block-mean reads the sink" but **"the incumbent read-out needs an ad-hoc sp
 and TWR does not"** — TWR achieves the same effect by giving post-boundary layers negative weight, which is the
 mechanism the ridge was derived from. (3) The abstract's coverage contrast is now 63.9% vs **46.6%** (was 13.6%).
 
+## §47 ✗ TSR DOES NOT STACK ON EXISTING PLACEMENT RULES — and the §39 identity predicts exactly why (phase 198)
+
+**The question.** TSR is a resolution converter and is orthogonal to *where* the crop goes, so it should be a
+drop-in for any placement rule, ours or published: keep the same token-layer budget, but spend the answer pass on a
+higher-resolution crop that is pruned 90% at the boundary. This is **not** the §44/§196 merge, which pruned the
+*localisation* pass (structurally impossible, §29). Here the pruning is in the *answer* pass, which §37 already
+showed composes mechanically.
+
+| arm | budget | token-layers | % of bar |
+|---|---|---|---|
+| `P_plain` | localise@300 + crop@300 | 16,800 | 99–101% |
+| `P_tsr` | localise@300 + crop@460 pruned 90% at L16 | ~16,700 | 98–102% |
+| `P_460` | localise@300 + crop@460 unpruned (diagnostic) | 21,700 | 125–130% |
+
+Placement rules P = `vicrop_block`, `laser`, `ridge`(TWR), `oracle` — the **same cells the paper evaluates**
+(phase179 + the ring-masked ridge). V*Bench, n=191, both core models, B=8000.
+
+### P1 REJECTED, 0 of 2 — no rule gains, on either model
+| P1: `P_tsr − P_plain` pooled | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| vicrop_block | −1.0 [−4.7,+2.6] | +0.5 [−3.7,+4.7] |
+| LASER | +0.5 [−3.2,+4.2] | +1.6 [−2.6,+6.3] |
+| **ridge / TWR** | +1.6 [−1.6,+5.2] | −1.0 [−4.7,+2.6] |
+| oracle | +1.6 [−1.6,+4.7] | −0.5 [−4.2,+3.1] |
+
+**Every CI spans zero on both models.** Stacking also fails to rescue a bad placement: `vicrop_block+TSR` is
+−2.6 / +2.6 against the bar, still not beating it.
+
+### THE MECHANISM: there is no resolution headroom left on a crop
+The `P_460` diagnostic measures the headroom directly (crop@460 − crop@300, no method involved):
+**mean +0.81 pts across the 8 rule×model cells (range −1.0 to +1.6)**, against **+4.53 pts** of full-image headroom
+in §39. A 0.25×0.25 window re-encoded at 300 tokens has already put the object far above the encoding cliff;
+magnification has already been spent, so there is nothing left for TSR to convert.
+
+### ★★ THE IDENTITY SURVIVES OUT OF DOMAIN — and predicts its own null
+On these 8 new cells, gain vs headroom: **r = +0.911, slope 1.03, mean |gain − headroom| = 0.40 pts.**
+§39 fitted the identity on full-image cells with headroom up to +12; it now holds on *cropped* cells with
+headroom near zero, and **correctly predicts that TSR does nothing there**. The identity is now supported on
+**18 stratum-cells** and is the first thing in this project that predicted a negative result before it was run.
+
+### GUARD holds; S1 is null
+`P_tsr − P_460` is −1.0 to +0.0 on all 8 cells: **pruning at the boundary is free on crops too**, a fifth setting
+for §26C. S1 (does the gain scale with placement quality?) gives r = +0.691 (Qwen3) and −0.444 (Qwen2) — signs
+disagree, no interaction, rejected.
+
+### ⇒ CONSEQUENCE: cropping and TSR are SUBSTITUTES, not complements
+Both spend the same underlying resource — **effective resolution on the region that matters**. Cropping raises it
+*spatially targeted*; TSR raises it *uniformly*. That is why the two have complementary **scope** (§34: cropping
+owns single-instance, TSR reaches cross-instance) and yet do not **compose**: once you have cropped, the headroom
+TSR converts is gone, and once you have spent the budget on uniform resolution there is none left to crop with.
+This is a second, independent reason the two policies cannot be merged, and it is a cleaner one than §44's
+structural argument: even where the composition is mechanically sound, there is nothing left to buy.
+
+Scripts: `phase198_stack.py`, `phase198_analyze.py`. Data: `phase198_stack_{qwen3,qwen2}.jsonl`.
+
