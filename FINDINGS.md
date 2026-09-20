@@ -7722,3 +7722,49 @@ is real but the story we told about it was not.
 
 Script: `phase200_nuisance.py`.
 
+## §50 ★★★ WHY TWR WORKS: the conventional read-out fails BECAUSE of the item-independent component, and the
+## signed depth weighting is what removes it (phases 201, 202; CPU, both models, UNMASKED maps, n=126)
+
+### §50A The failure is the nuisance (phase 201)
+Ablation defined in §49 and not changed: remove each map's projection onto the **item-mean** map, per layer.
+
+| | block-mean mean-cov | TWR mean-cov | TWR − block |
+|---|---|---|---|
+| Qwen3 raw | 0.083 | 0.578 | **+0.495** |
+| Qwen3 nuisance-ablated | **0.438** | 0.539 | **+0.101** |
+| Qwen2 raw | 0.292 | 0.588 | **+0.296** |
+| Qwen2 nuisance-ablated | **0.490** | 0.518 | **+0.028** |
+
+**Q1 PASSES 2 of 2**: removing the item-independent component lifts the block mean by **+0.354 / +0.198**.
+**Q2** TWR is nearly unaffected (−0.039 / −0.070; the ≤0.05 bound holds on 1 of 2, direction consistent).
+**Q3 ⇒ TWR's advantage over the block mean is almost entirely nuisance-robustness**: ablate the nuisance and the
+gap collapses from +0.495 to +0.101 and from +0.296 to +0.028. This is the mechanism, measured.
+
+### §50B It is the DEPTH FILTER that provides that robustness — not spatial priors (phase 202)
+Leave-one-group-in over the feature set. **Pre-registered prediction: the spatial priors (3×3 neighbourhood +
+centre) do the work and "A only" lands near block-mean. That prediction is REFUTED.**
+
+| feature group | Qwen3 mean-cov | Qwen2 mean-cov |
+|---|---|---|
+| block-mean arg-max (baseline) | 0.083 | 0.292 |
+| **A only — the 28 signed log-attention weights** | **0.614** | **0.586** |
+| R only (ranks) | 0.364 | 0.350 |
+| N+C only (spatial priors) | 0.483 | 0.415 |
+| A+R | **0.635** | 0.596 |
+| ALL (deployed TWR) | 0.578 | 0.588 |
+
+**The signed per-layer weighting alone recovers +0.530 / +0.295 of the +0.495 / +0.296 total advantage.** Spatial
+priors help *alone* but add nothing on top of A, and the explicit last-column/last-row sink indicators carry
+weight **+0.0027 / −0.0029**, i.e. ≈ 0 — the trivial "it just learned a sink detector" explanation is **ruled out**.
+The method's name is earned: the depth filter is the thing that works.
+
+⚠ **An open question, stated rather than papered over.** §49 showed `w` does *not* reliably anti-correlate with
+per-layer nuisance *loading* (1 of 2). Yet §50A/§50B show the depth weighting is what cancels the nuisance. So the
+weighting removes the item-independent component by a cross-layer contrast that a single per-layer loading number
+does not capture. We have the *what* causally; we do not yet have the *how*.
+
+⚠ **Minor, 1 of 2:** `A+R` (0.635) beats the deployed all-feature TWR (0.578) on Qwen3 and ties on Qwen2 (0.596 vs
+0.588) — the geometry block may cost a little. Not adopted on one model.
+
+Scripts: `phase201_ablate_nuisance.py`, `phase202_feature_ablation.py`.
+
