@@ -863,91 +863,53 @@ a $1.55\times$ resolution multiplier. We ran $E=900$, $97\%$ of the optimum, and
 bar. This is arithmetic; we state it because it is the design equation, and because it says the multiplier is
 fixed by the boundary's depth fraction rather than chosen.
 
-\paragraph{Proposition 3 (what the learned read-out actually supplies is supervision over depth, not sign
-cancellation).} The obvious account --- a fixed positive average cannot cancel an item-independent component, a
-signed one can --- is \emph{not} what our data support, and we pre-registered the test that refuted it. Its formal
-premise requires the per-layer nuisance loadings and signal gains to be near-orthogonal; measured, their cosine is
-$+0.431$ and $+0.388$, so the premise fails on both checkpoints. The decisive test is stronger: constraining every
-per-layer weight to be \emph{non-negative} retains the entire advantage ($+0.510$ against DWA's $+0.495$, and
-$+0.292$ against $+0.296$), while driving $44$ of $56$ and $43$ of $56$ per-layer coefficients to exactly zero. The
-non-negative solution is a \emph{sparse positive selection} of a few layers --- log-attention layers
-$\{4,5,17,19\}$ and $\{19,21\}$ --- sitting in the read-out band. In map space a signed filter beats its
-non-negative counterpart by $+0.044$ and $-0.002$. Subtraction is therefore at most a small part of the
-correction, and we withdraw it as the mechanism.
-
-What does carry the effect, from the same table: the \emph{depth ordering} (permuting it costs $0.26$ and $0.08$ of
-the advantage; tying all layers to a single weight costs $0.06$ and $0.07$), and above all the \emph{supervised
-fit} itself --- every fitted arm sits far above the unsupervised block mean, and all of them collapse toward it
-once the item-independent component is ablated, where the block mean rises by $+0.354$ and $+0.198$. So the honest
-statement of why DWA works is: the conventional read-out fails because of a component that does not depend on the
-image, and roughly fifty boxed examples are enough to learn which handful of depths to read instead. That is a
-weaker claim than the one we started with, and it is the one the experiments support.
-
-\paragraph{Theorem 1 (a single-depth read-out is lossy unless that depth is sufficient).}
-Let $c^\star\in\mathcal{C}$ be the cell containing the evidence and let $A=(A_1,\dots,A_L)$ be the depth profile of
-attention maps. Let $\hat c=g(A_\ell)$ be any rule that reads a single layer $\ell$. Then
+\paragraph{Proposition 3 (the conventional read-out fails by tail dominance, and a positive average cannot
+repair it).} Write each depth's per-cell score as $x_\ell(c)=m_\ell(c)+u_\ell(c)$, where $m_\ell$ is the
+item-independent component and $u_\ell$ is item-specific with zero mean over items. A read-out returns
+$\arg\max_c \sum_\ell w_\ell x_\ell(c)$, a functional of the upper \emph{tail} only. Put
+$\Delta_B=\max_c\sum_{\ell\in B} m_\ell(c)-\mathrm{med}_c\sum_{\ell\in B} m_\ell(c)$.
 \begin{enumerate}\itemsep0pt
-\item[(i)] $c^\star \to A \to A_\ell \to \hat c$ is a Markov chain, hence
-  $I(c^\star;\hat c)\;\le\;I(c^\star;A_\ell)\;\le\;I(c^\star;A)$;
-\item[(ii)] the right-hand inequality is an equality if and only if $c^\star \perp A \mid A_\ell$, i.e.\ $A_\ell$ is
-  a sufficient statistic for $c^\star$ within the profile;
-\item[(iii)] consequently, by Fano's inequality,
-  $\Pr[\hat c \neq c^\star] \;\ge\; \big(H(c^\star)-I(c^\star;A_\ell)-1\big)/\log|\mathcal{C}|$, so any strict loss
-  in (i) raises the attainable error floor.
+\item[(i)] If $\Delta_B$ exceeds the range of $\sum_{\ell\in B}u_\ell$, the arg-max is $\arg\max_c\sum_B m_\ell$
+  for \emph{every} item, so the read-out returns a fixed cell independent of the image.
+\item[(ii)] Averaging with equal positive weights cannot reduce $\Delta_B$, because $m$ is present at every depth:
+  $\Delta_B$ accumulates across $B$, while $\sum_B u_\ell$ concentrates. Widening the band therefore makes (i)
+  \emph{more} likely, not less.
+\item[(iii)] Any per-cell rescaling that equalises $m$ across cells --- in particular dividing by an estimate of
+  $m$ --- removes the dominance without using labels.
 \end{enumerate}
 
-\emph{Proof.} (i) $A_\ell$ is a coordinate projection of $A$, so $c^\star\to A\to A_\ell$; and $\hat c=g(A_\ell)$
-is post-processing, so $A_\ell\to\hat c$. Applying the data-processing inequality along each link gives the chain.
-(ii) $I(c^\star;A)-I(c^\star;A_\ell)=I(c^\star;A\mid A_\ell)\ge 0$ by the chain rule for mutual information, with
-equality exactly when $c^\star$ and $A$ are conditionally independent given $A_\ell$, which is the definition of
-sufficiency. (iii) is Fano's inequality applied to the Markov chain in (i). \hfill$\square$
+\emph{Proof.} (i) is immediate: if the deterministic part's lead exceeds the total variation the item-specific
+part can supply, it decides the maximum. (ii) follows because each summand contributes its own $m_\ell$ lead with
+the same sign, whereas the $u_\ell$ contribute with varying sign. (iii) is immediate from (i) applied to the
+rescaled scores. \hfill$\square$
 
-The theorem says a fixed-depth rule is lossless \emph{exactly} under sufficiency, and is otherwise paying an
-information penalty that bounds its error from below. That is vacuous until sufficiency is decided, and
-sufficiency is an empirical question about a particular model, so we test it.
+\emph{Every part is measured, and the measurements decide between accounts that (ii) alone cannot separate.}
+On the items the block mean gets wrong, the cell it selects sits at the \textbf{100th percentile} of the
+item-independent map --- on both checkpoints, on every failure. It is not mis-weighting evidence; it is returning
+the raster sink. Consistent with (ii), widening the averaging band from its best width to the deployed eleven
+raises the last-column rate from $17.5\%$ to $91.3\%$ and from $45.2\%$ to $62.7\%$ and costs coverage on both
+models. Consistent with (iii), an \emph{unsupervised} correction --- divide each cell by its value on a typical
+item, then take the arg-max --- lifts coverage from $0.083$ to $0.408$ and from $0.292$ to $0.504$, reaching
+$71\%$ and $86\%$ of what the fitted read-out achieves, and drops the last-column rate to $2.4\%$ and $0.0\%$
+against a $4.8\%$ chance rate, with no ring mask.
 
-\emph{Testing the equality condition.} Sufficiency implies a checkable consequence within the arg-max read-out
-family that every method here uses: if $A_\ell$ were sufficient, its arg-max would be correct whenever any other
-layer's arg-max is, so the best single depth would match the family's envelope. Table~\ref{tab:suff} reports both.
-At the end task the best single depth reaches $70.2\%$ while some depth is correct on $95.3\%$ of items; on
-placement the best depth covers the evidence on $55.5\%$ and $52.9\%$ while some depth covers it on $82.7\%$ and
-$71.2\%$. The set of items every depth gets right is $5.2\%$ at the end task and \textbf{empty} for placement on
-both checkpoints, and nine to thirteen distinct depths are needed before the envelope is exhausted. No layer
-dominates the family, so no layer is sufficient, and the inequality in (i) is strict by $18$ to $27$ points.
+\emph{What the fit adds, and why its sign does not matter.} Because the features are log-attention, a weight
+vector summing to zero computes a \emph{ratio} across depths, which cancels any per-cell factor common to all
+layers; the fitted weights are close to that, with $|\sum_\ell w_\ell|/\sum_\ell|w_\ell| = 0.126$ and $0.225$.
+But that is not the only route. Sink dominance itself varies $3.2\times$ and $4.4\times$ across depth, and the
+least-dominated depths are exactly the read-out band, so a strictly non-negative read-out can escape by
+\emph{selecting} those depths rather than by cancelling anything. Both routes are available, which is why
+constraining every weight to be non-negative costs nothing while zeroing $44$ and $43$ of $56$ coefficients. We do
+not claim the fitted weights track dominance depth-by-depth: that correlation is only $+0.171$ and $+0.131$. The
+supported statement is that the failure is tail dominance, that it has an unsupervised fix which recovers most of
+the gap, and that supervision buys the remaining $14$--$29\%$.
 
-\begin{table}[h]\centering\small
-\setlength{\tabcolsep}{4pt}
-\caption{The sufficiency test. A sufficient layer would make the first two columns equal.}
-\begin{tabular}{lccccc}
-\toprule
-& best depth & some depth & gap & every depth & depths to\\
-& correct & correct & & correct & exhaust\\
-\midrule
-end task, Qwen3-VL-2B & 70.2\% & \textbf{95.3\%} & $+25.1$ & 5.2\% & 12\\
-placement, Qwen3-VL-2B & 55.5\% & \textbf{82.7\%} & $+27.2$ & \textbf{0.0\%} & 13\\
-placement, Qwen2-VL-7B & 52.9\% & \textbf{71.2\%} & $+18.3$ & \textbf{0.0\%} & 9\\
-\bottomrule
-\end{tabular}\label{tab:suff}
-\end{table}
-
-\emph{Scope, stated.} The envelope is measured over the arg-max read-out family, not over all measurable functions
-of $A$, so the test refutes sufficiency \emph{within the family every published method draws from}. That is the
-relevant class: it is what a depth-selection rule chooses among.
-
-\paragraph{Corollary (two ways out of the depth problem, and what each one actually buys).} Since no depth is
-sufficient, a method has two options. \textbf{(a) Read every depth and fit.} DWA does this and reaches $72.8\%$,
-above the best fixed depth ($70.2\%$) though not significantly so ($+2.6$ [$-3.1,+8.9$]); its value is that it
-attains an oracle depth's performance without being told which depth that is, whereas the published fixed choice
-lands at $37.9\%$ and per-sample selection (LASER) at $64.7\%$. \textbf{(b) Do not read attention at all.} AVR
-makes no depth decision: it uses the boundary only to decide \emph{where to stop paying} for visual tokens, and
-its answer never passes through an attention read-out. It reaches $70.2\%$, matching the best fixed depth.
-
-The honest comparison is therefore not that AVR scores higher than single-depth selection --- it does not, it
-ties --- but that its score carries no depth risk. A fixed-depth rule spans $34.6\%$ to $70.2\%$ depending on a
-choice its designer cannot validate without labels; AVR has no such choice to get wrong, needs no boxed
-supervision, and is the only one of the two policies that also helps on cross-instance questions, where every
-placement rule we tested is negative. That is the sense in which avoiding the read-out is better than selecting
-within it.
+\emph{Two accounts we tested first and rejected.} That signed weights cancel a common nuisance: refuted, since
+non-negative fits lose nothing and the orthogonality the argument needs measures $+0.431$ and $+0.388$ rather than
+zero. That the fit is a matched filter over depth, weighting by per-layer signal-to-noise: refuted, one of two on
+each of its predictions, and wrong in kind --- the block mean already retains $77\%$ of attainable signal-to-noise
+on both models while its coverage is several times worse, and a mean-based quantity cannot explain an arg-max
+failure.
 
 \paragraph{Proposition 4 (a single window cannot serve two distant sites).} \emph{A window of side $W$ contains at
 most one of two evidence sites separated by more than $W$.} Trivial, and it is not the interesting part. The

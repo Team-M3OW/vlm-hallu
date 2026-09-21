@@ -8249,3 +8249,56 @@ regenerated; no arm identifier in the data or in FINDINGS was touched, so `tsr90
 logged runs. Note the new names drop the "transport" link that the old ones carried, so the paper now has to make
 the derivation explicit in text rather than in the acronym.
 
+## §61 ★★★ WHY THE DEPTH FIT WORKS: TAIL DOMINANCE. Two candidate theories tested and REJECTED first.
+
+### Rejected candidate 1 — signed cancellation (§49, §53). Already withdrawn.
+
+### Rejected candidate 2 — MATCHED FILTER over depth (phase 208, pre-registered)
+Model x_l(c) = s_l·t(c) + n_l(c); SNR-optimal weights ∝ s_l/σ_l². Predictions and outcomes:
+
+| | Qwen3 | Qwen2 | verdict |
+|---|---|---|---|
+| P-A CV of per-layer SNR across the band > 0.5 | 0.26 ✗ | 0.39 ✗ | **0 of 2** |
+| P-B corr(w_l, s_l/σ_l²) > +0.3 | +0.431 ✔ | +0.279 ✗ | **1 of 2** |
+| P-C ≥80% of layers have s_l > 0 | 96% ✔ | 54% ✗ | **1 of 2** |
+
+**REJECTED.** And the framing is wrong at the root: the block mean already retains **76.8% / 76.3% of attainable
+SNR on both models** while its coverage is 0.083 / 0.292 against DWA's 0.578 / 0.588 — a ~7× and ~2× gap. **A
+mean-based quantity cannot explain an arg-max failure.** (A first pass of this test silently dropped 69 of 126
+items because V*Bench boxes are often smaller than one grid cell, so no cell centre falls inside; fixed by falling
+back to the nearest cell to the box centre. The verdict did not change.)
+
+### ✅ SURVIVING ACCOUNT — tail dominance (phase 209, pre-registered, 3 of 3 on BOTH models)
+The decision is an **arg max**, which depends only on the upper tail. Write x_l(c) = m_l(c) + u_l(c) with m
+item-independent (§6A's raster sink) and u item-specific.
+
+| prediction | Qwen3 | Qwen2 |
+|---|---|---|
+| **R1** on the block mean's failures, its chosen cell's percentile in the item-mean map > 90 | **100.0** ✔ | **100.0** ✔ |
+| **R2** an UNSUPERVISED lift (divide by the item-mean map) reaches ≥0.70× DWA's coverage | 0.408 = **0.71×** ✔ | 0.504 = **0.86×** ✔ |
+| **R3** lift needs no ring mask: last-column rate near the 4.8% chance rate | **2.4%** ✔ | **0.0%** ✔ |
+
+**R1 is decisive: on *every* failure the block mean picks a cell at the 100th percentile of the item-independent
+map.** It is not mis-weighting signal; it is returning the sink.
+
+### Why a positive average cannot fix it, and why two different corrections can
+m appears at **every** depth, so equal-weight positive averaging preserves its lead. Measured: widening the band
+from its best width to the deployed 11 raises the last-column rate (17.5→91.3% Qwen3, 45.2→62.7% Qwen2) and costs
+coverage (0.418→0.083, 0.390→0.297). **The deployed band is wider than is good for it on 2 of 2**; strict
+monotone degradation in width is 1 of 2 (clean on Qwen3, only above width 7 on Qwen2) and is **not** claimed.
+
+Two routes remove the dominance, and both are available in this feature space, which is why §53 found
+non-negativity costs nothing:
+- **(a) divide it out.** Features are log-attention, so a zero-sum weight vector computes a *ratio* across depths,
+  cancelling any per-cell factor common to all layers. Measured |Σw|/Σ|w| = **0.126 / 0.225** — the fitted
+  weights are close to a contrast.
+- **(b) read where it is weak.** Sink dominance varies **3.2× / 4.4×** across depth; the weakest-dominance layers
+  are [15,16,17,20,24] and [16,19,20,21,26] — the read-out band, and where §53's sparse non-negative fit puts its
+  weight.
+
+⚠ **Not claimed:** that the fitted w tracks dominance layer-by-layer. corr(w, −dominance) is only +0.171 / +0.131,
+consistent with §49 — per-layer scalars do not predict w. We show the routes exist and are taken, not that a
+one-number summary explains the fit.
+
+Scripts: `phase208_matched_filter.py`, `phase209_tail.py`.
+
