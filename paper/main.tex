@@ -871,24 +871,30 @@ $\Delta_B=\max_c\sum_{\ell\in B} m_\ell(c)-\mathrm{med}_c\sum_{\ell\in B} m_\ell
 \begin{enumerate}\itemsep0pt
 \item[(i)] If $\Delta_B$ exceeds the range of $\sum_{\ell\in B}u_\ell$, the arg-max is $\arg\max_c\sum_B m_\ell$
   for \emph{every} item, so the read-out returns a fixed cell independent of the image.
-\item[(ii)] Averaging with equal positive weights cannot reduce $\Delta_B$, because $m$ is present at every depth:
-  $\Delta_B$ accumulates across $B$, while $\sum_B u_\ell$ concentrates. Widening the band therefore makes (i)
-  \emph{more} likely, not less.
+\item[(ii)] Equal-weight positive averaging cannot escape (i) at \emph{any} band width. Because the $m_\ell$
+  leads are sign-aligned across depth, $\Delta_B$ is superadditive in $B$; the item-specific term grows as well,
+  so the ratio need not increase, but it never reaches the $O(1)$ regime in which $\sum_B u_\ell$ could decide
+  the arg-max.
 \item[(iii)] Any per-cell rescaling that equalises $m$ across cells --- in particular dividing by an estimate of
   $m$ --- removes the dominance without using labels.
 \end{enumerate}
 
 \emph{Proof.} (i) is immediate: if the deterministic part's lead exceeds the total variation the item-specific
-part can supply, it decides the maximum. (ii) follows because each summand contributes its own $m_\ell$ lead with
-the same sign, whereas the $u_\ell$ contribute with varying sign. (iii) is immediate from (i) applied to the
+part can supply, it decides the maximum. For (ii), each summand contributes its $m_\ell$ lead with the
+same sign, so $\Delta_B$ is superadditive; whether $\Delta_B/\sigma_B$ rises or falls depends on the covariance
+of the $u_\ell$, and the claim is only that it does not reach $O(1)$. (iii) is immediate from (i) applied to the
 rescaled scores. \hfill$\square$
 
 \emph{Every part is measured, and the measurements decide between accounts that (ii) alone cannot separate.}
 On the items the block mean gets wrong, the cell it selects sits at the \textbf{100th percentile} of the
 item-independent map --- on both checkpoints, on every failure. It is not mis-weighting evidence; it is returning
-the raster sink. Consistent with (ii), widening the averaging band from its best width to the deployed eleven
-raises the last-column rate from $17.5\%$ to $91.3\%$ and from $45.2\%$ to $62.7\%$ and costs coverage on both
-models. Consistent with (iii), an \emph{unsupervised} correction --- divide each cell by its value on a typical
+the raster sink. Consistent with (ii), $\Delta_B/\sigma_B$ measured over band widths $1$ to $11$ stays between $10.2$ and $16.6$
+on one checkpoint and between $7.0$ and $15.1$ on the other --- always an order of magnitude above the regime
+where the item-specific term could win, so no amount of averaging rescues the rule. The ratio \emph{rises} with
+width on the first checkpoint and \emph{falls} on the second, so we claim only that averaging never escapes, not
+that wider is monotonically worse. What is common to both is that the deployed eleven-wide band is worse than the
+best narrower band ($0.418\to0.083$ and $0.390\to0.297$), and that its last-column rate is higher there
+($17.5\to91.3\%$ and $45.2\to62.7\%$). Consistent with (iii), an \emph{unsupervised} correction --- divide each cell by its value on a typical
 item, then take the arg-max --- lifts coverage from $0.083$ to $0.408$ and from $0.292$ to $0.504$, reaching
 $71\%$ and $86\%$ of what the fitted read-out achieves, and drops the last-column rate to $2.4\%$ and $0.0\%$
 against a $4.8\%$ chance rate, with no ring mask.
@@ -903,6 +909,13 @@ constraining every weight to be non-negative costs nothing while zeroing $44$ an
 not claim the fitted weights track dominance depth-by-depth: that correlation is only $+0.171$ and $+0.131$. The
 supported statement is that the failure is tail dominance, that it has an unsupervised fix which recovers most of
 the gap, and that supervision buys the remaining $14$--$29\%$.
+
+\emph{A refinement the theory predicted, which failed.} If what remains after dividing out $m$ were
+heteroscedastic across cells, the right label-free statistic would be the studentised one, $(x(c)-m(c))/s(c)$. We
+pre-registered that it would beat the plain ratio. It does not, on either checkpoint ($-0.015$ and $-0.028$), and
+it closes $63\%$ and $61\%$ of the gap against the plain ratio's $66\%$ and $70\%$. The proposition therefore
+explains the failure and supplies a label-free correction, but does not yet predict a better one: the residual
+that supervision buys is not simple heteroscedasticity.
 
 \emph{Two accounts we tested first and rejected.} That signed weights cancel a common nuisance: refuted, since
 non-negative fits lose nothing and the orthogonality the argument needs measures $+0.431$ and $+0.388$ rather than

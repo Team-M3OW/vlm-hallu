@@ -8302,3 +8302,39 @@ one-number summary explains the fit.
 
 Scripts: `phase208_matched_filter.py`, `phase209_tail.py`.
 
+## §62 ⚠ ATTEMPT TO STRENGTHEN §61 FAILED — and in failing it CORRECTED and strengthened the proposition
+
+Pre-registered attempt (phase 210) to turn §61 from an explanation into a prediction.
+
+| test | Qwen3 | Qwen2 | verdict |
+|---|---|---|---|
+| **S1** Δ_B/σ_B grows as \|B\|^0.5 (log-log slope in [0.3,0.7]) | +0.37 ✔ | **−0.26** ✗ | **1 of 2** |
+| **S2** studentised (x−m)/s beats the plain ratio x/m | −0.015 ✗ | −0.028 ✗ | **0 of 2** |
+| **S3** studentised closes ≥85% of the block-mean→DWA gap | 63% ✗ | 61% ✗ | **0 of 2** |
+
+**The theory explains but does not predict.** Dividing out the item-independent component is the right
+label-free correction (§61 R2: closes 66%/70%), but the residual supervision buys is **not** simple
+heteroscedasticity — studentising makes it slightly worse on both models.
+
+### ⚠ The failure exposed a claim shipped an hour earlier that was 1 of 2
+Proposition 3(ii) had said "Δ_B accumulates while Σu concentrates, so widening the band makes the failure *more*
+likely." Measured directly:
+
+| width | Qwen3 Δ_B | σ_B | ratio | Qwen2 Δ_B | σ_B | ratio |
+|---|---|---|---|---|---|---|
+| 1 | 0.047 | 0.0046 | 10.2 | 0.047 | 0.0031 | 15.1 |
+| 5 | 0.289 | 0.0269 | 10.8 | 0.187 | 0.0209 | 9.0 |
+| 11 | 0.775 | 0.0467 | **16.6** | 0.500 | 0.0526 | **9.5** |
+
+Δ_B accumulates on both (2 of 2 ✔), but σ_B grows **faster** on Qwen2, so the ratio **falls** there. "Wider is
+monotonically worse" is **1 of 2 and is now withdrawn from the paper.**
+
+### The repair is STRONGER than what it replaced
+The ratio never leaves [7.0, 16.6] at any width on either model — always an order of magnitude above the O(1)
+regime where the item-specific term could decide the arg-max. So the claim becomes:
+**equal-weight positive averaging cannot escape tail dominance at ANY band width.** That is 2 of 2, and it is
+a sharper statement than "wider is worse", which was 1 of 2. What remains common to both models is that the
+deployed 11-wide band is worse than the best narrower band (0.418→0.083, 0.390→0.297).
+
+Script: `phase210_strengthen.py`.
+
