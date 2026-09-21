@@ -1,4 +1,4 @@
-"""Capture, for three V*Bench items, exactly what TSR keeps at the transport boundary and what the model
+"""Capture, for three V*Bench items, exactly what AVR keeps at the transport boundary and what the model
 answers under attention-keep vs random-keep. Reuses phase185_tsr.py's pruning machinery verbatim."""
 import json, os, sys, random, numpy as np, torch
 from PIL import Image
@@ -70,7 +70,7 @@ for qid in PICKS:
     gh,gw=gridof(sm9); rec["grid"]=[gh,gw]; rec["n_tokens"]=nt
     _,A=run(inp9,want_attn=True)
     Ai=A[:,base:base+nt]; Ai=Ai/np.maximum(Ai.sum(1,keepdims=True),1e-12)
-    s=Ai[max(0,P-4):P+1].mean(0)                      # the TSR ranking: mean attention L12..L16
+    s=Ai[max(0,P-4):P+1].mean(0)                      # the AVR ranking: mean attention L12..L16
     keep=max(1,int(round(K*nt)))
     ord_attn=np.argsort(-s); drop_attn=(base+ord_attn[keep:]).tolist()
     rec["probs"]["tsr900"],_=run(inp9,drop=drop_attn,from_layer=P+1)

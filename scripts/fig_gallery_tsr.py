@@ -1,4 +1,4 @@
-"""TSR gallery: 12 real inferences showing what survives the boundary under attention-keep vs random-keep."""
+"""AVR gallery: 12 real inferences showing what survives the boundary under attention-keep vs random-keep."""
 import json, os, glob, re, numpy as np
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -31,7 +31,7 @@ for i,m in enumerate(rows):
             a.set_title(lbl,fontsize=7.4,color=col,pad=4)
     a=ax[r*2+1,c*3]; a.axis("off")
     txt=[]
-    for key,col,note in [("uniform@600",BLUE,"bar"),("tsr900",GREEN,"TSR"),
+    for key,col,note in [("uniform@600",BLUE,"bar"),("tsr900",GREEN,"AVR"),
                          ("tsr900_rand",PURPLE,"rand"),("uniform@900","#57606a","no prune")]:
         j=int(np.argmax(m['probs'][key])); ok=j==lab
         txt.append((note,f"({'ABCD'[j]}) {O.get('ABCD'[j],'?')[:13]}",'✓' if ok else '✗',col,GREEN if ok else RED))

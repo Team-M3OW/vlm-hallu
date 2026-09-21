@@ -50,12 +50,12 @@ for nm,st,g,h in cells:
 lim=[-4.5,14]; plt.plot(lim,lim,color=GY,ls="--",lw=1.3,label="gain = headroom")
 plt.axhline(0,color="k",lw=.7); plt.axvline(0,color="k",lw=.7)
 plt.xlim(lim); plt.ylim(lim)
-plt.xlabel("resolution headroom  acc@900 $-$ acc@600"); plt.ylabel("TSR $-$ equal-compute bar")
+plt.xlabel("resolution headroom  acc@900 $-$ acc@600"); plt.ylabel("AVR $-$ equal-compute bar")
 from matplotlib.lines import Line2D
 plt.legend(handles=[Line2D([],[],color=GY,ls="--",label="gain = headroom"),
                     Line2D([],[],marker="o",ls="",color=G,label="single-instance"),
                     Line2D([],[],marker="s",ls="",color=B,label="cross-instance")],fontsize=8.5,loc="upper left")
-plt.title("TSR converts headroom at rate 1.0\n$r=0.966$, slope $1.01$, mean $|$error$|$ 0.7 pts",fontsize=10.5)
+plt.title("AVR converts headroom at rate 1.0\n$r=0.966$, slope $1.01$, mean $|$error$|$ 0.7 pts",fontsize=10.5)
 plt.grid(alpha=.25); plt.tight_layout(); save("fig_identity")
 
 # ---------- 3. scope law ----------
@@ -64,7 +64,7 @@ rs=[14.8,13.9,12.2,6.1,10.2,9.2,8.8]; rc=[0.0,9.2,-2.6,-3.9,-8.8,-6.0,-8.8]
 ts=[3.5,3.5,12.2,7.0,4.0,2.8,6.5];    tc=[10.5,1.3,7.9,7.9,-2.8,0.8,1.8]
 y=np.arange(len(names)); h=0.36
 fig,ax=plt.subplots(1,2,figsize=(11.4,3.6),sharey=True)
-for a,(s,c,t) in zip(ax,[(rs,rc,"ridge crop"),(ts,tc,"TSR")]):
+for a,(s,c,t) in zip(ax,[(rs,rc,"DWA crop"),(ts,tc,"AVR")]):
     a.barh(y+h/2,s,h,color=G,label="single-instance")
     a.barh(y-h/2,c,h,color=R,label="cross-instance")
     a.axvline(0,color="k",lw=.9); a.set_yticks(y); a.set_yticklabels(names,fontsize=9)
@@ -75,8 +75,8 @@ plt.tight_layout(); save("fig_scope")
 
 # ---------- 4. accuracy vs compute ----------
 arms=[("uniform@600 (bar)",600,63.7,58.1,GY),("block-mean arg-max",600,62.1,59.2,O),
-      ("LASER",600,64.7,61.3,B),("TSR (ours)",600,70.0,61.8,"#8250df"),
-      ("ridge filter (ours)",600,72.6,70.2,G),("oracle crop",600,87.9,87.4,"#b45309")]
+      ("LASER",600,64.7,61.3,B),("AVR (ours)",600,70.0,61.8,"#8250df"),
+      ("DWA (ours)",600,72.6,70.2,G),("oracle crop",600,87.9,87.4,"#b45309")]
 fig,ax=plt.subplots(1,2,figsize=(11.4,3.9))
 for a,(k,nat,ntok,mdl) in zip(ax,[(2,76.3,3290,"Qwen3-VL-2B ($n{=}190$)"),(3,71.2,4320,"Qwen2-VL-7B ($n{=}191$)")]):
     a.axhline(nat,color=R,ls="--",lw=1.8)

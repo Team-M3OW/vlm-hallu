@@ -8,7 +8,7 @@ from datasets import load_dataset
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; W=0.25; Image.MAX_IMAGE_PIXELS=None
 GREEN="#1a7f37"; RED="#cf222e"
 RULES=[("vicrop_L14","fixed layer L14"),("vicrop_block","block-mean L16-26"),
-       ("laser","LASER (per-item layer)"),("ridge","TWR (all layers, signed)"),("oracle","oracle placement")]
+       ("laser","LASER (per-item layer)"),("ridge","DWA (all layers, signed)"),("oracle","oracle placement")]
 ds=load_dataset("craigwu/vstar_bench")["test"]
 root=glob.glob(os.path.expanduser('~/.cache/huggingface/hub/datasets--craigwu--vstar_bench/snapshots/*'))[0]
 lut={f"{r['category']}/{r['question_id']}":r for r in ds}
@@ -31,7 +31,7 @@ SC={json.loads(l)['qid']:json.loads(l) for l in open(f"{D}/data/fig_ridge_scores
 ARM={json.loads(l)['question_id_full']:json.loads(l) for l in open(f"{D}/data/phase184_allarms_{which}.jsonl")}
 ids=sorted(set(P179)&set(SC)&set(ARM))
 # Selection rule, stated in the caption: single-instance items on which the oracle crop is CORRECT
-# (so the ceiling behaves like a ceiling) and TWR is correct while the fixed-layer rule is not.
+# (so the ceiling behaves like a ceiling) and DWA is correct while the fixed-layer rule is not.
 # Ordered by question id; the first four are shown.
 def ok(q,k): return int(np.argmax(ARM[q]['probs'][k])==ARM[q]['label'])
 cand=[q for q in ids if q.startswith("direct_attributes")

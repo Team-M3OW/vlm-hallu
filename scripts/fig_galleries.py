@@ -30,7 +30,7 @@ def crop(im,cx,cy):
 SC={w:{json.loads(l)['qid']:json.loads(l) for l in open(f"{D}/data/fig_ridge_scores_{w}.jsonl")} for w in ("qwen3","qwen2")}
 ARM={w:{json.loads(l)['question_id_full']:json.loads(l) for l in open(f"{D}/data/phase184_allarms_{w}.jsonl")} for w in ("qwen3","qwen2")}
 
-# ---------- 1. TWR gallery: 8 inferences, block-mean vs TWR ----------
+# ---------- 1. DWA gallery: 8 inferences, block-mean vs DWA ----------
 def twr_gallery(which,fname,n_show=8):
     sc,arm=SC[which],ARM[which]
     ids=sorted(set(sc)&set(arm))
@@ -68,7 +68,7 @@ def twr_gallery(which,fname,n_show=8):
         for k in range(3): ax[r*3+k,c].axis("off")
     fig.legend(handles=[Line2D([],[],color=RED,ls='--',lw=2,label='ground truth'),
                         Line2D([],[],color=ORANGE,lw=2,label='block-mean crop'),
-                        Line2D([],[],color=GREEN,lw=2,label='TWR crop')],
+                        Line2D([],[],color=GREEN,lw=2,label='DWA crop')],
                loc='lower center',ncol=3,fontsize=9.5,frameon=False)
     for e in ("pdf","png"): plt.savefig(f"{D}/paper/figs/{fname}.{e}",dpi=155,bbox_inches="tight")
     plt.close(); print(f"wrote {fname}  ({len(sel)} inferences)")
@@ -111,7 +111,7 @@ plt.close(); print("wrote fig_sink_map")
 plt.figure(figsize=(5.6,4.2))
 for w,lbl,ls in [("qwen3","Qwen3-VL-2B","-"),("qwen2","Qwen2-VL-7B","--")]:
     sc=SC[w]; ids=sorted(sc)
-    for key,col,nm in [("ridge_cell",GREEN,"TWR"),("block_cell",ORANGE,"block-mean"),("block_cell_raw","#8250df","block-mean, no ring mask")]:
+    for key,col,nm in [("ridge_cell",GREEN,"DWA"),("block_cell",ORANGE,"block-mean"),("block_cell_raw","#8250df","block-mean, no ring mask")]:
         c=np.sort([cov(*sc[q][key],sc[q]['gt']) for q in ids])
         plt.plot(c,100*np.arange(len(c))/len(c),ls,color=col,lw=1.9,
                  label=f"{nm} ({lbl.split('-')[0]}{lbl[-3:]})" if ls=="-" else None)

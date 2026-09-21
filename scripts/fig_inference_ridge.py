@@ -1,5 +1,5 @@
 """Ridge inference panel: what the two read-out rules see and answer, on real V*Bench items.
-Example selection rule (stated in the caption): single-instance items on which the ridge crop covers
+Example selection rule (stated in the caption): single-instance items on which the DWA crop covers
 >=50% of the ground-truth box and the block-mean crop does not, AND the ridge answer is correct while
 the block-mean answer is not, restricted to items where the recomputed OOF ridge cell reproduces the
 logged run exactly. 9 items qualify; the first three by question id are shown."""
@@ -47,7 +47,7 @@ for r,q in enumerate(PICKS):
         from matplotlib.lines import Line2D
         a.legend(handles=[Line2D([],[],color=RED,ls='--',lw=2,label='ground truth'),
                           Line2D([],[],color=ORANGE,lw=2,label='block-mean crop (ring-masked)'),
-                          Line2D([],[],color=GREEN,lw=2,label='TWR crop')],
+                          Line2D([],[],color=GREEN,lw=2,label='DWA crop')],
                  loc='lower left',fontsize=7.6,framealpha=0.9,handlelength=1.6)
     # 2 block-mean attention
     a=ax[r,1]; dep=np.asarray(m['dep']); a.imshow(dep,cmap="magma"); a.set_xticks([]); a.set_yticks([])
@@ -58,10 +58,10 @@ for r,q in enumerate(PICKS):
     a=ax[r,2]; s=np.asarray(m['score']); a.imshow(s,cmap="viridis"); a.set_xticks([]); a.set_yticks([])
     gh2,gw2=s.shape
     ix,iy=int(m['ridge_cell'][0]*gw2),int(m['ridge_cell'][1]*gh2); a.plot(ix,iy,"x",color=GREEN,ms=11,mew=3)
-    if r==0: a.set_title("TWR score (out-of-fold)",fontsize=10)
+    if r==0: a.set_title("DWA score (out-of-fold)",fontsize=10)
     # 4/5 the crops the model actually answers from
     for k,(cell,col,ans,name) in enumerate([(m['block_cell'],ORANGE,ab,"block-mean crop"),
-                                            (m['ridge_cell'],GREEN,ar,"TWR crop")]):
+                                            (m['ridge_cell'],GREEN,ar,"DWA crop")]):
         a=ax[r,3+k]; x0,y0,x1,y1=win(*cell)
         a.imshow(im.crop((int(x0*Wp),int(y0*Hp),int(x1*Wp),int(y1*Hp)))); a.set_xticks([]); a.set_yticks([])
         good=ans==lab

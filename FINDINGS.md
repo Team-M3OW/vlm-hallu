@@ -7958,8 +7958,20 @@ bar on both models), so the feature space matters, not the sign of the map combi
 4. **Descriptive claims about the fitted weights stay** (7 of 11 / 7 of 12 negative in the block band, net ≈ 0);
    only the causal attribution changes.
 
-Limits: coverage on the modal grid (n=126); end-task Qwen3 only in this section; the orthogonality premise of the
-formal account failed 2 of 2 and is not claimed.
+### Pre-registered verdicts (PREREG_MECH_THEORY.md)
+
+| prediction | outcome |
+|---|---|
+| P-N1 non-negative fit loses ≥0.05 to TWR | **REFUTED 0 of 2** (it gains +0.016 on Qwen3, ties on Qwen2) |
+| P-N2 non-negative fit on ablated maps recovers ≥80% of TWR's ablated advantage | 1 of 2 (76% Qwen3, 96% Qwen2) |
+| P-N3 free-sign TWR raw→ablated \|Δ\| ≤ 0.05 | 1 of 2 (−0.039 / −0.070), replicating §50A |
+| 204d single constraint Σwα=0 recovers ≥80% | PASSES 2 of 2 (but NNLS passes without it: not diagnostic) |
+| 204e P1 non-negative arm shows no end-task loss | **PASSES 2 of 2** (−1.0, −2.1, CIs span zero) |
+| 204e P2 map-space free-sign filter clears the bar on both | **FAILS 0 of 2** (+6.3, +5.8, CIs span zero) |
+| 204e P3 ridge replicates the published margin | PASSES 2 of 2 (+8.9, +12.0) |
+
+Limits: coverage on the modal grid (n=126); the orthogonality premise of the formal account failed 2 of 2 and is
+not claimed.
 
 Scripts: `phase204_theory.py`, `phase204_endtask.py`, `phase204_endtask_analyze.py`. Data:
 `phase204_theory_{qwen3,qwen2}.json`, `phase204_endtask_{qwen3,qwen2}.jsonl`.
@@ -8076,7 +8088,7 @@ mechanism clause → §33's integration account; gate-max "above every published
 
 | # | claim | evidence | class | models | status |
 |---|---|---|---|---|---|
-| 1 | transport complete by ~0.57 depth | layer-wise + prefix/suffix attention masks (§20B); 36L boundary from pruning cost (§38B-2) | intervention | 2×28L masking; 36L pruning | SOLID for 28L; 36L is pruning-derived (masking run not queued: GPU memory) |
+| 1 | transport complete by ~0.57 depth | layer-wise + prefix/suffix attention masks (§20B, §58); 36L boundary now masked and matching pruning cost (§38B-2) | intervention | **3 checkpoints (2×28L, 1×36L)** | SOLID |
 | 2 | image-token **values** inert past the boundary | representation patching at L≥16, at 300 (§52/§52B) and 900 tokens (§54) | intervention | 2 models, both strata (300) | SOLID |
 | 3 | answer position does not read the image | answer-row-only mask, all layers (§20, §57) | intervention | **2 models** | SOLID |
 | 4 | the depth choice dominates | crop at every layer's arg-max, end task (§51, §51B) | intervention | **2 models** | SOLID |
@@ -8092,9 +8104,8 @@ mechanism clause → §33's integration account; gate-max "above every published
 | 14 | placement is worth more than 5–7× the compute | oracle-crop arm beats native (§45) | intervention | 2 models | SOLID |
 | 15 | native-resolution location is decodable in the read-out band | linear probe from the answer-position state (§55) | measurement | 2 models | SOLID (probe; shuffle control max 0.26) |
 
-**All interpretability claims in the map are now intervention-backed on two models** (row 3 closed by §57, row 4 by
-§51B, both on 2026-09-21). The 36-layer masking leg (§20B/§38B-2) is the only remaining single-venue evidence and it
-is a scope note, not a claim.
+**All claims in the map are now intervention-backed on at least two models** (row 3 closed by §57, row 4 by §51B,
+and row 1's 36-layer leg by §58, all on 2026-09-21).
 ### §54B ✅ Qwen2-VL-7B leg (n=191) — the value-inertness replicates; one pre-registered condition is a marginal miss
 
 | patch at 900 tokens, Qwen2-VL-7B, n=191 | mean KL | answer flips |
@@ -8178,4 +8189,63 @@ same time:
 **Process note.** §53's withdrawal was logged but the paper's abstract/intro/related-work still carried the old
 framing in four places; only the mechanism paragraph and Fig. 3 had been updated. Withdrawals need a grep of the
 whole document, not an edit at the site where the claim was measured.
+
+## §58 ✅ THE 0.57 LAW IS NOW A MASKING RESULT ON THE 36-LAYER CHECKPOINT TOO (phase 176c, Qwen3-VL-8B, n=40)
+
+The 2026-09-21 audit's second gap: the "0.57×depth" boundary had only been shown by *masking* on the two 28-layer
+checkpoints; the 36-layer evidence was a pruning-cost argument. `phase176c_transport.py qwen3_8b` now masks it.
+
+| Qwen3-VL-8B (36 layers), n=40 | ℓ=4 | ℓ=8 | ℓ=12 | ℓ=16 | ℓ=20 | ℓ=24 |
+|---|---|---|---|---|---|---|
+| prefix $L_0..\ell$ (KL) | 0.100 | 0.309 | 1.190 | **1.740** | 1.559 | 1.565 |
+| suffix $L_\ell..$ (KL) | 1.671 | 1.538 | 1.278 | 0.413 | **0.052** | **0.009** |
+| suffix (answers flipped) | 35% | 45% | 40% | 15% | **5%** | **0%** |
+
+Mask-all sanity: KL 1.700, 37.5% flips. Per-layer peaks spread L13–L19 (max L15 = 0.264); late layers L24–35 mean
+KL 0.0025.
+
+**Same fraction, third checkpoint.** On the 28-layer pair the suffix is nearly harmless at L16 (KL 0.014/0.029;
+12%/5% flips) and zero from L20. On 36 layers the corresponding fractions are L20 = **0.556** (KL 0.052, 5% flips)
+and L24 = 0.667 (KL 0.009, 0% flips). The boundary therefore transfers as a *fraction of depth* on masking evidence
+alone, and it matches the depth at which pruning becomes free (L21, §38B-2). The prefix curve saturates at the same
+place it does on the 28-layer models.
+
+Data: `data/phase176c_transport_qwen3_8b.json`.
+
+## §59 ★★ PROPOSITION: SINGLE-DEPTH READ-OUT IS LOSSY, AND SUFFICIENCY IS REJECTED BY A WIDE MARGIN
+
+**Statement.** A rule reading one layer yields a decision measurable w.r.t. A_l alone, so
+c* → A_{1:L} → A_l → ĉ and by the data-processing inequality I(c*; A_l) ≤ I(c*; A_{1:L}), with equality iff A_l is
+a **sufficient statistic** for c* given the profile. Single-depth read-out is lossless exactly under sufficiency.
+Empty until sufficiency is tested — so we tested it.
+
+**The sufficiency test.** A sufficient layer would be right wherever ANY layer is right.
+
+| | best single depth | some depth correct | gap | every depth correct | depths to exhaust |
+|---|---|---|---|---|---|
+| end task, Qwen3-VL-2B | 70.2% | **95.3%** | **+25.1** | 5.2% | 12 |
+| placement, Qwen3-VL-2B | 55.5% | **82.7%** | **+27.2** | **0.0%** | 13 |
+| placement, Qwen2-VL-7B | 52.9% | **71.2%** | **+18.3** | **0.0%** | 9 |
+
+**Sufficiency is rejected 2 of 2 on placement and on the end task.** Not one item is covered at every depth. The
+information needs 9–13 distinct depths to exhaust, so it is not concentrated at one depth we failed to find.
+
+**Corollary — two ways out, and what each buys.**
+(a) *Read every depth and fit* (DWA): 72.8% vs the best fixed depth's 70.2%, **+2.6 [−3.1,+8.9] n.s.** Its value is
+attaining an oracle depth's score without being told which depth; the published fixed choice gets 37.9% and
+per-sample selection (LASER) 64.7%.
+(b) *Do not read attention at all* (AVR): 70.2%, tying the best fixed depth, with **no depth decision to get wrong**.
+
+⚠ **The honest comparison, stated in the paper:** AVR does **not** outscore single-depth selection — it ties it.
+What it removes is depth *risk*: a fixed-depth rule spans 34.6%–70.2% on a choice its designer cannot validate
+without labels. AVR also needs no boxed supervision and is the only one of the two policies that helps on
+cross-instance questions.
+
+⚠ End-task row is Qwen3 only (phase 199 qwen2 leg running); placement rows are 2 of 2.
+
+## §60 RENAME (user request, 2026-09-21)
+TWR → **DWA (Depth-Weighted Attention)**; TSR → **AVR (Adaptive Visual Resolution)**. Prose and all 19 figures
+regenerated; no arm identifier in the data or in FINDINGS was touched, so `tsr900`, `ridge300` etc. still match the
+logged runs. Note the new names drop the "transport" link that the old ones carried, so the paper now has to make
+the derivation explicit in text rather than in the acronym.
 

@@ -19,7 +19,7 @@ for ax, w, name in zip(axes, ["qwen3", "qwen2"], ["Qwen3-VL-2B", "Qwen2-VL-7B"])
     ax.errorbar(range(NL), acc, yerr=se, fmt="o-", color=BLUE, ms=4.5, lw=1.8, capsize=2.5, zorder=3,
                 label="crop at layer $\\ell$'s arg-max")
     ax.axvline(15.5, color=GREEN, ls="--", lw=2, zorder=2)
-    for k, lbl, col, ls, xt in [("ridge", "TWR (all layers)", GREEN, "-", 0.2),
+    for k, lbl, col, ls, xt in [("ridge", "DWA (all layers)", GREEN, "-", 0.2),
                                 ("laser", "LASER (per-sample layer)", PURPLE, ":", 0.2),
                                 ("uniform@600", "no crop, equal compute", GREY, "--", 8.6),
                                 ("vicrop_L14", "published fixed layer (L14)", RED, "-.", 0.2)]:
@@ -36,7 +36,7 @@ for ax, w, name in zip(axes, ["qwen3", "qwen2"], ["Qwen3-VL-2B", "Qwen2-VL-7B"])
     ax.set_xlim(-0.8, 27.8); ax.grid(alpha=.22, zorder=0)
     inside = acc[:16]; after = acc[16:]
     print(f"{w}: spread {acc.min():.1f}-{acc.max():.1f}; best L{b}; window max {inside.max():.1f} (vs bar {ref['uniform@600']:.1f}); "
-          f"after max {after.max():.1f}; block {ref['vicrop_block']:.1f}; LASER {ref['laser']:.1f}; TWR {ref['ridge']:.1f}")
+          f"after max {after.max():.1f}; block {ref['vicrop_block']:.1f}; LASER {ref['laser']:.1f}; DWA {ref['ridge']:.1f}")
 axes[0].set_ylabel("V$^*$Bench accuracy (%)")
 axes[0].legend(fontsize=8.4, loc="lower right")
 plt.tight_layout()

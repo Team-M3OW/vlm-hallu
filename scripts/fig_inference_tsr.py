@@ -1,4 +1,4 @@
-"""TSR inference panel: what survives the boundary, and why the choice of survivor does not matter."""
+"""AVR inference panel: what survives the boundary, and why the choice of survivor does not matter."""
 import json, os, glob, re, numpy as np
 import matplotlib; matplotlib.use("Agg")
 import matplotlib.pyplot as plt
