@@ -840,9 +840,9 @@ project. We assert per run that our last-layer read-out matches the true logits.
 
 \section{Propositions, and what validates them}\label{app:theory}
 
-We state four propositions. They are not deep results --- two are arithmetic and one is a one-line geometric
+We state one theorem and four propositions. They are not deep results --- two are arithmetic and one is a one-line geometric
 observation --- but each makes a prediction that could have failed on data, and we report where they hold
-approximately rather than exactly.
+approximately rather than exactly. Only Theorem~1 is a theorem; we say so rather than inflate the others.
 
 \paragraph{Proposition 1 (post-boundary inertness makes pruning free, and makes AVR a resolution converter).}
 \emph{Suppose the output distribution is invariant to the image tokens' states at layers beyond $P$. Then for any
@@ -883,22 +883,37 @@ statement of why DWA works is: the conventional read-out fails because of a comp
 image, and roughly fifty boxed examples are enough to learn which handful of depths to read instead. That is a
 weaker claim than the one we started with, and it is the one the experiments support.
 
-\paragraph{Proposition 5 (reading one depth is lossy unless that depth is sufficient, and no depth is).}
-Write $A_{1:L}$ for the whole depth profile of maps and $c^\star$ for the cell containing the evidence. Any rule
-that reads a single layer produces a decision measurable with respect to $A_\ell$ alone, so it factors as
-$c^\star \to A_{1:L} \to A_\ell \to \hat c$. By the data-processing inequality
-$I(c^\star; A_\ell) \le I(c^\star; A_{1:L})$, with equality if and only if $A_\ell$ is a sufficient statistic for
-$c^\star$ given the profile. Single-depth read-out is therefore lossless exactly when some layer is sufficient,
-and lossy otherwise. The proposition is empty until sufficiency is tested, so we test it.
+\paragraph{Theorem 1 (a single-depth read-out is lossy unless that depth is sufficient).}
+Let $c^\star\in\mathcal{C}$ be the cell containing the evidence and let $A=(A_1,\dots,A_L)$ be the depth profile of
+attention maps. Let $\hat c=g(A_\ell)$ be any rule that reads a single layer $\ell$. Then
+\begin{enumerate}\itemsep0pt
+\item[(i)] $c^\star \to A \to A_\ell \to \hat c$ is a Markov chain, hence
+  $I(c^\star;\hat c)\;\le\;I(c^\star;A_\ell)\;\le\;I(c^\star;A)$;
+\item[(ii)] the right-hand inequality is an equality if and only if $c^\star \perp A \mid A_\ell$, i.e.\ $A_\ell$ is
+  a sufficient statistic for $c^\star$ within the profile;
+\item[(iii)] consequently, by Fano's inequality,
+  $\Pr[\hat c \neq c^\star] \;\ge\; \big(H(c^\star)-I(c^\star;A_\ell)-1\big)/\log|\mathcal{C}|$, so any strict loss
+  in (i) raises the attainable error floor.
+\end{enumerate}
 
-\emph{Sufficiency is rejected, on both checkpoints and by a wide margin.} If a layer $\ell$ were sufficient, its
-own accuracy would equal the accuracy attainable from the whole profile, and in particular it would be right
-wherever \emph{any} layer is right. Table~\ref{tab:suff} reports both quantities. At the end task the best single
-depth reaches $70.2\%$ while some depth is correct on $95.3\%$ of items; on placement the best depth covers the
-evidence on $55.5\%$ and $52.9\%$ of items while some depth covers it on $82.7\%$ and $71.2\%$. Most decisively,
-the set of items that \emph{every} depth gets right is $5.2\%$ at the end task and \textbf{empty} for placement on
-both models. Twelve and thirteen and nine distinct depths respectively are needed before the union is exhausted,
-so the information is not concentrated at one depth that we simply failed to find.
+\emph{Proof.} (i) $A_\ell$ is a coordinate projection of $A$, so $c^\star\to A\to A_\ell$; and $\hat c=g(A_\ell)$
+is post-processing, so $A_\ell\to\hat c$. Applying the data-processing inequality along each link gives the chain.
+(ii) $I(c^\star;A)-I(c^\star;A_\ell)=I(c^\star;A\mid A_\ell)\ge 0$ by the chain rule for mutual information, with
+equality exactly when $c^\star$ and $A$ are conditionally independent given $A_\ell$, which is the definition of
+sufficiency. (iii) is Fano's inequality applied to the Markov chain in (i). \hfill$\square$
+
+The theorem says a fixed-depth rule is lossless \emph{exactly} under sufficiency, and is otherwise paying an
+information penalty that bounds its error from below. That is vacuous until sufficiency is decided, and
+sufficiency is an empirical question about a particular model, so we test it.
+
+\emph{Testing the equality condition.} Sufficiency implies a checkable consequence within the arg-max read-out
+family that every method here uses: if $A_\ell$ were sufficient, its arg-max would be correct whenever any other
+layer's arg-max is, so the best single depth would match the family's envelope. Table~\ref{tab:suff} reports both.
+At the end task the best single depth reaches $70.2\%$ while some depth is correct on $95.3\%$ of items; on
+placement the best depth covers the evidence on $55.5\%$ and $52.9\%$ while some depth covers it on $82.7\%$ and
+$71.2\%$. The set of items every depth gets right is $5.2\%$ at the end task and \textbf{empty} for placement on
+both checkpoints, and nine to thirteen distinct depths are needed before the envelope is exhausted. No layer
+dominates the family, so no layer is sufficient, and the inequality in (i) is strict by $18$ to $27$ points.
 
 \begin{table}[h]\centering\small
 \setlength{\tabcolsep}{4pt}
@@ -914,6 +929,10 @@ placement, Qwen2-VL-7B & 52.9\% & \textbf{71.2\%} & $+18.3$ & \textbf{0.0\%} & 9
 \bottomrule
 \end{tabular}\label{tab:suff}
 \end{table}
+
+\emph{Scope, stated.} The envelope is measured over the arg-max read-out family, not over all measurable functions
+of $A$, so the test refutes sufficiency \emph{within the family every published method draws from}. That is the
+relevant class: it is what a depth-selection rule chooses among.
 
 \paragraph{Corollary (two ways out of the depth problem, and what each one actually buys).} Since no depth is
 sufficient, a method has two options. \textbf{(a) Read every depth and fit.} DWA does this and reaches $72.8\%$,
