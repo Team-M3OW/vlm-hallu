@@ -10,6 +10,8 @@
 \usepackage{xcolor}
 \usepackage{multirow}
 \newtheorem{proposition}{Proposition}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
 
 \definecolor{bad}{HTML}{C0392B}
 \definecolor{gd}{HTML}{1A6B54}
@@ -198,7 +200,7 @@ ridge ties it as a ranker, Appendix~\ref{app:paired}), against $13\%$ and $12\%$
 simple summaries of the depth profile reproduces this --- not magnitude, neighbourhood, isolation, or a windowed sum.
 The mechanism is a \emph{supervised depth weighting}, not subtraction: the block mean's failure is caused by the
 item-independent component of the maps, and a non-negative fit --- which zeroes $44$ of $56$ per-layer coefficients
---- retains the full advantage on both checkpoints and matches DWA at the end task (Appendix~\ref{app:formal}).
+--- retains the full advantage on both checkpoints and matches DWA at the end task (Appendix~\ref{app:theory}).
 
 \paragraph{Ablations.} A gradient-boosted tree over the same features is statistically indistinguishable from the
 ridge solve on all four architectures, so the closed form costs nothing. Capacity is not the limit at this sample size: a
@@ -256,7 +258,7 @@ $46.6\%$ and $39.3\%$ across the two checkpoints. DWA covers $63.9\%$ and $55.0\
 it is worth $+0.012$ and $+0.003$ mean coverage to DWA against $+0.336$ and $+0.079$ to block-mean, an order of
 magnitude on both. DWA removes the serialisation sink by a supervised depth weighting that suppresses the
 item-independent component, not by patching the geometry and not by the signs of the fitted weights
-(Appendix~\ref{app:formal}). \emph{Examples are not hand-picked}: we take single-instance items where the DWA crop covers the box
+(Appendix~\ref{app:theory}). \emph{Examples are not hand-picked}: we take single-instance items where the DWA crop covers the box
 and the block-mean crop does not \emph{and} the answers flip accordingly, restricted to items where the recomputed
 out-of-fold DWA cell reproduces the logged run exactly. Nine items qualify; these are the first three by
 question id.}
@@ -675,88 +677,6 @@ this work. Pruning at the boundary is therefore free everywhere we have measured
 verified the pruning is applied rather than silently skipped at the distribution level: output probabilities change
 on $99\%$ of items while the arg-max changes on $2\%$. The discarded tokens are inert, not absent.
 
-\section{Formal grounding}\label{app:formal}
-
-This appendix states the propositions the two policies rest on, with proofs, and records the measurements that
-validate or limit their premises. The propositions are accounting results: their content is in the premises, which we
-test rather than assume. All measurements are out-of-fold; the core pair is Qwen3-VL-2B and Qwen2-VL-7B, $n=126$
-(modal grid) for coverage and $n=191$ for end-task and distributional tests.
-
-\textbf{Setup.} For item $i$, layer $\ell$, cell $c$, let $A_\ell^{(i)}(c)\ge0$ be the last-prompt-token attention
-mass on cell $c$, row-normalised so $\sum_cA_\ell^{(i)}(c)=1$. Write $m_\ell=\mathbb{E}_iA_\ell^{(i)}$ for the
-\emph{item-mean} map and $A_\ell^{(i)}=m_\ell+U_\ell^{(i)}$, so $\mathbb{E}_iU_\ell^{(i)}=0$. A \emph{linear
-read-out} is a score $S_w^{(i)}=\sum_\ell w_\ell A_\ell^{(i)}$; the conventional block mean is
-$w=\mathbf{1}_B/|B|$ on a band $B$. The deployed DWA is a ridge solve on a richer feature map
-$\varphi(A)$ (log-attention, within-layer ranks, neighbourhood, geometry); Proposition~\ref{prop:leak} applies to it
-verbatim by linearity, with $A$ replaced by $\varphi(A)$.
-
-\begin{proposition}[Leakage decomposition]\label{prop:leak}
-For every $w$, $S_w^{(i)}=L(w)+\sum_\ell w_\ell U_\ell^{(i)}$ with $L(w)=\sum_\ell w_\ell m_\ell$ independent of
-$i$. The item-independent component of the score is exactly $L(w)$.
-\end{proposition}
-\begin{proof}
-Substitute $A_\ell^{(i)}=m_\ell+U_\ell^{(i)}$ and rearrange. $L(w)$ carries no $i$-dependence, so its ranking of
-cells is identical for every item.
-\end{proof}
-
-\begin{proposition}[Non-negative filters cannot cancel a common prior]\label{prop:nn}
-If the item-mean maps are rank-one across depth, $m_\ell=\alpha_\ell\mu$ with $\mu\neq0$ and $\alpha_\ell>0$, then
-$L(w)=(\alpha^\top w)\mu$. Hence $L(w)=0$ iff $\alpha^\top w=0$; in particular no non-zero $w\ge0$ achieves zero
-leakage, since $\alpha^\top w>0$.
-\end{proposition}
-\begin{proof}
-Linearity, then $\alpha^\top w=\sum_\ell\alpha_\ell w_\ell>0$ whenever $w\ge0$, $w\neq0$.
-\end{proof}
-
-\paragraph{Measured scope of Proposition~\ref{prop:nn}.} The premise is approximately true --- the leading eigenvalue
-of the layer-mean-map Gram matrix carries $0.86$ (Qwen3) and $0.77$ (Qwen2) of the trace --- but the conclusion is
-\emph{not} what makes the method work. In map space, constraining the $28$ weights to be non-negative costs only
-$0.044$ and $0.002$ mean coverage; in the deployed feature space, bounding both per-layer blocks at zero retains the
-full advantage ($0.594$/$0.584$ against DWA's $0.578$/$0.588$) with $44$ and $43$ of the $56$ per-layer
-coefficients driven to exactly zero, and the end task is statistically indistinguishable from DWA
-($-1.0$ $[-6.3,+4.2]$ and $-2.1$ $[-5.8,+1.6]$, $n=191$ per model).
-The fitted weights' signs are an artefact of ridge collinearity between adjacent layers, not the mechanism.
-
-\begin{proposition}[AVR identity]\label{prop:tsr}
-Let $U_E$ be the unpruned model at encode budget $E$, and $P_D$ the operator that makes visual-token set $D$
-invisible from layer $p{+}1$ onward. If $P_D$ is output-preserving --- the option distribution is unchanged for every
-item --- then $\mathrm{acc}(U_E\circ P_D)=\mathrm{acc}(U_E)$, and against the equal-compute bar $U_{600}$ the gain is
-$\mathrm{acc}(U_{900})-\mathrm{acc}(U_{600})$, the checkpoint's resolution headroom.
-\end{proposition}
-\begin{proof}
-The premise equates the option distributions, hence the accuracies, of $U_E\circ P_D$ and $U_E$; subtracting
-$\mathrm{acc}(U_{600})$ gives the second statement.
-\end{proof}
-\emph{Budget lemma.} With $E=900$, $p=16$, $|D|=0.9E$ and $L=28$:
-$900\cdot17+90\cdot11=16{,}290\le16{,}800=600\cdot28$.
-\emph{Validation.} AVR against the unpruned $900$-token model: mean KL $0.0025$ over the option distribution,
-arg-max agreement $97.9\%$ (Qwen3, $n=191$); and $0.0$--$0.5$ points in $7$ of $10$ cells across four checkpoints and
-three benchmarks (Appendix~\ref{app:identity}).
-
-\begin{proposition}[Value-inertness implies selection irrelevance]\label{prop:sel}
-Suppose that for every subset $D$ of visual positions, replacing the hidden values of $D$ at layer $p$ with arbitrary
-donor values leaves the option distribution unchanged. Then for any two keep-sets $D_1,D_2$ of equal size, the models
-$U_E\circ P_{D_1}$ and $U_E\circ P_{D_2}$ induce the same distribution: every ranking rule is equivalent.
-\end{proposition}
-\begin{proof}
-The premise makes the output invariant to the values of any subset of visual positions at layer $p$. The kept set is
-such a subset, so no choice of kept set can change the distribution.
-\end{proof}
-\emph{Validation.} On the unpruned $900$-token pass at the boundary (L16, Qwen3, $n=191$), replacing the hidden
-states of the $810$ pruned positions with another image's gives KL $0.0022$ ($1.0\%$ answer flips), and replacing the
-$90$ kept positions gives KL $0.0065$ ($3.1\%$); the same patch at L8 gives $0.341$ ($20.9\%$). Behaviourally, random
-keep equals attention keep on both checkpoints (\S\ref{sec:tsr}).
-
-\paragraph{Finding: the correction is a supervised depth weighting, not subtraction.} On raw maps the block mean
-covers $0.083$/$0.292$ (Qwen3/Qwen2); ablating the item-independent component lifts it to $0.438$/$0.490$, while
-every fitted read-out barely moves ($-0.039$/$-0.070$) --- the block mean's failure \emph{is} the leakage term of
-Proposition~\ref{prop:leak}. But the correction is not the sign pattern: a non-negative fit matches, and on
-nuisance-ablated maps every fitted read-out collapses to within $0.10$/$0.03$ of the block mean. What remains
-load-bearing is the depth \emph{ordering} (permuting the fitted depth profile costs $0.26$/$0.08$ of the advantage;
-tying all layers to one weight costs $0.06$/$0.07$) and the supervised fit itself. A linear probe from the
-answer-position state to the target's location peaks in the same read-out band (correlation $+0.635$ at L18--19 on
-Qwen3, $+0.603$ at L18 on Qwen2), the third independent technique to place the usable band there.
-
 \section{Claim-to-evidence map}\label{app:claims}
 
 Every headline claim, its strongest evidence, and its model count. \emph{Intervention} means the claim was tested by
@@ -838,52 +758,58 @@ The logit lens is computed with the final norm applied to intermediate layers on
 state as well double-normalises and corrupts that layer alone, which cost us a retracted result earlier in this
 project. We assert per run that our last-layer read-out matches the true logits.
 
+A fourth, independent technique places the read-out band in the same spot: a ridge probe from the
+answer-position state to the target's location rises across the transport window and peaks at L18--19 (Qwen3,
+$r=+0.635$) and L18 (Qwen2, $+0.603$).
+
 \section{Propositions, and what validates them}\label{app:theory}
 
-We state one theorem and four propositions. They are not deep results --- two are arithmetic and one is a one-line geometric
-observation --- but each makes a prediction that could have failed on data, and we report where they hold
-approximately rather than exactly. Only Theorem~1 is a theorem; we say so rather than inflate the others.
+We state one theorem, four propositions and two lemmas. They are not deep results --- the theorem is a tail-dominance
+argument and the lemmas are one-line linear algebra --- but each makes a prediction that could have failed on data,
+and we report where they hold approximately rather than exactly. All measurements are out-of-fold on both core
+checkpoints; $n=126$ (modal grid) for coverage, $n=191$ for end-task and distributional tests.
 
-\paragraph{Proposition 1 (post-boundary inertness makes pruning free, and makes AVR a resolution converter).}
-\emph{Suppose the output distribution is invariant to the image tokens' states at layers beyond $P$. Then for any
-keep-set $S$, retaining only $S$ after $P$ leaves the output unchanged, so AVR at encode $E$ scores what uniform
-encoding at $E$ scores, and AVR's gain over a bar at $E_0$ equals $\mathrm{acc}(E)-\mathrm{acc}(E_0)$.}
-The premise is what Appendix~\ref{app:transport} and Figure~\ref{fig:mech} measure. The conclusion is what
-Appendix~\ref{app:identity} tests: gain tracks headroom with $r=0.966$ over ten cells, and again with $r=0.911$
-over eight further cells whose headroom is near zero, where it correctly predicts that AVR does nothing.
-\emph{Where it is only approximate:} the premise holds to KL~$\approx5\times10^{-4}$, not to zero, so the
-conclusion is approximate too. Measured slippage is at most $0.5$ points in seven of ten cells and $-1.8$ in one.
-The proposition's real content is that the \emph{choice} of keep-set is irrelevant, which is why random keep
-matches attention keep on $96.3\%$ of items.
+\textbf{Setup.} For item $i$, layer $\ell$, cell $c$, let $A_\ell^{(i)}(c)\ge0$ be the last-prompt-token attention
+mass on cell $c$, row-normalised so $\sum_cA_\ell^{(i)}(c)=1$. Write $m_\ell=\mathbb{E}_iA_\ell^{(i)}$ for the
+\emph{item-mean} (item-independent) map and $A_\ell^{(i)}=m_\ell+U_\ell^{(i)}$, so $\mathbb{E}_iU_\ell^{(i)}=0$.
 
-\paragraph{Proposition 2 (the budget determines the affordable resolution).} \emph{Pruning to a fraction $k$ at
-layer $P$ of $N$ costs $\mathrm{TL}=E(P{+}1)+kE(N{-}1{-}P)$ token-layers. Matching a uniform bar of $B$ tokens
-gives $E^\star = BN/\big((P{+}1)+k(N{-}1{-}P)\big)$.} With $B=600$, $N=28$, $P=16$, $k=0.1$ this is $E^\star=928$,
-a $1.55\times$ resolution multiplier. We ran $E=900$, $97\%$ of the optimum, and realised $96$--$100\%$ of the
-bar. This is arithmetic; we state it because it is the design equation, and because it says the multiplier is
-fixed by the boundary's depth fraction rather than chosen.
-
-\paragraph{Proposition 3 (the conventional read-out fails by tail dominance, and a positive average cannot
-repair it).} Write each depth's per-cell score as $x_\ell(c)=m_\ell(c)+u_\ell(c)$, where $m_\ell$ is the
-item-independent component and $u_\ell$ is item-specific with zero mean over items. A read-out returns
-$\arg\max_c \sum_\ell w_\ell x_\ell(c)$, a functional of the upper \emph{tail} only. Put
-$\Delta_B=\max_c\sum_{\ell\in B} m_\ell(c)-\mathrm{med}_c\sum_{\ell\in B} m_\ell(c)$.
+\begin{theorem}[Tail dominance of the conventional read-out]\label{thm:tail}
+Write each depth's per-cell score as $x_\ell(c)=m_\ell(c)+u_\ell(c)$ with $u_\ell$ zero-mean over items, and put
+$\Delta_B=\max_c\sum_{\ell\in B}m_\ell(c)-\mathrm{med}_c\sum_{\ell\in B}m_\ell(c)$. The block read-out returns
+$\arg\max_c\sum_{\ell\in B}x_\ell(c)$.
 \begin{enumerate}\itemsep0pt
-\item[(i)] If $\Delta_B$ exceeds the range of $\sum_{\ell\in B}u_\ell$, the arg-max is $\arg\max_c\sum_B m_\ell$
-  for \emph{every} item, so the read-out returns a fixed cell independent of the image.
-\item[(ii)] Equal-weight positive averaging cannot escape (i) at \emph{any} band width. Because the $m_\ell$
-  leads are sign-aligned across depth, $\Delta_B$ is superadditive in $B$; the item-specific term grows as well,
-  so the ratio need not increase, but it never reaches the $O(1)$ regime in which $\sum_B u_\ell$ could decide
-  the arg-max.
+\item[(i)] If $\Delta_B$ exceeds the range of $\sum_{\ell\in B}u_\ell$, the arg-max is
+  $\arg\max_c\sum_B m_\ell$ for \emph{every} item: a fixed cell independent of the image.
+\item[(ii)] Equal-weight positive averaging cannot escape (i) at \emph{any} band width: the $m_\ell$ leads are
+  sign-aligned across depth, so $\Delta_B$ is superadditive in $B$.
 \item[(iii)] Any per-cell rescaling that equalises $m$ across cells --- in particular dividing by an estimate of
   $m$ --- removes the dominance without using labels.
 \end{enumerate}
+\end{theorem}
+\begin{proof}
+(i) If the deterministic part's lead exceeds the total variation the item-specific part can supply, it decides the
+maximum. (ii) Each summand contributes its $m_\ell$ lead with the same sign, so $\Delta_B$ is superadditive; whether
+$\Delta_B/\sigma_B$ rises or falls depends on the covariance of the $u_\ell$, and the claim is only that it does not
+reach the $O(1)$ regime in which $\sum_B u_\ell$ could decide the arg-max. (iii) Immediate from (i) applied to the
+rescaled scores.
+\end{proof}
 
-\emph{Proof.} (i) is immediate: if the deterministic part's lead exceeds the total variation the item-specific
-part can supply, it decides the maximum. For (ii), each summand contributes its $m_\ell$ lead with the
-same sign, so $\Delta_B$ is superadditive; whether $\Delta_B/\sigma_B$ rises or falls depends on the covariance
-of the $u_\ell$, and the claim is only that it does not reach $O(1)$. (iii) is immediate from (i) applied to the
-rescaled scores. \hfill$\square$
+\begin{lemma}[Leakage decomposition]\label{lem:leak}
+For every weight vector $w$, $\sum_\ell w_\ell A_\ell^{(i)}=L(w)+\sum_\ell w_\ell U_\ell^{(i)}$ with
+$L(w)=\sum_\ell w_\ell m_\ell$ independent of $i$. The item-independent component of the score is exactly $L(w)$.
+\end{lemma}
+\begin{proof}
+Substitute the decomposition and rearrange. $L(w)$ carries no $i$-dependence, so its ranking of cells is identical
+for every item.
+\end{proof}
+
+\begin{lemma}[Non-negative filters cannot cancel a common prior]\label{lem:nn}
+If the item-mean maps are rank-one across depth, $m_\ell=\alpha_\ell\mu$ with $\mu\neq0$ and $\alpha_\ell>0$, then
+$L(w)=(\alpha^\top w)\mu$. Hence $L(w)=0$ iff $\alpha^\top w=0$; no non-zero $w\ge0$ achieves zero leakage.
+\end{lemma}
+\begin{proof}
+Linearity, then $\alpha^\top w=\sum_\ell\alpha_\ell w_\ell>0$ whenever $w\ge0$, $w\neq0$.
+\end{proof}
 
 \emph{Every part is measured, and the measurements decide between accounts that (ii) alone cannot separate.}
 On the items the block mean gets wrong, the cell it selects sits at the \textbf{100th percentile} of the
@@ -899,13 +825,27 @@ item, then take the arg-max --- lifts coverage from $0.083$ to $0.408$ and from 
 $71\%$ and $86\%$ of what the fitted read-out achieves, and drops the last-column rate to $2.4\%$ and $0.0\%$
 against a $4.8\%$ chance rate, with no ring mask.
 
+\emph{And it buys nothing at the end task, which bounds what this proposition explains.} Run as a placement rule
+and answered, the same label-free correction scores $59.7\%$ and $61.3\%$ against the block mean's $62.3\%$ and
+$59.2\%$: $-2.6$ [$-7.9,+2.6$] and $+2.1$ [$-3.1,+7.3$], neither clear of zero, and it does not beat not cropping
+at all. DWA beats it by $+13.1$ [$+5.8,+20.4$] and $+8.9$ [$+2.6,+15.2$], clear on both checkpoints. So the
+proposition explains why the conventional read-out \emph{places} badly, and a label-free fix repairs the
+placement, but repairing placement is not what the fitted read-out is selling. Its end-task advantage survives
+after the placement failure has been removed by other means, and we do not yet have a mechanism for that
+remainder. This is also the largest coverage-to-accuracy gap we have measured --- $66$--$70\%$ of the coverage gap
+closed, none of the accuracy gap --- and it is a caution that applies to our own use of coverage in this section,
+not only to prior work.
+
 \emph{What the fit adds, and why its sign does not matter.} Because the features are log-attention, a weight
 vector summing to zero computes a \emph{ratio} across depths, which cancels any per-cell factor common to all
 layers; the fitted weights are close to that, with $|\sum_\ell w_\ell|/\sum_\ell|w_\ell| = 0.126$ and $0.225$.
 But that is not the only route. Sink dominance itself varies $3.2\times$ and $4.4\times$ across depth, and the
 least-dominated depths are exactly the read-out band, so a strictly non-negative read-out can escape by
 \emph{selecting} those depths rather than by cancelling anything. Both routes are available, which is why
-constraining every weight to be non-negative costs nothing while zeroing $44$ and $43$ of $56$ coefficients. We do
+constraining every weight to be non-negative costs nothing while zeroing $44$ and $43$ of $56$ coefficients. The
+item-mean maps are approximately rank-one (leading eigenvalue share $0.86$ and $0.77$), and in map space the
+non-negative constraint costs only $0.044$ and $0.002$ mean coverage: the sign of the fitted weights is an artefact
+of ridge collinearity between adjacent layers, not the mechanism. We do
 not claim the fitted weights track dominance depth-by-depth: that correlation is only $+0.171$ and $+0.131$. The
 supported statement is that the failure is tail dominance, that it has an unsupervised fix which recovers most of
 the gap, and that supervision buys the remaining $14$--$29\%$.
@@ -924,12 +864,54 @@ each of its predictions, and wrong in kind --- the block mean already retains $7
 on both models while its coverage is several times worse, and a mean-based quantity cannot explain an arg-max
 failure.
 
-\paragraph{Proposition 4 (a single window cannot serve two distant sites).} \emph{A window of side $W$ contains at
-most one of two evidence sites separated by more than $W$.} Trivial, and it is not the interesting part. The
-interesting part is empirical: with \emph{perfect} placement, cross-instance error stays at $25\%$ and $22\%$
-against $3.5\%$ and $6.1\%$ for single-instance, and two full-resolution crops covering both objects still score
-$-2.6$ and $-3.9$ against one. The residual is not a perceptual failure, so no reallocation of perceptual
-resource reaches it --- which is why the scope law is a property of the question type and not of the method.
+\begin{proposition}[Post-boundary inertness makes pruning free, and makes AVR a resolution converter]\label{prop:avr}
+\emph{Suppose the output distribution is invariant to the image tokens' states at layers beyond $P$. Then for any
+keep-set $S$, retaining only $S$ after $P$ leaves the output unchanged, so AVR at encode $E$ scores what uniform
+encoding at $E$ scores, and AVR's gain over a bar at $E_0$ equals $\mathrm{acc}(E)-\mathrm{acc}(E_0)$.}
+\end{proposition}
+\begin{proof}
+The premise equates the option distributions of the pruned and unpruned models; subtracting the bar's accuracy gives
+the gain statement.
+\end{proof}
+The premise is what Appendix~\ref{app:transport} and Figure~\ref{fig:mech} measure. The conclusion is what
+Appendix~\ref{app:identity} tests: gain tracks headroom with $r=0.966$ over ten cells, and again with $r=0.911$
+over eight further cells whose headroom is near zero, where it correctly predicts that AVR does nothing.
+\emph{Where it is only approximate:} the premise holds to KL~$\approx5\times10^{-4}$, not to zero, so the
+conclusion is approximate too. Measured slippage is at most $0.5$ points in seven of ten cells and $-1.8$ in one.
+The proposition's real content is that the \emph{choice} of keep-set is irrelevant, which is why random keep
+matches attention keep on $96.3\%$ of items.
+
+\begin{proposition}[The budget determines the affordable resolution]\label{prop:budget}
+\emph{Pruning to a fraction $k$ at layer $P$ of $N$ costs $\mathrm{TL}=E(P{+}1)+kE(N{-}1{-}P)$ token-layers.
+Matching a uniform bar of $B$ tokens gives $E^\star = BN/\big((P{+}1)+k(N{-}1{-}P)\big)$.}
+With $B=600$, $N=28$, $P=16$, $k=0.1$ this is $E^\star=928$, a $1.55\times$ resolution multiplier. We ran $E=900$,
+$97\%$ of the optimum, and realised $96$--$100\%$ of the bar. This is arithmetic; we state it because it is the
+design equation, and because it says the multiplier is fixed by the boundary's depth fraction rather than chosen.
+\end{proposition}
+
+\begin{proposition}[Value-inertness implies selection irrelevance]\label{prop:sel}
+Suppose that for every subset $D$ of visual positions, replacing the hidden values of $D$ at layer $p$ with
+arbitrary donor values leaves the option distribution unchanged. Then for any two keep-sets $D_1,D_2$ of equal
+size, the models $U_E\circ P_{D_1}$ and $U_E\circ P_{D_2}$ induce the same distribution: every ranking rule is
+equivalent.
+\end{proposition}
+\begin{proof}
+The premise makes the output invariant to the values of any subset of visual positions at layer $p$. The kept set
+is such a subset, so no choice of kept set can change the distribution.
+\end{proof}
+\emph{Validation.} On the unpruned $900$-token pass at the boundary (L16, Qwen3, $n=191$), replacing the hidden
+states of the $810$ pruned positions with another image's gives KL $0.0022$ ($1.0\%$ flips) and replacing the $90$
+kept positions gives KL $0.0065$ ($3.1\%$); the same patch at L8 gives $0.341$ ($20.9\%$). Qwen2 replicates
+($0.0038$/$3.7\%$ and $0.0027$/$0.5\%$ at L16; $0.2622$/$29.8\%$ at L8), so the premise holds on both models.
+
+\begin{proposition}[A single window cannot serve two distant sites]\label{prop:window}
+\emph{A window of side $W$ contains at most one of two evidence sites separated by more than $W$.}
+Trivial, and it is not the interesting part. The interesting part is empirical: with \emph{perfect} placement,
+cross-instance error stays at $25\%$ and $22\%$ against $3.5\%$ and $6.1\%$ for single-instance, and two
+full-resolution crops covering both objects still score $-2.6$ and $-3.9$ against one. The residual is not a
+perceptual failure, so no reallocation of perceptual resource reaches it --- which is why the scope law is a
+property of the question type and not of the method.
+\end{proposition}
 
 \section{Additional visualisations}\label{app:vis}
 

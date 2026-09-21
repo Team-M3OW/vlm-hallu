@@ -8338,3 +8338,40 @@ deployed 11-wide band is worse than the best narrower band (0.418→0.083, 0.390
 
 Script: `phase210_strengthen.py`.
 
+## §63 ★★★ THE UNSUPERVISED CORRECTION DOES **NOT** TRANSFER TO THE END TASK — the largest coverage→accuracy
+## gap in the project, and it closes the obvious objection to DWA (phase 211, both models, n=191)
+
+§61-R2 found that dividing each cell by its value on a typical item (label-free) recovers **66–70% of the
+COVERAGE gap** between the block mean and DWA. If that had carried to answers, DWA's ~50 boxed examples would
+have bought almost nothing. It does not carry.
+
+| arm (V*Bench, answer @300 on a W=0.25 crop) | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| `uniform@600` bar (no crop) | 63.9 | 58.1 |
+| block-mean crop | 62.3 | 59.2 |
+| **lift (unsupervised, leave-one-out normaliser)** | **59.7** | **61.3** |
+| lift + ring mask | 57.6 | 59.2 |
+| **DWA (supervised)** | **72.8** | **70.2** |
+
+| paired contrast | Qwen3 | Qwen2 | verdict |
+|---|---|---|---|
+| lift − block-mean | −2.6 [−7.9,+2.6] | +2.1 [−3.1,+7.3] | **n.s. both — the label-free fix buys nothing** |
+| lift − bar | −4.2 [−12.6,+4.7] | +3.1 [−4.7,+11.5] | n.s. both — it does not even beat not cropping |
+| **DWA − lift** | **+13.1 [+5.8,+20.4] ✔** | **+8.9 [+2.6,+15.2] ✔** | **2 of 2 — this is what supervision buys** |
+
+### Two consequences
+1. **The objection is closed.** The strongest label-free alternative to DWA is worth nothing at the end task, and
+   DWA beats it by +13.1 / +8.9 with CIs clear on both models. DWA's supervision is load-bearing.
+2. **This is the project's largest coverage→accuracy gap, and it is a caution about our OWN §61.** The lift closes
+   66–70% of the coverage gap and **0%** of the accuracy gap. §93b's rule ("intermediate metrics over-report")
+   now has its most extreme instance, and it applies to a metric we used to build the mechanism story.
+
+### ⚠ What this does to §61's status
+Tail dominance still explains *why the block mean's arg-max is wrong* — R1 is 100th-percentile on every failure,
+and lift does repair the arg-max (coverage 0.083→0.408). But repairing the arg-max is **not** what DWA is selling.
+So the honest scope of §61 narrows: it explains the **placement** failure of the conventional read-out; it does
+**not** explain DWA's end-task advantage, which survives after the placement failure is fixed by other means.
+Stated as an open question rather than smoothed over.
+
+Script: `phase211_lift_endtask.py`.
+
