@@ -7800,3 +7800,382 @@ what makes re-weighting worth having.
 
 Scripts: `phase199_layersweep.py`, `fig_layer_accuracy.py`. Data: `phase199_layersweep_qwen3.jsonl`.
 
+## §52 ★★★ THE IMAGE TOKEN **VALUES** ARE INERT PAST THE BOUNDARY, AND THE ANSWER BECOMES DECODABLE ONLY AFTER IT
+## (phase 203, both models, n=60 each, single-instance stratum; both pre-registered probes PASS 2 of 2)
+
+Two probes of the transport boundary, run because §20/§20B's masks prove something narrower than they are usually
+read to prove. A mask blocks the text→image attention *channel*; it does not show the image *information* is absent
+from the residual stream. E1 replaces the values instead. E3 asks when the answer becomes readable at the answer
+position.
+
+### E1 Representation patching — replace the image tokens' hidden states with a different image's, at one layer
+Donor = a fixed different V\*Bench image with the **same question**, fitted to the same token budget. Hook replaces
+the recipient's image-position hidden states at the layer's output with the donor's. Sanity checks fixed in advance:
+**C1** patching image at L4 must be large; **C2** patching text at L20 must be large. Both PASS on both models.
+
+| patch site | Qwen3-VL-2B KL (flips) | Qwen2-VL-7B KL (flips) |
+|---|---|---|
+| img L0 | 1.758 (61.7%) | 0.800 (60.0%) |
+| img L4 — **C1** | **1.766 (63.3%)** | **0.798 (58.3%)** |
+| img L8 | 1.622 (60.0%) | 0.657 (60.0%) |
+| img L12 | 0.134 (16.7%) | 0.517 (51.7%) |
+| img L16 | **0.009 (3.3%)** | **0.005 (5.0%)** |
+| img L20 | 0.0005 (0%) | 0.0008 (1.7%) |
+| img L24 | 0.0003 (0%) | 0.0006 (1.7%) |
+| txt L4 — control | 0.009 (5.0%) | 0.006 (3.3%) |
+| txt L20 — **C2** | **1.834 (63.3%)** | **0.802 (60.0%)** |
+
+**MAIN prediction PASSES 2 of 2: replacing every image token's hidden state at L≥16 changes the answer no more
+than replacing irrelevant early text.** The late-image arm lands exactly on the txt-L4 noise floor (Qwen3 0.0089 vs
+0.0094; Qwen2 0.0052 vs 0.0056) and the two controls invert cleanly across depth: at L4, image values matter and
+text values do not; at L20, the reverse. Paired KL(L16−L4) = **−1.757 [−2.308,−1.256]** / **−0.792 [−1.031,−0.577]**.
+The per-model mid-stack profiles match §20B's boundary estimates: Qwen3 has collapsed by L12, Qwen2 only by L16.
+
+### E3 Logit lens at the answer position — the correct option is not decodable until after the boundary
+`hidden_states[l]` passed through the final norm and the LM head at the final position; §12D's double-norm guard is
+asserted (last-layer read-out matches true logits to ≤0.125, bf16 rounding). Mean p(correct option) by depth:
+
+| | L0–L15 | L16–L21 | L22+ | onset (first layer > pre-mean +0.10) |
+|---|---|---|---|---|
+| Qwen3-VL-2B | 0.25–0.28 (flat, ~chance) | 0.25–0.30 | **0.40–0.45** | **L22** |
+| Qwen2-VL-7B | 0.23–0.27 (flat, ~chance) | 0.22–0.31 | **0.34–0.47** | **L24** |
+
+**PREDICTION PASSES 2 of 2.** The answer is undecodable at the answer position throughout the transport window, and
+becomes decodable only after it. The probe is validated end-to-end: last-layer lens accuracy equals the model's
+actual accuracy exactly (45% / 47%).
+
+### Consequences
+1. **§20's "inert" claim is upgraded from channel to values.** A reviewer can no longer object that the masked
+   attention hides information still travelling in the residual stream: replace the image tokens outright and the
+   output does not move. The two probes agree on the same boundary from opposite directions.
+2. **The pipeline is two-stage, both stages now measured**: image→text transport completes by ~L16 (§20B; E1 here),
+   and text→answer becomes readable only from L22 (§48's placement-coverage step, §51's end-task read-out optimum
+   at L17, this lens curve). The read-out band every placement method uses sits between the two: after the image is
+   gone, before the answer is formed.
+3. **Calibrated noise floor for all future intervention work**: txt-L4 is the "irrelevant patch" scale
+   (KL ≈ 0.006–0.009), and it is the number any late-layer intervention must beat to be seen.
+
+### Limits, stated
+n=60/model and **single-instance (`direct_attributes`) only** — the run took the first 60 items in dataset order,
+so it says nothing about cross-instance here (§33/§40 remain the cross-instance evidence). E1's prediction and
+sanity checks were pre-registered in the run script; E3's prediction was too, but the **onset layer is reported
+under an analysis-time rule** (`phase203_analyze.py`: first layer whose mean p_correct exceeds the L0–15 mean by
+0.10), not a pre-registered threshold — the underlying claim that matters is the flat-at-chance then step-up shape,
+which needs no threshold.
+
+Scripts: `phase203_patch_lens.py`, `phase203_analyze.py`. Data: `phase203_patchlens_{qwen3,qwen2}.jsonl`.
+## §53 ★★ TWR'S MECHANISM, CORRECTED: THE BLOCK MEAN'S FAILURE IS THE ITEM-INDEPENDENT COMPONENT — BUT THE
+## CORRECTION DOES NOT REQUIRE SUBTRACTION (phase 204, both models, CPU + end-task, complete)
+
+Pre-registered in `PREREG_MECH_THEORY.md`. Run because the 2026-09-21 audit found the paper's causal account
+("the correction requires subtraction", Fig.~3's "negative weight rather than patching the geometry") was supported
+only on coverage, while §49's pre-registered nuisance-loading test had already failed 1 of 2. Protocol identical to
+§50B: 63 features, OOF GroupKFold(5) × 3 seeds (700–702), ridge α=1, modal-grid items (n=126 per model), maps
+UNMASKED. Nuisance-ablated maps exactly as §49/§50A.
+
+### 204a — the linear model's assumptions, tested not assumed
+| | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| rank-one share of the item-mean maps (leading eigenvalue) | 0.855 | 0.769 |
+| cos(α, g) — the orthogonality assumption of Prop. 3 | **+0.431** ✗ | **+0.388** ✗ |
+| mean corr(m_l, t) — uncorrelatedness | −0.020 ✔ | −0.017 ✔ |
+
+The item-mean maps are strongly rank-one, but the nuisance loadings and the per-layer signal gains are **not**
+orthogonal. The formal orthogonality mechanism of Prop. 3 therefore does not hold as stated; it is reported as a
+rejected premise, not exported.
+
+### 204c — the decisive test: free signs vs non-negative per-layer weights, raw vs nuisance-ablated maps
+Mean coverage of the W=0.25 window at the rule's ring-masked arg-max. `nnls_A`/`nnls_R`/`nnls_AR` bound the 28
+log-attention weights, the 28 rank weights, or both, at zero; all other features and the intercept free.
+
+| arm | Qwen3 raw | Qwen2 raw | Qwen3 ablated | Qwen2 ablated |
+|---|---|---|---|---|
+| block mean (baseline) | 0.083 | 0.292 | **0.438** | **0.490** |
+| ridge (deployed TWR) | 0.578 | 0.588 | 0.539 | 0.518 |
+| nnls_A | 0.609 | 0.587 | 0.529 | 0.519 |
+| nnls_R | 0.626 | 0.603 | 0.537 | 0.523 |
+| **nnls_AR (both blocks ≥ 0)** | **0.594** | **0.584** | 0.515 | 0.517 |
+| constrained (Σ w_l α_l = 0) | 0.619 | 0.589 | 0.533 | 0.516 |
+| tied (one weight for all layers) | 0.516 | 0.514 | 0.516 | 0.514 |
+| shuffle (depth profile permuted) | 0.317 | 0.507 | 0.508 | 0.525 |
+| map-space free-sign (28 weights) | 0.515 | 0.530 | 0.515 | 0.530 |
+| map-space non-negative | 0.471 | 0.533 | 0.471 | 0.533 |
+
+**P-N1 is REFUTED 0 of 2. Non-negativity costs nothing.** Constraining both per-layer blocks to be non-negative
+retains the whole advantage (Qwen3 +0.510 vs TWR's +0.495; Qwen2 +0.292 vs +0.296) — with **44 of 56 (Qwen3) and
+43 of 56 (Qwen2) per-layer coefficients driven to exactly zero**. The NNLS solution is a *sparse positive layer selection*: log-attention
+layers **[4, 5, 17, 19]** (Qwen3) and **[19, 21]** (Qwen2), plus a broader positive rank block. The selected layers
+sit at the read-out band the signed fit also favours (L19 is its strongest positive, §19) and, on Qwen3, two early
+layers.
+
+**The map-space sign test agrees.** A 28-weight linear filter over the normalized maps loses only **+0.044** (Qwen3)
+and **−0.002** (Qwen2) to its non-negative counterpart. "A mean can only add" is therefore at most a small part of
+the correction, not the mechanism.
+
+**What does matter, in the same table:** the depth *ordering* (permuting it costs 0.26 Qwen3 / 0.08 Qwen2 of the
+advantage; tying all layers to one weight costs 0.06 / 0.07) and, above all, the **supervised fit itself** — every
+fitted arm is far above the unsupervised block mean, and all of them collapse toward it on nuisance-ablated maps
+(advantage +0.03 to +0.10), where the block mean rises by +0.354 / +0.198. P-N3 replicates §50A: free-sign TWR's own
+raw→ablated movement is −0.039 (pass) / −0.070 (fail), 1 of 2.
+
+### 204d — the single-constraint fit matches, but is not evidence
+Imposing only Σ_l w_l α_l = 0 recovers TWR's advantage (0.619/0.589 vs 0.578/0.588). Since the non-negative fits
+match without it, this is consistent with, not support for, the orthogonality account.
+
+### A failed mechanism measure, reported
+A "prior-share" statistic (variance of each rule's score evaluated on the mean item, over per-item score variance)
+did **not** track coverage across the ten arms: Pearson r = +0.11 (Qwen3), −0.01 (Qwen2). The nuisance account
+rests on the ablation, not on this statistic.
+
+### 204e — end task (deployed pipeline, n=191, W=0.25, bar uniform@600; both models complete)
+| arm | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| uniform@600 (bar) | 63.9 | 58.1 |
+| ridge (TWR) | 72.8 | 70.2 |
+| **nnls_AR** | **71.7** | **68.1** |
+| map-space free-sign | 70.2 | 63.9 |
+| nnls − ridge | **−1.0 [−6.3,+4.2] n.s.** | **−2.1 [−5.8,+1.6] n.s.** |
+| ridge − bar | +8.9 [+0.5,+17.3] ✔ | +12.0 [+4.7,+19.9] ✔ |
+| nnls − bar | +7.9 [+0.0,+15.7] | +9.9 [+2.6,+17.8] ✔ |
+| map_free − bar | +6.3 [−2.1,+14.7] | +5.8 [−2.6,+14.7] |
+
+**P1 passes 2 of 2.** The non-negative sparse filter is statistically indistinguishable from TWR at the end task on
+both checkpoints (and clears the bar itself on both). **The signedness of the deployed weights is an epiphenomenon of
+ridge collinearity (§21B), not the mechanism.** The map-space signed filter is the weakest fitted arm (n.s. over the
+bar on both models), so the feature space matters, not the sign of the map combination either.
+
+### Consequences (paper corrections required)
+1. **"The correction requires subtraction, and a mean can only add" (main.tex §ridge) must be corrected.** The
+   measured statement is: the correction requires a **supervised depth weighting**; its sign pattern is not
+   load-bearing. A non-negative variant with 4 (Qwen3) / 2 (Qwen2) selected log-attention layers matches TWR on
+   coverage and end task.
+2. **Fig. 3's caption** ("TWR removes the serialisation sink by giving post-boundary layers negative weight rather
+   than by patching the geometry") carries the story §49 already forbade; it must be replaced by the corrected
+   account.
+3. **What survives, strengthened:** the block mean's failure IS the item-independent component (block 0.083→0.438,
+   0.292→0.490 when ablated; all fitted arms nearly unchanged). TWR's advantage over the block mean is
+   *predominantly* nuisance-robustness, but not exclusively: on nuisance-ablated maps a residual +0.08/+0.03 remains.
+4. **Descriptive claims about the fitted weights stay** (7 of 11 / 7 of 12 negative in the block band, net ≈ 0);
+   only the causal attribution changes.
+
+Limits: coverage on the modal grid (n=126); end-task Qwen3 only in this section; the orthogonality premise of the
+formal account failed 2 of 2 and is not claimed.
+
+Scripts: `phase204_theory.py`, `phase204_endtask.py`, `phase204_endtask_analyze.py`. Data:
+`phase204_theory_{qwen3,qwen2}.json`, `phase204_endtask_{qwen3,qwen2}.jsonl`.
+## §54 ★★ TSR'S PREMISE AT ITS OPERATING POINT: AT THE BOUNDARY **ALL** VISUAL-Token VALUES ARE INERT, NOT ONLY
+## THE PRUNED ONES (phase 205, Qwen3-VL-2B n=191; Qwen2 queued)
+
+Pre-registered in `PREREG_MECH_THEORY.md`. TSR encodes at 900 tokens, prunes 90% of the visual set at L16 and
+spends the saving on resolution. Behaviourally, TSR ≈ unpruned@900 (§26C/§38). This run tests the premise on
+hidden **values**, on the unpruned 900-token pass, with donor hidden states (a different image, same question)
+injected at the layer's output.
+
+| patch at 900 tokens (Qwen3-VL-2B, n=191) | mean KL | answer flips |
+|---|---|---|
+| **dropped** positions @L16 (810 of 900) | **0.0022** | **1.0%** |
+| **kept** positions @L16 (90 of 900) | **0.0065** | **3.1%** |
+| dropped positions @L8 (transport window) | **0.3407** | **20.9%** |
+| dropped positions @L24 | 0.0003 | 0.5% |
+| TSR (attention keep) vs unpruned base | 0.0025 | argmax agreement 97.9% |
+| TSR (random keep) vs unpruned base | 0.0075 | argmax agreement 97.4% |
+
+**P-T2 PASSES.** TSR is an output-distribution identity for the unpruned 900-token model (KL 0.0025, 97.9%
+agreement), and attention keep ≈ random keep (ΔKL 0.0050). This is §42's "selection stops mattering at the
+boundary" measured at the value level, at TSR's own operating point.
+
+**P-T1a and P-T1b PASS; P-T1c FAILS — and the failure is the sharper result.** Replacing the dropped values at L16
+is at the noise floor (0.0022), and replacing them at L8 is large (0.3407, 20.9% flips). But replacing the **kept**
+values at L16 is *also* near the floor (0.0065, 3.1% flips) — 50× below the pre-boundary scale. At the boundary the
+image has already reached the text; **no visual token's value is load-bearing there, kept or pruned**. That is the
+premise the pruning and the ranking-irrelevance result both need, and it is stronger than what was pre-registered:
+the kept set retains only a small residual influence (3.1% vs 1.0% flips), which is why a non-zero keep is the
+conservative choice, but the *choice* of which tokens to keep is free.
+
+**Consequence for the theory.** Proposition 5's premise ("value-inertness") is measured, not assumed, and it holds
+for the whole visual set at L16 — so any keep-set rule, including random, is equivalent, and TSR's gain reduces by
+accounting to the resolution headroom of the checkpoint (Proposition 4). The §26C/§38 behavioural equivalence and
+this value-level test now agree.
+
+Limits: Qwen3-VL-2B only in this section (Qwen2 queued on the same script); the donor is one fixed different image
+per item; the pre-registered kept-patch control was specified as "must be large" and did not hold — reported as a
+failed prediction with its diagnosis, not retrofitted.
+
+Script: `phase205_tsr_probe.py`, `phase205_analyze.py`. Data: `phase205_tsr_probe_qwen3.jsonl`.
+## §55 ★★ THE TARGET'S LOCATION IS LINEARLY DECODABLE FROM THE ANSWER-POSITION STATE, AND DECODABILITY PEAKS IN
+## THE READ-OUT BAND (phase 206, both models, n=191, OOF)
+
+The third interpretability technique requested for task 2 (after the logit lens, §52/§203, and the attention
+read-out, §48/§51): a ridge probe from the **last-position hidden state** at every layer to the GT box centre,
+out-of-fold (KFold 5 × 3 seeds, α=1000), using the phase-109 all-layer dumps.
+
+⚠ **Metric caveat, measured first.** Placement coverage at the predicted centre is the wrong score here:
+V$^*$Bench targets are centred, so the constant predictor (dataset-mean centre) already covers **0.956**, and a
+regularised linear probe lands *below* it (0.17–0.30). The probe is therefore scored by the **correlation between
+predicted and true centres**, with a label-shuffle control at the same layer.
+
+| layer | Qwen3-VL-2B r | Qwen2-VL-7B r |
+|---|---|---|
+| L4 | +0.19 | +0.16 |
+| L8 | +0.26 | +0.17 |
+| L12 | +0.50 | +0.29 |
+| L15 | +0.60 | +0.54 |
+| **L16** | **+0.63** | +0.53 |
+| L17 | +0.62 | +0.59 |
+| **L18** | **+0.635** | **+0.60** |
+| **L19** | **+0.635** | +0.56 |
+| L21 | +0.61 | +0.56 |
+| L24 | +0.59 | +0.53 |
+| L27 | +0.50 | +0.47 |
+| shuffle control, max over layers | +0.26 | +0.21 |
+
+**Findings.**
+1. **Location decodability rises across the transport window and peaks in the read-out band** (L15–L19 Qwen3,
+   L15–L18 Qwen2) — the same band §48 finds for attention placement (peak coverage L17/L19) and §51 finds for the
+   end-task crop optimum (L17). Three independent techniques now agree on where the usable band is.
+2. **Accessible ≠ causally used.** The answer-position state carries the target's location from ~L15 on, while §20
+   and §52 show the same position's attention to the image is causally inert after the boundary. The location
+   arrives through the text tokens (§20B) and is decodable there, but the model does not use it to answer — the
+   §13 dissociation restated at the level of the residual stream.
+3. **The probe is not a placement rule on this benchmark**: no layer beats the centre prior, because the benchmark
+   centres its targets. Reported so the negative is on record; it is a property of the venue, not the probe.
+
+Limits: one probe family (ridge, α=1000), one target parameterisation (box centre); the shuffle control reaches
++0.26 on Qwen3 (max over 28 layers), so differences below ~0.1 between adjacent layers are not interpretable.
+
+Script: `phase206_probe_loc.py`. Data: `phase206_probe_loc_{qwen3,qwen2}.json`.
+### §52B ✅ FULL-BENCHMARK REPLICATION (n=191, both models, both strata) — the single-stratum limit is removed
+
+`phase203_patch_lens.py` re-run to N=191 on both checkpoints (the 60 existing rows were skipped). Both
+pre-registered controls pass on both models, and the main prediction holds in **both strata**:
+
+| | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| C1 img L4 KL / flips | 1.095 / 51.8% ✔ | 0.611 / 49.7% ✔ |
+| C2 txt L20 KL / flips | 1.149 / 50.8% ✔ | 0.601 / 48.2% ✔ |
+| **img L≥16 mean KL / flips** | **0.0022 / 0.9%** | **0.0018 / 3.1%** |
+| paired KL(L16−L4) | −1.090 [−1.362,−0.853] | −0.607 [−0.742,−0.488] |
+| lens onset (analysis rule) | L22 | L24 |
+| last-layer lens acc vs base acc | 57% vs 57% | 51% vs 51% |
+
+Per stratum, the late-image patch is at the floor in all four cells (img L16 KL: 0.0073/0.0032 Qwen3,
+0.0054/0.0027 Qwen2; flips 2.6/2.6% and 6.1/5.3%), while the pre-boundary control is large in all four
+(img L8 KL 1.49/0.26 and 0.73/0.24). One anomaly under the analysis-time onset rule: Qwen2's cross-instance
+stratum fires at L9, a fluctuation of the +0.10 criterion on n=76 — the underlying curve is flat-then-step in
+every cell, which is the claim; the exact onset layer is not.
+
+Scripts/data unchanged: `phase203_patch_lens.py`, `phase203_patchlens_{qwen3,qwen2}.jsonl` (now 191 rows each).
+## §56 THE CLAIM-TO-EVIDENCE MAP (2026-09-21 audit, updated with phases 204–206)
+
+Every headline claim in `paper/main.tex`, its strongest evidence, its class, and its model count. "Intervention" =
+the claim was tested by changing the model's computation (mask, patch, prune, ablate, oracle), not by observation.
+The audit that produced this table also found the wording faults corrected in the paper on 2026-09-21 (transport
+"flips no answers" → the measured 12%/5% at L16 and ~0 from L20; Table 1's mixed-source row → 176c's 1.266/0.532;
+native-resolution "both" → TWR both / TSR one; "pruning free in 9 of 10" → §38's corrected wording; the scope-law
+mechanism clause → §33's integration account; gate-max "above every published rule" → true on Qwen3 only).
+
+| # | claim | evidence | class | models | status |
+|---|---|---|---|---|---|
+| 1 | transport complete by ~0.57 depth | layer-wise + prefix/suffix attention masks (§20B); 36L boundary from pruning cost (§38B-2) | intervention | 2×28L masking; 36L pruning | SOLID for 28L; 36L is pruning-derived (masking run not queued: GPU memory) |
+| 2 | image-token **values** inert past the boundary | representation patching at L≥16, at 300 (§52/§52B) and 900 tokens (§54) | intervention | 2 models, both strata (300) | SOLID |
+| 3 | answer position does not read the image | answer-row-only mask, all layers (§20, §57) | intervention | **2 models** | SOLID |
+| 4 | the depth choice dominates | crop at every layer's arg-max, end task (§51, §51B) | intervention | **2 models** | SOLID |
+| 5 | the usable read-out band lies after transport | coverage curve (§48) + end-task sweep (§51) + location probe (§55) | measurement + intervention | 2 models (48/55); Qwen3 (51) | SOLID for the band; the end-task curve is Qwen3 |
+| 6 | ranking matters before the boundary and not after | objectness-probe vs random keep at L4 (§42); random = attention at L16/L24 (§26C); value patching (§54) | intervention | 2 models | SOLID |
+| 7 | the block mean's failure is the item-independent component | nuisance ablation (§50A, §53): block 0.083→0.438, 0.292→0.490 | intervention | 2 models (coverage) | SOLID |
+| 8 | ~~signed weights / subtraction are the mechanism~~ | non-negative fits retain the advantage (44/56 coefficients zeroed), map-space sign gap 0.044/0.002, end task −1.0 n.s. (§53) | intervention | 2 models (coverage); Qwen3 end task | **CLAIM WITHDRAWN**; the paper's mechanism paragraph, Fig. 3 caption and appendix now state the corrected account |
+| 9 | TWR beats every published placement rule at equal compute | paired end-task contrasts, 9/9 pooled (§25/§34) | evaluation | 2 models × 2 benchmarks | SOLID |
+| 10 | TSR pruning is free | pruned vs unpruned @900 (§26C/§38); value patching at L16 (§54) | intervention | 2 models behavioural; Qwen3 value-level | SOLID behaviourally; value-level Qwen2 queued |
+| 11 | TSR's gain = resolution headroom | 10-cell identity, r=0.966, slope 1.01 (§39/§47); distributional equivalence (§54) | accounting + intervention | 4 checkpoints | SOLID |
+| 12 | cropping helps single-instance and is non-positive cross-instance | 14-cell scope table (§34/§41) + oracle ceiling (§36) | evaluation + intervention | 4 checkpoints | SOLID; mechanism clause corrected (integration, not coverage) |
+| 13 | TWR matches native dynamic resolution at 14–18% of the compute | end-task vs native (§45) | evaluation | 2 models (TWR); TSR on Qwen3 only | SOLID as now worded |
+| 14 | placement is worth more than 5–7× the compute | oracle-crop arm beats native (§45) | intervention | 2 models | SOLID |
+| 15 | native-resolution location is decodable in the read-out band | linear probe from the answer-position state (§55) | measurement | 2 models | SOLID (probe; shuffle control max 0.26) |
+
+**All interpretability claims in the map are now intervention-backed on two models** (row 3 closed by §57, row 4 by
+§51B, both on 2026-09-21). The 36-layer masking leg (§20B/§38B-2) is the only remaining single-venue evidence and it
+is a scope note, not a claim.
+### §54B ✅ Qwen2-VL-7B leg (n=191) — the value-inertness replicates; one pre-registered condition is a marginal miss
+
+| patch at 900 tokens, Qwen2-VL-7B, n=191 | mean KL | answer flips |
+|---|---|---|
+| **dropped** positions @L16 | **0.0038** | **3.7%** |
+| **kept** positions @L16 | **0.0027** | **0.5%** |
+| dropped positions @L8 | **0.2622** | **29.8%** |
+| dropped positions @L24 | 0.0006 | 0.5% |
+| TSR (attention keep) vs unpruned base | 0.0037 | agreement 96.3% |
+| TSR (random keep) vs unpruned base | 0.0047 | agreement 96.9% |
+
+The Qwen3 pattern replicates: the boundary patch is at the floor for **both** the dropped and the kept set (the kept
+set is, if anything, the more inert of the two on this model — 0.5% vs 3.7% flips), while the same patch at L8 is
+large (29.8% flips). Proposition 5's premise therefore holds on 2 of 2 models, at TSR's own operating point.
+
+**Pre-registered P-T2 is 2 of 3 conditions on this model.** KL ≤ 0.02 (0.0037) and attention-keep ≈ random-keep
+(ΔKL 0.0009) pass; arg-max agreement is **96.3%, just under the pre-registered 97% bar** (Qwen3: 97.9%). We report
+the miss rather than rounding it: the distributional equivalence is strong in KL and in the keep-rule comparison, and
+the agreement rate sits at the same level §26C reported behaviourally.
+## §57 ✅ THE ANSWER-ROW MASK REPLICATES ON QWEN2 — the last single-model interpretability claim is now two-model
+
+The 2026-09-21 audit's biggest evidence gap: "the answer position does not read the image" rested on Qwen3-VL-2B
+only (§20, n=40; the Qwen2 leg had never landed). `phase176_readout_sensitivity.py qwen2` now closes it, same
+protocol (mask only the final prompt token's attention over the image columns, all 28 layers, n=40):
+
+| answer-row-only mask, all layers | Qwen3-VL-2B | Qwen2-VL-7B |
+|---|---|---|
+| KL at output | 0.0250 | 0.0343 |
+| answers flipped | 2.5% | **0.0%** |
+| per-layer KL, L20–27 mean | 0.0007 | 0.0016 |
+| (all-rows mask, §20B) | 1.266 / 42% | 0.532 / 45% |
+
+The answer position's attention to the image is causally inert on **2 of 2** checkpoints, while the all-rows mask
+destroys the answer on both — a 37× and 16× separation. The paper's Table 1 is now a two-model table and the
+caption no longer needs the Qwen3 qualifier. Data: `phase176_sens_{qwen3,qwen2}.json`.
+### §51B ✅ QWEN2 LEG — THE READ-OUT DEPTH CURVE REPLICATES, AND TWR BEATS THE ORACLE LAYER THERE (phase 199, n=191)
+
+`phase199_layersweep.py qwen2` completes the two-model record for the paper's headline (i). Same pipeline: crop at
+each layer's ring-masked arg-max, answer @300 on the crop; reference arms on the same items from
+`phase184_allarms_qwen2.jsonl`.
+
+| band | min | mean | max |
+|---|---|---|---|
+| L0–L15 (transport window) | 36.1 | 37.7 | 39.8 |
+| **L16–L21** | 46.4 | 55.4 | **62.8 (L21)** |
+| L22–L27 | 39.8 | 46.9 | 58.6 |
+
+Reference arms: bar `uniform@600` **58.1**, block-mean 59.2, LASER 61.3, fixed L14 **38.2**, TWR **70.2**, oracle
+crop 87.4.
+
+**The Qwen3 findings all replicate, and one is stronger.**
+1. **Spread 36.1 → 62.8**, a 26.7-point range from depth alone (Qwen3: 35.6).
+2. **No layer inside the transport window beats not cropping** (max 39.8 vs the 58.1 bar) — by a wider margin than
+   Qwen3's (53.4 vs 63.7).
+3. **TWR − best single layer = +7.3 [+1.0,+13.6] ✔** — on this checkpoint TWR *significantly beats* an oracle choice
+   of read-out layer (Qwen3: +2.6 n.s.). The best layer was chosen on the test set, so this is the conservative
+   direction. Block-mean − best layer is −3.7 n.s. (Qwen3: −7.9 ✗).
+4. **The published fixed choice (L14) is 19.9 points below the bar** (Qwen3: 25.7).
+
+Two-model figure: `fig_layer_accuracy2.py` → `paper/figs/fig_layer_accuracy2.pdf`.
+
+## §58 ⚠ NEAR-MISS CAUGHT: a withdrawn claim was re-introduced into the paper and removed again
+
+While writing the propositions appendix after a session interruption, Proposition 3 was drafted in the ORIGINAL
+"a signed read-out can cancel a common nuisance, a positive average cannot" form — the account **§53 had already
+withdrawn** (non-negative fits retain the full advantage; 44/56 and 43/56 per-layer coefficients zeroed; the
+orthogonality premise measured at cos(α,g)=+0.431/+0.388, not ≈0). Caught by noticing an uncommitted
+claim-to-evidence table in `main.tex` that contradicted the freshly written text.
+
+Removed, and four further places in the paper that still framed signedness as the mechanism were corrected at the
+same time:
+- abstract: "yielding a signed filter that gives negative weight to most of the layers…" → "one closed-form ridge
+  solve over the whole depth profile, fitted from about fifty boxed examples"
+- introduction: same, now pointing at the mechanism appendix instead of asserting sign
+- Fig. 2 caption: "the fitted weights are signed, so layers past the boundary subtract rather than add" → sign is
+  stated but explicitly denied as the mechanism, with the non-negative refit quoted
+- related work: "(ii) a signed re-weighting across all depths rather than a selection among them" → "(ii) a
+  supervised read-out fitted over all depths rather than a rule chosen by hand". The old wording contradicted §53
+  directly, since the non-negative solution **is** a sparse selection.
+
+**Process note.** §53's withdrawal was logged but the paper's abstract/intro/related-work still carried the old
+framing in four places; only the mechanism paragraph and Fig. 3 had been updated. Withdrawals need a grep of the
+whole document, not an edit at the site where the claim was measured.
+

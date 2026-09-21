@@ -25,7 +25,7 @@ import json, os, sys, time, numpy as np, torch
 from PIL import Image
 os.environ.setdefault("HF_HUB_CACHE", "/media/kavinder/hdd2/hf_cache"); os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 from transformers import AutoProcessor, AutoModelForImageTextToText
-MODELS={"qwen3":"Qwen/Qwen3-VL-2B-Instruct","qwen2":"Qwen/Qwen2-VL-7B-Instruct"}; B0=300; NCAL=40; Image.MAX_IMAGE_PIXELS=None
+MODELS={"qwen3":"Qwen/Qwen3-VL-2B-Instruct","qwen2":"Qwen/Qwen2-VL-7B-Instruct","qwen3_8b":"Qwen/Qwen3-VL-8B-Instruct"}; B0=300; NCAL=40; Image.MAX_IMAGE_PIXELS=None
 def main(tag):
     from huggingface_hub import snapshot_download; from datasets import load_dataset
     mid=MODELS[tag]; root=snapshot_download("craigwu/vstar_bench",repo_type="dataset"); ds=load_dataset("craigwu/vstar_bench")["test"]

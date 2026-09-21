@@ -6,8 +6,10 @@
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb}
+\usepackage{amsthm}
 \usepackage{xcolor}
 \usepackage{multirow}
+\newtheorem{proposition}{Proposition}
 
 \definecolor{bad}{HTML}{C0392B}
 \definecolor{gd}{HTML}{1A6B54}
@@ -32,19 +34,21 @@ Every such method must choose a depth at which to read that map, and published m
 average a fixed block.
 We show that this choice dominates every other design decision, and that the depth these methods read is not the
 depth at which the image reaches the answer. Masking text-to-image attention layer by layer localises that transport
-to the first two thirds of the stack --- blocking every layer from layer~16 of~28 onward flips no answers --- at
-the same fraction of depth, $0.57$, on every architecture we test, entirely before the band these methods read.
+to the first two thirds of the stack: blocking every layer from layer~16 of~28 onward leaves the answer almost
+unchanged (KL $0.014$/$0.029$; $12\%$/$5\%$ of answers flipped) and from layer~20 onward flips essentially none.
+The boundary falls at the same fraction of depth, $0.57$, on the two $28$-layer checkpoints under masking and on a
+$36$-layer checkpoint under pruning, entirely before the band these methods read.
 Two policies follow from that measurement rather than from tuning. \textbf{Transport-Weighted Read-out} (TWR)
-replaces layer selection with one closed-form ridge solve over the whole depth profile, yielding a signed filter
-that gives \emph{negative} weight to most of the layers a conventional read-out adds at $+1$. \textbf{Transport-Scheduled Resolution} (TSR) discards
+replaces a hand-picked depth with one closed-form ridge solve over the whole depth profile, fitted from about
+fifty boxed examples. \textbf{Transport-Scheduled Resolution} (TSR) discards
 $90\%$ of visual tokens at the boundary, where they are causally inert, and spends the freed compute on encoding
 resolution.
 At matched compute TWR beats every published placement rule in all nine pooled comparisons, by $7.9$ and $8.9$
 points over the strongest, and lands its crop on the evidence $63.9\%$ and $55.0\%$ of the time against $46.6\%$ and $39.3\%$. TSR converts a
 checkpoint's resolution headroom at rate $1.01$ ($r=0.966$) across four checkpoints and three benchmarks. Against
-models at their \emph{native} dynamic resolution --- $5.5\times$ the budget --- both are statistically
-indistinguishable using $14$--$18\%$ of the visual-token compute, whereas published rules fall $9.9$--$14.2$ points
-short of it.
+models at their \emph{native} dynamic resolution --- $5.5\times$ and $7.2\times$ the budget on the two core
+checkpoints --- TWR is statistically indistinguishable on both using $14$--$18\%$ of the visual-token compute, and
+TSR matches on one, whereas every published rule falls $9.9$--$14.2$ points short of native.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -61,22 +65,25 @@ Published methods pick a single mid-network layer or average a fixed block of la
 
 We show three things.
 
-\textbf{(i) The depth choice dominates.} We crop at every one of the $28$ layers' arg-max in turn and answer
-(Figure~\ref{fig:layeracc}). End-task accuracy ranges from $34.6\%$ to $70.2\%$ --- a $35.6$-point spread driven by
-nothing but the depth at which the map is read. Every layer inside the transport window scores below not cropping at
-all, and the published fixed-layer recipe lands $31.9$ points below the best layer. The same pipeline with a better
-depth read-out scores $77.2\%$ and $71.3\%$ on two checkpoints.
+\textbf{(i) The depth choice dominates.} We crop at every one of the $28$ layers' arg-max in turn and answer, on both
+checkpoints (Figure~\ref{fig:layeracc}). End-task accuracy ranges from $34.6\%$ to $70.2\%$ (Qwen3) and $36.1\%$ to
+$62.8\%$ (Qwen2) --- spreads of $35.6$ and $26.7$ points driven by nothing but the depth at which the map is read.
+Every layer inside the transport window scores below not cropping at all on both, and the published fixed-layer
+recipe lands $32$ and $25$ points below the best layer. The same pipeline with a better depth read-out scores
+$77.2\%$ and $71.3\%$ on the two checkpoints.
 
 \textbf{(ii) Everyone reads at the wrong depth, and we can say why.} Masking text tokens' attention to the image,
 layer by layer, shows that image-to-text transport is \emph{complete} by layer~16 of~28: blocking every layer from 16
-onward flips no answers. Yet every method in this family --- including ours --- reads its map at layers 17--22. The
+onward leaves the output nearly unchanged (KL $0.014$/$0.029$; $12\%$/$5\%$ flips) and from layer~20 onward flips
+essentially none. Yet every method in this family --- including ours --- reads its map at layers 17--22. The
 attention these methods consume is a residue of where the model looked, not the channel carrying the evidence.
 
 \textbf{(iii) Two allocation policies follow from that measurement}, with complementary strengths, and at native
-resolution they match a model spending $5.5\times$ the compute. \textbf{Transport-Weighted Read-out} (TWR,
-\S\ref{sec:ridge}) stops selecting a depth and instead re-weights all of them, by a single closed-form ridge solve
-whose fitted weights are signed: of the layers the conventional block mean adds at $+1$, seven receive
-negative weight on both checkpoints, and the band's net weight is close to zero rather than positive.
+resolution TWR matches a model spending $5.5$--$7.2\times$ the compute. \textbf{Transport-Weighted Read-out} (TWR,
+\S\ref{sec:ridge}) replaces a hand-picked depth with a single closed-form ridge solve over all of them. We test
+what makes it work rather than asserting it: the conventional read-out fails because of a component of the map
+that does not depend on the image, and the fit's job is to learn which handful of depths to read instead
+(\S\ref{app:theory}).
 \textbf{Transport-Scheduled Resolution} (TSR, \S\ref{sec:tsr}) drops $90\%$ of visual tokens at the boundary, where
 they no longer carry the image, and spends the saved compute on encoding resolution instead.
 
@@ -105,8 +112,9 @@ seeds. A claim must hold on at least two checkpoints or it is reported as reject
 \caption{\textbf{The fitted depth filter sits after the transport window.} Bars: TWR's weights
 $w_\ell$ (\gd{green} positive, \bad{red} negative), normalised. Line: the causal transport profile --- the output KL
 caused by masking text-to-image attention at layer $\ell$ alone. Grey band: the layers the conventional block-mean
-read-out averages at $+1$. Yellow band: the question-conditioned read-out band. Dashed line: the depth beyond which
-masking \emph{all} remaining layers flips no answers. The filter assigns negative weight to seven of the eleven
+read-out averages at $+1$. Yellow band: the question-conditioned read-out band. Dashed line: the measured transport
+boundary, beyond which masking \emph{all} remaining layers leaves the answer nearly unchanged ($12\%$/$5\%$ flips at
+$16$, essentially none from $20$). The filter assigns negative weight to seven of the eleven
 block-mean layers here, and to seven of twelve on the other checkpoint; the band's net weight is $+0.0006$ and
 $-0.0005$, i.e.\ approximately zero, against the $+1$ per layer a block mean applies. We do \emph{not} claim the
 positive mass sits after the boundary: that holds on this checkpoint and reverses on the other, so by the
@@ -119,23 +127,33 @@ We install a hook that masks a chosen set of query positions from attending to t
 layers only, and measure the KL divergence at the output.
 
 \begin{table}[h]\centering\small
-\caption{Causal masking of text-to-image attention (Qwen3-VL-2B / Qwen2-VL-7B, $n=40$).}
+\caption{Causal masking of text-to-image attention on both checkpoints, $n=40$ each. Qwen3-VL-2B values first.}
 \begin{tabular}{lcc}
 \toprule
 mask scope (all layers) & KL at output & answers flipped\\
 \midrule
-the \textbf{answer token}'s row only & $0.025$ & $3\%$\\
-\textbf{all text rows} after the image & $1.931$ & $42\%$ / $45\%$\\
+the \textbf{answer token}'s row only & $0.025$ / $0.034$ & $2.5\%$ / $0\%$\\
+\textbf{all text rows} after the image & $1.266$ / $0.532$ & $42\%$ / $45\%$\\
 \bottomrule
 \end{tabular}\label{tab:transport}
 \end{table}
 
-Blocking the answer-emission token from seeing any image token, at every layer, changes almost nothing
-(Table~\ref{tab:transport}). Visual evidence reaches the answer through the \emph{text} tokens, which consolidated it
+Blocking the answer-emission token from seeing any image token, at every layer, changes almost nothing on either
+checkpoint (Table~\ref{tab:transport}). Visual evidence reaches the answer through the \emph{text} tokens, which consolidated it
 upstream. Masking one layer at a time for all text rows localises that consolidation: it peaks at L11 (Qwen3) and
 L14--15 (Qwen2), prefix masks $L_0..\ell$ saturate by $\ell=12$--$16$, and suffix masks $L_\ell..\text{end}$ fall to
-$\approx0$ from $\ell=16$ ($0.014$ and $0.029$; zero answer flips from $\ell=20$). On a 36-layer checkpoint the same
-behaviour appears at L21, i.e.\ the boundary transfers as $0.57\times$ depth.
+$\approx0$ from $\ell=16$ ($0.014$ and $0.029$; essentially zero answer flips from $\ell=20$). The masking runs are
+the two $28$-layer checkpoints; on a $36$-layer checkpoint the same fraction, $0.57\times$ depth (L21), is where
+pruning becomes free ($-7.9$ points when the cut is instead placed at $0.14\times$ depth).
+
+\paragraph{A second, independent causal test.} Masking shows the text-to-image attention \emph{channel} is inert
+after the boundary. It does not show the image tokens' \emph{values} are. We therefore also replace the image
+tokens' hidden states at layer $\ell$ with those computed from a \emph{different image} and measure the output
+(Appendix~\ref{app:mech}). The effect falls by $17\times$ and $96\times$ between L12 and L16 and reaches
+KL~$\approx 5\times10^{-4}$ with $0$--$2\%$ answer flips by L20, while two pre-registered controls stay large:
+patching image tokens at L4, and patching \emph{text} tokens at L20. At L4 the image matters $151\times$ and
+$131\times$ more than the text; at L20 the text matters $2492\times$ and $965\times$ more than the image. Two
+different interventions, two checkpoints, one boundary.
 
 \paragraph{The consequence.} The read-out band used by every method in this family (L17--20 on Qwen3, L19--22 on
 Qwen2) lies \emph{entirely after} the transport window. Those layers' image attention is causally inert
@@ -153,8 +171,9 @@ ceases to matter.
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_pipe_ridge.pdf}
 \caption{\textbf{Policy I: Transport-Weighted Read-out (TWR).} One localisation pass, every layer's attention kept, a single
-closed-form solve that re-weights depths, and a crop. Nothing is selected: all $28$ layers enter the score, and the
-fitted weights are signed, so layers past the transport boundary subtract rather than add.}
+closed-form solve that re-weights depths, and a crop. All $28$ layers enter the score. The fitted weights are
+signed, but sign is not the mechanism: a non-negative refit retains the whole advantage while zeroing $44$ of $56$
+per-layer coefficients (\S\ref{app:theory}).}
 \label{fig:pipe_ridge}
 \end{figure}
 
@@ -172,17 +191,21 @@ The fitted $w_\ell$ \emph{is} the depth filter (Figure~\ref{fig:filter}). It tak
 positive weight falls in the band where attention first becomes question-conditioned. There is no boosting, no
 learning rate, no early stopping, no seed averaging --- given the data the solution is unique.
 
-\paragraph{Why re-weighting and not selection.} On the items the conventional read-out gets wrong, the filter ranks
-the target cell above the cell the arg-max chose on $57\%$ and $71\%$ of items, against $13\%$ and $12\%$ for the
-block mean. No monotone summary of the depth profile reproduces this --- not magnitude, neighbourhood, isolation, or
-a windowed sum --- because the correction requires subtraction, and a mean can only add.
+\paragraph{Why re-weighting and not selection.} On the items the conventional read-out gets wrong, the learned head
+ranks the target cell above the cell the arg-max chose on $57\%$ and $71\%$ of items (gradient-boosted; the deployed
+ridge ties it as a ranker, Appendix~\ref{app:paired}), against $13\%$ and $12\%$ for the block mean. None of the
+simple summaries of the depth profile reproduces this --- not magnitude, neighbourhood, isolation, or a windowed sum.
+The mechanism is a \emph{supervised depth weighting}, not subtraction: the block mean's failure is caused by the
+item-independent component of the maps, and a non-negative fit --- which zeroes $44$ of $56$ per-layer coefficients
+--- retains the full advantage on both checkpoints and matches TWR at the end task (Appendix~\ref{app:formal}).
 
 \paragraph{Ablations.} A gradient-boosted tree over the same features is statistically indistinguishable from the
 ridge solve on all four architectures, so the closed form costs nothing. Capacity is not the limit at this sample size: a
 spatial CNN is \emph{significantly worse} on the 7B ($-8.9$ and $-9.4$ at two window sizes), and nine random seeds,
 flip augmentation and ensembling all land inside the noise floor. Roughly $50$ boxed examples recover $70\%$ of the
 full-data gain. A training-free variant --- the maximum over the four question-conditioned layers --- reaches $68.9$
-and $60.7$, above every published rule but $3.7$ and $9.5$ points below the fitted filter.
+and $60.7$: above every published rule on Qwen3, and above the block-mean and fixed-layer rules on Qwen2 (LASER
+reaches $61.3$ there), but $3.7$ and $9.5$ points below the fitted filter.
 
 \section{Policy II: Transport-Scheduled Resolution (TSR)}\label{sec:tsr}
 
@@ -199,9 +222,10 @@ Because visual tokens are inert past the boundary, discard them there and spend 
 tokens, run full width through L0--L16, keep the top $10\%$ at L16, run L17--27 narrow. Token-layers
 $900{\times}17+90{\times}11=16{,}290$ --- $96\%$ of the bar, for $1.5\times$ the resolution. No crop.
 
-Pruning is free: $0.0$--$0.5$ points in 9 of 10 measured cells, at every keep ratio ($10/25/50\%$), with any ranking
-including random. Output probabilities change on $99\%$ of items while the arg-max changes on $2\%$ --- the tokens are
-inert, not absent.
+Pruning is free to within $\pm0.5$ points in $7$ of the $10$ measured cells (two more are ahead by $1.3$ and $2.6$,
+read as noise), at every keep ratio ($10/25/50\%$), with any ranking including random; one cell shows a real cost
+(HR-8K cross-instance, $-1.8$). Output probabilities change on $99\%$ of items while the arg-max changes on $2\%$ ---
+the tokens are inert, not absent.
 
 \paragraph{An identity.} Across $4$ checkpoints $\times$ $3$ benchmarks, TSR's gain equals the checkpoint's
 \emph{measurable resolution headroom} $\mathrm{acc}(900)-\mathrm{acc}(600)$ on that stratum: $r=0.966$, slope $1.01$,
@@ -210,11 +234,13 @@ TSR's benefit is \emph{predictable before deployment} --- and it explains the ce
 the cells where the checkpoint gains little from resolution in the first place, including one where the baseline
 itself degrades from $600$ to $900$ tokens.
 
-\paragraph{The boundary is the right depth, not merely a cheap one.} Pruning the same fraction at layer~2 (the FastV
-default) costs $4.7$ points more; a causally-scheduled taper that prunes $50\%$ inside the transport window costs
-$5.8$ points more than one cut at the boundary and loses to PyramidDrop's fixed schedule; and pruning at $0.14$ of
-depth rather than $0.57$ on the 36-layer checkpoint costs $7.9$ points pooled. Conversely, pruning \emph{after} the
-boundary saves less for no additional accuracy. One cut, at the measured boundary, dominates every schedule we tried.
+\paragraph{The boundary is the right depth, not merely a cheap one.} One cut at the boundary dominates the schedules
+we tried: a taper that prunes inside the transport window loses on both checkpoints ($-1.0$ Qwen3, $-5.8$ Qwen2), and
+on the 36-layer checkpoint a voided run that cut at $0.14$ of depth instead of $0.57$ cost $7.9$ points pooled
+(Appendix~\ref{app:faults}). The FastV default (layer~2) is the exception that proves the point: it costs $4.7$ on
+Qwen3 but is the better schedule on Qwen2, whose resolution curve is flat beyond $600$ tokens --- the best fixed
+schedule differs by checkpoint, so we claim only that the cut must not fall inside the window. Pruning \emph{after}
+the boundary saves less for no additional accuracy.
 
 \section{Results}\label{sec:results}
 
@@ -227,8 +253,9 @@ the position before a raster row-wrap, on $84.8\%$ and $61.8\%$ of items across 
 $5.0\%$ chance rate, and covers half the ground-truth box on only $13.6\%$ of items; the ring mask lifts that to
 $46.6\%$ and $39.3\%$ across the two checkpoints. TWR covers $63.9\%$ and $55.0\%$, and barely uses the mask:
 it is worth $+0.012$ and $+0.003$ mean coverage to TWR against $+0.336$ and $+0.079$ to block-mean, an order of
-magnitude on both. TWR removes the serialisation sink by giving the post-boundary layers negative weight rather
-than by patching the geometry. \emph{Examples are not hand-picked}: we take single-instance items where the TWR crop covers the box
+magnitude on both. TWR removes the serialisation sink by a supervised depth weighting that suppresses the
+item-independent component, not by patching the geometry and not by the signs of the fitted weights
+(Appendix~\ref{app:formal}). \emph{Examples are not hand-picked}: we take single-instance items where the TWR crop covers the box
 and the block-mean crop does not \emph{and} the answers flip accordingly, restricted to items where the recomputed
 out-of-fold TWR cell reproduces the logged run exactly. Nine items qualify; these are the first three by
 question id.}
@@ -342,9 +369,11 @@ significant losses & 0 & \textbf{3} & 0 & \textbf{0}\\
 
 Across 14 cells (3 benchmarks $\times$ 4 checkpoints $\times$ 2 strata), attention-guided cropping helps
 single-instance perception in $7/7$ and is non-positive on cross-instance in $6/7$, significantly negative in three
-($-6.0$, $-8.8$, $-8.8$). This holds for \emph{every} method in the family, ours included: a tight crop magnifies one
-object and discards the other. TSR shows the opposite profile --- positive on both strata in $6/7$ cells with no
-significant loss anywhere --- but gives up $3$--$10$ points of single-instance gain.
+($-6.0$, $-8.8$, $-8.8$). This holds for \emph{every} method in the family, ours included. The cause is not that the
+window excludes the second object --- a $W{=}0.25$ window can contain both boxes on $93.4\%$ of relational items ---
+but that the relation is not recovered from the magnified view (Appendix~\ref{app:neg}). TSR shows the opposite
+profile --- positive on both strata in $6/7$ cells with no significant loss anywhere --- but gives up $3$--$10$
+points of single-instance gain.
 
 The ceiling explains why cropping cannot be repaired here. With \emph{perfect} placement, cross-instance still fails
 $25\%$ and $22\%$ of the time against $3.5\%$ and $6.1\%$ for single-instance. Cross-instance error is not
@@ -367,9 +396,9 @@ independently and extend causally. ILVAD~\citep{ilvad} accumulates newly-activat
 TRACE~\citep{trace} identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo~\citep{virgo}
 reports our cross-instance finding (``patch-based zooming \ldots\ can split large objects and destroy global spatial
 context'') and resolves it with a three-way router keyed on object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
-(i) the causal localisation of the transport window rather than a correlational choice of layer, (ii) a signed
-\emph{re-weighting} across all depths rather than a selection among them, and (iii) budget-matched, stratified
-evaluation including against native resolution.
+(i) the causal localisation of the transport window rather than a correlational choice of layer, (ii) a
+\emph{supervised} read-out fitted over all depths rather than a rule chosen by hand, and (iii) budget-matched,
+stratified evaluation including against native resolution.
 
 \textbf{Depth selection in language models.} DoLa~\citep{dola} contrasts a mature and a premature layer; SLED~\citep{sled}
 weights all early layers by gradient alignment; confident-layer decoding stops at an entropy valley near the output.
@@ -518,7 +547,8 @@ signal the ranking reads is produced after it.
 
 \begin{table}[h]\centering\small
 \caption{Where each quantity falls, per checkpoint. The transport boundary and the read-out band are fractions of
-depth, not fixed layer indices, which is what lets both policies transfer to a $36$-layer model unchanged.}
+depth, not fixed layer indices, which is what lets both policies transfer to a $36$-layer model unchanged. Masking
+was run on the two $28$-layer checkpoints; the $36$-layer boundary is the depth at which pruning becomes free.}
 \begin{tabular}{lccccc}
 \toprule
 checkpoint & layers & block-mean band & read-out band & boundary & boundary / depth\\
@@ -639,6 +669,119 @@ this work. Pruning at the boundary is therefore free everywhere we have measured
 verified the pruning is applied rather than silently skipped at the distribution level: output probabilities change
 on $99\%$ of items while the arg-max changes on $2\%$. The discarded tokens are inert, not absent.
 
+\section{Formal grounding}\label{app:formal}
+
+This appendix states the propositions the two policies rest on, with proofs, and records the measurements that
+validate or limit their premises. The propositions are accounting results: their content is in the premises, which we
+test rather than assume. All measurements are out-of-fold; the core pair is Qwen3-VL-2B and Qwen2-VL-7B, $n=126$
+(modal grid) for coverage and $n=191$ for end-task and distributional tests.
+
+\textbf{Setup.} For item $i$, layer $\ell$, cell $c$, let $A_\ell^{(i)}(c)\ge0$ be the last-prompt-token attention
+mass on cell $c$, row-normalised so $\sum_cA_\ell^{(i)}(c)=1$. Write $m_\ell=\mathbb{E}_iA_\ell^{(i)}$ for the
+\emph{item-mean} map and $A_\ell^{(i)}=m_\ell+U_\ell^{(i)}$, so $\mathbb{E}_iU_\ell^{(i)}=0$. A \emph{linear
+read-out} is a score $S_w^{(i)}=\sum_\ell w_\ell A_\ell^{(i)}$; the conventional block mean is
+$w=\mathbf{1}_B/|B|$ on a band $B$. The deployed TWR is a ridge solve on a richer feature map
+$\varphi(A)$ (log-attention, within-layer ranks, neighbourhood, geometry); Proposition~\ref{prop:leak} applies to it
+verbatim by linearity, with $A$ replaced by $\varphi(A)$.
+
+\begin{proposition}[Leakage decomposition]\label{prop:leak}
+For every $w$, $S_w^{(i)}=L(w)+\sum_\ell w_\ell U_\ell^{(i)}$ with $L(w)=\sum_\ell w_\ell m_\ell$ independent of
+$i$. The item-independent component of the score is exactly $L(w)$.
+\end{proposition}
+\begin{proof}
+Substitute $A_\ell^{(i)}=m_\ell+U_\ell^{(i)}$ and rearrange. $L(w)$ carries no $i$-dependence, so its ranking of
+cells is identical for every item.
+\end{proof}
+
+\begin{proposition}[Non-negative filters cannot cancel a common prior]\label{prop:nn}
+If the item-mean maps are rank-one across depth, $m_\ell=\alpha_\ell\mu$ with $\mu\neq0$ and $\alpha_\ell>0$, then
+$L(w)=(\alpha^\top w)\mu$. Hence $L(w)=0$ iff $\alpha^\top w=0$; in particular no non-zero $w\ge0$ achieves zero
+leakage, since $\alpha^\top w>0$.
+\end{proposition}
+\begin{proof}
+Linearity, then $\alpha^\top w=\sum_\ell\alpha_\ell w_\ell>0$ whenever $w\ge0$, $w\neq0$.
+\end{proof}
+
+\paragraph{Measured scope of Proposition~\ref{prop:nn}.} The premise is approximately true --- the leading eigenvalue
+of the layer-mean-map Gram matrix carries $0.86$ (Qwen3) and $0.77$ (Qwen2) of the trace --- but the conclusion is
+\emph{not} what makes the method work. In map space, constraining the $28$ weights to be non-negative costs only
+$0.044$ and $0.002$ mean coverage; in the deployed feature space, bounding both per-layer blocks at zero retains the
+full advantage ($0.594$/$0.584$ against TWR's $0.578$/$0.588$) with $44$ and $43$ of the $56$ per-layer
+coefficients driven to exactly zero, and the end task is statistically indistinguishable from TWR
+($-1.0$ $[-6.3,+4.2]$ and $-2.1$ $[-5.8,+1.6]$, $n=191$ per model).
+The fitted weights' signs are an artefact of ridge collinearity between adjacent layers, not the mechanism.
+
+\begin{proposition}[TSR identity]\label{prop:tsr}
+Let $U_E$ be the unpruned model at encode budget $E$, and $P_D$ the operator that makes visual-token set $D$
+invisible from layer $p{+}1$ onward. If $P_D$ is output-preserving --- the option distribution is unchanged for every
+item --- then $\mathrm{acc}(U_E\circ P_D)=\mathrm{acc}(U_E)$, and against the equal-compute bar $U_{600}$ the gain is
+$\mathrm{acc}(U_{900})-\mathrm{acc}(U_{600})$, the checkpoint's resolution headroom.
+\end{proposition}
+\begin{proof}
+The premise equates the option distributions, hence the accuracies, of $U_E\circ P_D$ and $U_E$; subtracting
+$\mathrm{acc}(U_{600})$ gives the second statement.
+\end{proof}
+\emph{Budget lemma.} With $E=900$, $p=16$, $|D|=0.9E$ and $L=28$:
+$900\cdot17+90\cdot11=16{,}290\le16{,}800=600\cdot28$.
+\emph{Validation.} TSR against the unpruned $900$-token model: mean KL $0.0025$ over the option distribution,
+arg-max agreement $97.9\%$ (Qwen3, $n=191$); and $0.0$--$0.5$ points in $7$ of $10$ cells across four checkpoints and
+three benchmarks (Appendix~\ref{app:identity}).
+
+\begin{proposition}[Value-inertness implies selection irrelevance]\label{prop:sel}
+Suppose that for every subset $D$ of visual positions, replacing the hidden values of $D$ at layer $p$ with arbitrary
+donor values leaves the option distribution unchanged. Then for any two keep-sets $D_1,D_2$ of equal size, the models
+$U_E\circ P_{D_1}$ and $U_E\circ P_{D_2}$ induce the same distribution: every ranking rule is equivalent.
+\end{proposition}
+\begin{proof}
+The premise makes the output invariant to the values of any subset of visual positions at layer $p$. The kept set is
+such a subset, so no choice of kept set can change the distribution.
+\end{proof}
+\emph{Validation.} On the unpruned $900$-token pass at the boundary (L16, Qwen3, $n=191$), replacing the hidden
+states of the $810$ pruned positions with another image's gives KL $0.0022$ ($1.0\%$ answer flips), and replacing the
+$90$ kept positions gives KL $0.0065$ ($3.1\%$); the same patch at L8 gives $0.341$ ($20.9\%$). Behaviourally, random
+keep equals attention keep on both checkpoints (\S\ref{sec:tsr}).
+
+\paragraph{Finding: the correction is a supervised depth weighting, not subtraction.} On raw maps the block mean
+covers $0.083$/$0.292$ (Qwen3/Qwen2); ablating the item-independent component lifts it to $0.438$/$0.490$, while
+every fitted read-out barely moves ($-0.039$/$-0.070$) --- the block mean's failure \emph{is} the leakage term of
+Proposition~\ref{prop:leak}. But the correction is not the sign pattern: a non-negative fit matches, and on
+nuisance-ablated maps every fitted read-out collapses to within $0.10$/$0.03$ of the block mean. What remains
+load-bearing is the depth \emph{ordering} (permuting the fitted depth profile costs $0.26$/$0.08$ of the advantage;
+tying all layers to one weight costs $0.06$/$0.07$) and the supervised fit itself. A linear probe from the
+answer-position state to the target's location peaks in the same read-out band (correlation $+0.635$ at L18--19 on
+Qwen3, $+0.603$ at L18 on Qwen2), the third independent technique to place the usable band there.
+
+\section{Claim-to-evidence map}\label{app:claims}
+
+Every headline claim, its strongest evidence, and its model count. \emph{Intervention} means the claim was tested by
+changing the model's computation (mask, patch, prune, ablate, oracle), not by observation alone. A claim is exported
+only if it holds on two checkpoints.
+
+\begin{table}[h]\centering\scriptsize
+\setlength{\tabcolsep}{3pt}
+\caption{Claims, evidence class, and the models on which the evidence was measured.}
+\begin{tabular}{p{2.9cm}p{5.6cm}p{1.8cm}p{2.5cm}}
+\toprule
+claim & strongest evidence & class & models \\
+\midrule
+transport complete by $0.57\times$ depth & layer-wise and prefix/suffix attention masks; $36$-layer boundary from pruning cost & intervention & $2\times28$-layer masking; $36$-layer pruning \\
+image-token values inert past the boundary & representation patching at L$\ge$16, at $300$ and $900$ tokens & intervention & $2$ models, both strata \\
+answer position does not read the image & answer-row-only mask, all layers & intervention & $2$ models \\
+depth choice dominates & crop at every layer's arg-max, end task & intervention & $2$ models \\
+usable read-out band lies after transport & coverage curve, end-task sweep, location probe & measurement $+$ intervention & $2$ models (curve, probe) \\
+ranking matters before the boundary only & probe vs random keep at L4; random $=$ attention at L16/L24; value patching & intervention & $2$ models \\
+block mean fails on the item-independent component & nuisance ablation: $0.083{\to}0.438$, $0.292{\to}0.490$ & intervention & $2$ models \\
+supervised depth weighting, not signed subtraction & non-negative fit retains the advantage ($44/43$ of $56$ coefficients zeroed); end task n.s. & intervention & $2$ models \\
+TWR beats every published rule at equal compute & $9/9$ pooled paired contrasts & evaluation & $2$ models $\times$ $2$ benchmarks \\
+TSR pruning is free & pruned vs unpruned @$900$; value patching at L16 & intervention & $2$ models \\
+TSR's gain is resolution headroom & $10$-cell identity, $r=0.966$; distributional equivalence & accounting $+$ intervention & $4$ checkpoints \\
+cropping helps single-instance, not cross & $14$-cell scope table $+$ oracle ceiling & evaluation $+$ intervention & $4$ checkpoints \\
+TWR matches native resolution at $14$--$18\%$ compute & end-task vs native & evaluation & $2$ models \\
+placement is worth $>5\times$ the compute & oracle-crop arm beats native & intervention & $2$ models \\
+\bottomrule
+\end{tabular}\label{tab:claims}
+\end{table}
+
 \section{Scope and compute, as figures}\label{app:figs}
 
 \begin{figure}[h]\centering
@@ -658,16 +801,100 @@ $5$--$7\times$ the tokens.}
 \label{fig:native}
 \end{figure}
 
+\section{Mechanism: three stages, three interventions}\label{app:mech}
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_mechanism.pdf}
+\caption{\textbf{(a)} Replacing the image tokens' hidden states at layer $\ell$ with a different image's: the
+output effect falls three orders of magnitude across the boundary. \textbf{(b)} The hand-off as a ratio: early,
+the image dominates and the text is inert; late, exactly the reverse. \textbf{(c)} Logit lens at the answer
+position: the correct option becomes decodable only in the last quarter of the stack.}
+\label{fig:mech}
+\end{figure}
+
+Each row of Table~\ref{tab:stages} is measured by a different intervention, so no stage rests on the method that
+found another.
+
+\begin{table}[h]\centering\small
+\caption{The three stages. Every number is measured on both core checkpoints.}
+\setlength{\tabcolsep}{4pt}\begin{tabular}{p{2.2cm}p{1.35cm}p{2.8cm}p{5.5cm}}
+\toprule
+stage & layers & measured by & evidence\\
+\midrule
+image $\to$ text transport & L0--L16 & attention masking; hidden-state patching & suffix masks cost nothing from L16 ($0.014$, $0.029$); the patch effect falls $17\times$ and $96\times$ between L12 and L16\\
+question-conditioned read-out & L17--L21 & end-task accuracy by read-out depth & crop accuracy spans $34.6$--$70.2$, peaking at L17; no layer inside the window beats not cropping\\
+answer formation & L22+ & logit lens & lens accuracy steps $+18.0$ [$+8.7,+27.0$] and $+14.2$ [$+7.2,+21.3$] above its early plateau\\
+\bottomrule
+\end{tabular}\label{tab:stages}
+\end{table}
+
+The logit lens is computed with the final norm applied to intermediate layers only; applying it to the last hidden
+state as well double-normalises and corrupts that layer alone, which cost us a retracted result earlier in this
+project. We assert per run that our last-layer read-out matches the true logits.
+
+\section{Propositions, and what validates them}\label{app:theory}
+
+We state four propositions. They are not deep results --- two are arithmetic and one is a one-line geometric
+observation --- but each makes a prediction that could have failed on data, and we report where they hold
+approximately rather than exactly.
+
+\paragraph{Proposition 1 (post-boundary inertness makes pruning free, and makes TSR a resolution converter).}
+\emph{Suppose the output distribution is invariant to the image tokens' states at layers beyond $P$. Then for any
+keep-set $S$, retaining only $S$ after $P$ leaves the output unchanged, so TSR at encode $E$ scores what uniform
+encoding at $E$ scores, and TSR's gain over a bar at $E_0$ equals $\mathrm{acc}(E)-\mathrm{acc}(E_0)$.}
+The premise is what Appendix~\ref{app:transport} and Figure~\ref{fig:mech} measure. The conclusion is what
+Appendix~\ref{app:identity} tests: gain tracks headroom with $r=0.966$ over ten cells, and again with $r=0.911$
+over eight further cells whose headroom is near zero, where it correctly predicts that TSR does nothing.
+\emph{Where it is only approximate:} the premise holds to KL~$\approx5\times10^{-4}$, not to zero, so the
+conclusion is approximate too. Measured slippage is at most $0.5$ points in seven of ten cells and $-1.8$ in one.
+The proposition's real content is that the \emph{choice} of keep-set is irrelevant, which is why random keep
+matches attention keep on $96.3\%$ of items.
+
+\paragraph{Proposition 2 (the budget determines the affordable resolution).} \emph{Pruning to a fraction $k$ at
+layer $P$ of $N$ costs $\mathrm{TL}=E(P{+}1)+kE(N{-}1{-}P)$ token-layers. Matching a uniform bar of $B$ tokens
+gives $E^\star = BN/\big((P{+}1)+k(N{-}1{-}P)\big)$.} With $B=600$, $N=28$, $P=16$, $k=0.1$ this is $E^\star=928$,
+a $1.55\times$ resolution multiplier. We ran $E=900$, $97\%$ of the optimum, and realised $96$--$100\%$ of the
+bar. This is arithmetic; we state it because it is the design equation, and because it says the multiplier is
+fixed by the boundary's depth fraction rather than chosen.
+
+\paragraph{Proposition 3 (what the learned read-out actually supplies is supervision over depth, not sign
+cancellation).} The obvious account --- a fixed positive average cannot cancel an item-independent component, a
+signed one can --- is \emph{not} what our data support, and we pre-registered the test that refuted it. Its formal
+premise requires the per-layer nuisance loadings and signal gains to be near-orthogonal; measured, their cosine is
+$+0.431$ and $+0.388$, so the premise fails on both checkpoints. The decisive test is stronger: constraining every
+per-layer weight to be \emph{non-negative} retains the entire advantage ($+0.510$ against TWR's $+0.495$, and
+$+0.292$ against $+0.296$), while driving $44$ of $56$ and $43$ of $56$ per-layer coefficients to exactly zero. The
+non-negative solution is a \emph{sparse positive selection} of a few layers --- log-attention layers
+$\{4,5,17,19\}$ and $\{19,21\}$ --- sitting in the read-out band. In map space a signed filter beats its
+non-negative counterpart by $+0.044$ and $-0.002$. Subtraction is therefore at most a small part of the
+correction, and we withdraw it as the mechanism.
+
+What does carry the effect, from the same table: the \emph{depth ordering} (permuting it costs $0.26$ and $0.08$ of
+the advantage; tying all layers to a single weight costs $0.06$ and $0.07$), and above all the \emph{supervised
+fit} itself --- every fitted arm sits far above the unsupervised block mean, and all of them collapse toward it
+once the item-independent component is ablated, where the block mean rises by $+0.354$ and $+0.198$. So the honest
+statement of why TWR works is: the conventional read-out fails because of a component that does not depend on the
+image, and roughly fifty boxed examples are enough to learn which handful of depths to read instead. That is a
+weaker claim than the one we started with, and it is the one the experiments support.
+
+\paragraph{Proposition 4 (a single window cannot serve two distant sites).} \emph{A window of side $W$ contains at
+most one of two evidence sites separated by more than $W$.} Trivial, and it is not the interesting part. The
+interesting part is empirical: with \emph{perfect} placement, cross-instance error stays at $25\%$ and $22\%$
+against $3.5\%$ and $6.1\%$ for single-instance, and two full-resolution crops covering both objects still score
+$-2.6$ and $-3.9$ against one. The residual is not a perceptual failure, so no reallocation of perceptual
+resource reaches it --- which is why the scope law is a property of the question type and not of the method.
+
 \section{Additional visualisations}\label{app:vis}
 
 \begin{figure}[h]\centering
-\includegraphics[width=0.86\textwidth]{figs/fig_layer_accuracy.pdf}
-\caption{\textbf{End-task accuracy of cropping at each layer's arg-max.} Every arm answers at ${\sim}600$ visual
-tokens, so only the read-out depth varies. Inside the transport window no layer beats simply not cropping. The curve
-steps up at the boundary and peaks at L17. TWR, which reads all $28$ layers with signed weights, sits above every
-single layer; against the best one --- chosen \emph{on the test set}, so an optimistic baseline --- it is
-$+2.6$ [$-3.1,+8.9$], i.e.\ it matches an oracle choice of layer without being told which layer that is. The
-published fixed choice is $31.9$ points below that oracle.}
+\includegraphics[width=\textwidth]{figs/fig_layer_accuracy2.pdf}
+\caption{\textbf{End-task accuracy of cropping at each layer's arg-max, both checkpoints.} Every arm answers at
+${\sim}600$ visual tokens, so only the read-out depth varies. The spread from depth alone is $35.6$ points on Qwen3
+and $26.7$ on Qwen2, and inside the transport window no layer beats simply not cropping on either. The curve steps
+up at the boundary and peaks at L17 (Qwen3) / L21 (Qwen2). TWR reads all $28$ layers and sits above every single
+layer on both: against the best one --- chosen \emph{on the test set}, so an optimistic baseline --- it is $+2.6$
+n.s.\ on Qwen3 and $+7.3$ [$+1.0,+13.6$] on Qwen2, i.e.\ it matches or beats an oracle choice of layer without being
+told which layer that is. The published fixed choice (L14) is $24$--$32$ points below that oracle.}
 \label{fig:layeracc}
 \end{figure}
 
