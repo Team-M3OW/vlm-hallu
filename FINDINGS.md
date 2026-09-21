@@ -6572,13 +6572,13 @@ tsr900 − random-keep +1.6 [−0.5,+3.7] n.s.: at L16 *which* tokens are kept b
 the tokens are inert after transport).
 
 **Open before any claim (phase 185b, queued):** relational is non-monotone in resolution (67.1 @300 → 65.8 @600 →
-76.3 TSR@900), so the gain may be the *pruning* (removing inert late-layer visual tokens) rather than the resolution.
+76.3 AVR@900), so the gain may be the *pruning* (removing inert late-layer visual tokens) rather than the resolution.
 Diagnostic arms, over budget and ineligible as the method: uniform@900 (no pruning) and k=0.25/0.50. If
 tsr900 ≈ uniform@900, pruning makes resolution affordable; if tsr900 > uniform@900, pruning itself raises accuracy.
 Prior art (PyramidDrop 2410.17247, FastV 2403.06764, HiRED 2408.10945) stated in the script header.
 Scripts: phase185_tsr.py, phase185_analyze.py, phase185b_diag.py.
 
-### §26B ✗ Qwen2 leg — P1 FAILS (1 of 2); TSR is not adopted as an accuracy method
+### §26B ✗ Qwen2 leg — P1 FAILS (1 of 2); AVR is not adopted as an accuracy method
 | Qwen2, n=191 | bar | tsr900 | tsr900 atP | tsr900 rand | fastv900 | tsr600 |
 |---|---|---|---|---|---|---|
 | single | 58.3 | 61.7 | 62.6 | 61.7 | **65.2** | 58.3 |
@@ -6586,14 +6586,14 @@ Scripts: phase185_tsr.py, phase185_analyze.py, phase185b_diag.py.
 | ALL | 59.2 | 61.8 | 61.3 | 60.7 | **63.9** | 59.2 |
 
 P1 tsr900 − bar **+2.6 [−2.6,+7.9] n.s.** → **1 of 2 → rejected.** The Qwen3 relational win (+10.5) does not
-replicate (+1.3 n.s.). **S1 inverts**: FastV at equal compute beats TSR on Qwen2 single (−3.5 [−7.0,−0.9] ✗) —
+replicate (+1.3 n.s.). **S1 inverts**: FastV at equal compute beats AVR on Qwen2 single (−3.5 [−7.0,−0.9] ✗) —
 on this model the extra resolution is the active ingredient and mild early pruning preserves it better than
 aggressive late pruning. **S2 holds 2 of 2**: tsr600 = bar (+0.0 / −0.5) at 65% of the compute.
 
 **What survives on both models.** (i) Pruning 90% of visual tokens at the causally-derived depth (L16) costs
 nothing at 600 tokens — the pruning-side restatement of §20B, now at two budgets (300: §14L; 600: here).
-(ii) At L16 the ranking used to choose the survivors barely matters (rand ≈ TSR on both). (iii) "Encode at 900
-and prune to fit the bar" beats the bar on both models — but the *best schedule differs by model* (TSR on Qwen3,
+(ii) At L16 the ranking used to choose the survivors barely matters (rand ≈ AVR on both). (iii) "Encode at 900
+and prune to fit the bar" beats the bar on both models — but the *best schedule differs by model* (AVR on Qwen3,
 FastV-style on Qwen2), so any single fixed schedule is 1 of 2 and choosing per model is post-hoc. Not claimed.
 **Diagnostic 185b (uniform@900, k sweep) pending** to decompose the Qwen3 gain into resolution vs pruning; it
 cannot revive P1.
@@ -6621,7 +6621,7 @@ which is consistent with §22's mechanism.)
 boundary (~L16) at zero accuracy cost, on two models, at 300 and 600 tokens, with any ranking. This turns §20B into a
 deployable efficiency rule — 35% of prefill compute at 600 tokens, more at higher resolution — and lets a fixed budget
 buy 1.5× resolution; whether that resolution converts into accuracy is a property of the model, not of the pruning.*
-Not claimed: TSR as an accuracy method (P1 1 of 2). Scripts: phase185_tsr.py, phase185b_diag.py.
+Not claimed: AVR as an accuracy method (P1 1 of 2). Scripts: phase185_tsr.py, phase185b_diag.py.
 
 ### §20L  ✗ FOUR ROLE-OPTIMISED HEAD SCORES DO NOT BEAT THE ORIGINAL — the verifier is rank-invariant to head selection (Phase 185)
 VRH scores heads by mass on the GT referent; §20H/§20I use them to judge whether DPR's *proposal*
@@ -6709,7 +6709,7 @@ and C (is the map decisive?) are both **worse** than pooled mass.
 > we have found. The remaining headroom, if it exists, is in a signal the localisation pass does not
 > contain — e.g. §6E's two-pass confidence (AUROC 0.885 on Qwen2), which costs a forward pass.
 
-## §27 — Ridge × TSR (phase 186): spending the pruning saving on crop resolution buys NOTHING (Qwen3 leg; Qwen2 pending)
+## §27 — Ridge × AVR (phase 186): spending the pruning saving on crop resolution buys NOTHING (Qwen3 leg; Qwen2 pending)
 
 | Qwen3, n=191 | bar | ridge crop@300 (incumbent) | **ridge crop@450, pruned L16 k=.10** | crop@600 pruned (113%, diag) | oracle crop@450p |
 |---|---|---|---|---|---|
@@ -6904,7 +6904,7 @@ the project's measured ~0.62pp accuracy per pp coverage, `ridge2@150 − ridge1@
 
 **Consequence for "make it work on relational".** Composition is closed: the scene cannot be added to a crop, at any
 budget split, because the crop loses more than the scene gives and the scene is not integrated. The only design that
-has ever won relational is **§26 TSR** — no crop at all: prune 90% at L16 (free, 2/2) and spend it on 900-token
+has ever won relational is **§26 AVR** — no crop at all: prune 90% at L16 (free, 2/2) and spend it on 900-token
 resolution (Qwen3 relational **76.3 vs bar 65.8, +10.5 ✔**). It is 1 of 2 because **Qwen2-VL-7B has no relational
 resolution headroom**: V*Bench relational u@300→u@600→u@1250 = 59.2→59.2→59.2, HR-Bench 4K cross 51.0→51.0. That is a
 property of the checkpoint, not of the method.
@@ -7049,7 +7049,7 @@ Scripts: phase193_multicrop.py, phase193_analyze.py.
 
 ## §36 ★★★ WHY CROSS-INSTANCE CANNOT BE FIXED BY **CROPPING**: the oracle-CROP ceiling, and a tenth failed design
 > ⚠ **TITLE CORRECTED (see §40).** This section originally read "cannot be fixed by allocation". That is too broad:
-> TSR is allocation (of resolution, not of a crop) and it DOES fix cross-instance — 4/4 checkpoints positive,
+> AVR is allocation (of resolution, not of a crop) and it DOES fix cross-instance — 4/4 checkpoints positive,
 > 2 significant, and on Qwen3-VL-2B it scores **76.3 vs the 75.0 oracle crop**. The 75–81% figure below is the
 > ceiling of a *perfectly placed crop*, not a ceiling on the task.
 
@@ -7082,7 +7082,7 @@ single explanation for all ten failed designs (§14U, §18B, §18D, §18F, §18G
 §33's +17pp of object coverage converted to −2.6: the coverage was never the binding constraint.
 
 ### §36C What does move cross-instance, and its limit
-Only **resolution without cropping**: §26 TSR (prune 90% at L16, spend it on 900 tokens, no crop) gives Qwen3
+Only **resolution without cropping**: §26 AVR (prune 90% at L16, spend it on 900 tokens, no crop) gives Qwen3
 cross-instance **76.3 vs bar 65.8, +10.5 ✔** — the best cross-instance result in the project. It is checkpoint-limited:
 Qwen2-VL-7B has **no** cross-instance resolution headroom (V* 59.2 → 59.2 → 59.2 at 300/600/1250; HR-Bench cross
 51.0 → 51.0), so nothing can win there. Phase 192 tests the two checkpoints that do (+6.6, +5.3).
@@ -7119,13 +7119,13 @@ second crop is worth +3.7 on one model and −2.6 on the other.** Multi-crop in 
 (§35), 3×100 (§35), 2×300 funded (§37) — is now 0 of 2. **The incumbent single ridge crop stands as the method.**
 Scripts: phase194_funded_multicrop.py, phase194_analyze.py.
 
-## §38 ★★★ TSR IS A RESOLUTION CONVERTER WITH A FREE PRUNING STEP (phase 195, HR-Bench 4K/8K; 192 pending)
+## §38 ★★★ AVR IS A RESOLUTION CONVERTER WITH A FREE PRUNING STEP (phase 195, HR-Bench 4K/8K; 192 pending)
 
-§26 left TSR at "1 of 2" on V*Bench with the explanation that Qwen2-VL-7B has no cross-instance resolution headroom.
+§26 left AVR at "1 of 2" on V*Bench with the explanation that Qwen2-VL-7B has no cross-instance resolution headroom.
 Phase 195 tests the mechanism on a second benchmark at n=400/stratum, with `uniform@900` on every run so the two
 components separate. **bar = 16,800 token-layers; tsr900 = 96–100%; uniform@900 = 149–154% (diagnostic only).**
 
-| cell | stratum | TSR − bar | **headroom** (u@900 − u@600) | **pruning cost** (TSR − u@900) |
+| cell | stratum | AVR − bar | **headroom** (u@900 − u@600) | **pruning cost** (AVR − u@900) |
 |---|---|---|---|---|
 | HR-4K Qwen3 | single | **+4.0 [+0.5,+7.5] ✔** | **+4.0 ✔** | +0.0 |
 | HR-4K Qwen3 | cross | −2.8 | **−3.0** | +0.2 |
@@ -7136,14 +7136,14 @@ components separate. **bar = 16,800 token-layers; tsr900 = 96–100%; uniform@90
 | HR-8K Qwen3 | **ALL** | **+4.1 [+1.5,+6.6] ✔** | +5.1 ✔ | −1.0 |
 
 ### The identity
-**TSR's gain equals the checkpoint's resolution headroom on that stratum, to within ~0.5pp, in 6 of 7 cells.**
-+4.0/+4.0, +2.8/+2.8, +6.5/+6.8, −2.8/−3.0, +0.8/+0.2, +4.1/+5.1. TSR is not a method with variable efficacy — it is
+**AVR's gain equals the checkpoint's resolution headroom on that stratum, to within ~0.5pp, in 6 of 7 cells.**
++4.0/+4.0, +2.8/+2.8, +6.5/+6.8, −2.8/−3.0, +0.8/+0.2, +4.1/+5.1. AVR is not a method with variable efficacy — it is
 a **resolution converter**, and the headroom (measurable with two baseline runs and no method at all) predicts it.
 This replaces §26's "1 of 2": V*Bench-Qwen3 won cross-instance because headroom there was +9.2; HR-Bench-Qwen3 loses
 cross-instance because headroom there is **−3.0** (900 tokens is *worse* than 600 on HR-Bench cross).
 
 ⚠ **CORRECTED (paper appendix F).** The "+0.0 to +0.5 in 9, one exception" line below was written over the
-HR-only set. Against the **ten** stratum-cells that carry the `uniform@900` diagnostic, TSR − u@900 is
+HR-only set. Against the **ten** stratum-cells that carry the `uniform@900` diagnostic, AVR − u@900 is
 +0.0, +0.0, +0.0, +0.0, +0.2, +0.5, −0.2, **+1.3**, **+2.6**, **−1.8** — i.e. within ±0.5 in **7 of 10**, with the
 pruned arm *ahead* in two (read as noise) and exactly one real cost (HR-8K cross −1.8). The claim that survives is
 "pruning never costs more than 0.5 points except in one cell", which is what the paper states.
@@ -7156,17 +7156,17 @@ token budgets, keep ratios 10/25/50%, any ranking) the cost is ≤0.5pp.
 
 ### Single-instance: 5 of 5 positive
 V* Qwen3 +3.5, V* Qwen2 +3.5, HR-4K Qwen2 +2.8, HR-4K Qwen3 **+4.0 ✔**, HR-8K Qwen3 **+6.5 ✔** — a consistent
-+3 to +6.5 at the bar's compute, with no crop and no question-type information. **HR-8K pooled +4.1 ✔** is TSR's first
++3 to +6.5 at the bar's compute, with no crop and no question-type information. **HR-8K pooled +4.1 ✔** is AVR's first
 significant pooled result. Scripts: phase195_tsr_hrbench.py, phase195_analyze.py.
 
-### §38B Qwen2.5-VL-7B — TSR's best checkpoint result, and a distribution-level proof the pruning is real
-| stratum | bar | **tsr900 (96% of bar)** | TSR − bar | headroom (u@900−u@600) | pruning cost (TSR−u@900) |
+### §38B Qwen2.5-VL-7B — AVR's best checkpoint result, and a distribution-level proof the pruning is real
+| stratum | bar | **tsr900 (96% of bar)** | AVR − bar | headroom (u@900−u@600) | pruning cost (AVR−u@900) |
 |---|---|---|---|---|---|
 | single | 54.8 | **67.0** | **+12.2 [+4.3,+20.0] ✔** | +12.2 | +0.0 |
 | cross | 64.5 | **72.4** | +7.9 [−1.3,+17.1] | +5.2 | +2.6 |
 | **ALL** | 58.6 | **69.1** | **+10.5 [+4.2,+16.8] ✔** | +9.5 | +1.0 |
 
-**The identity holds again** (+12.2 vs +12.2 single, +10.5 vs +9.5 pooled): **8 of 9 stratum-cells** now have TSR's
+**The identity holds again** (+12.2 vs +12.2 single, +10.5 vs +9.5 pooled): **8 of 9 stratum-cells** now have AVR's
 gain within ~2pp of the measured resolution headroom.
 
 ⚠ **Two pipeline faults found and voided in this phase — both by the project's own rules.**
@@ -7187,7 +7187,7 @@ differ on **99%** of items (median max-|Δp| 0.019) while the argmax is unchange
 claim in the project. Scripts: phase192_tsr_newmodel.py, phase192_analyze.py.
 
 ### §38C Qwen3-VL-8B (36 layers, prune at L21 = the same 57% stack fraction) — clears on EVERY stratum
-| stratum | bar | **tsr900 (97% of bar)** | TSR − bar | headroom (u@900−u@600) | pruning cost |
+| stratum | bar | **tsr900 (97% of bar)** | AVR − bar | headroom (u@900−u@600) | pruning cost |
 |---|---|---|---|---|---|
 | single | 64.3 | **71.3** | **+7.0 [+0.9,+13.9] ✔** | +7.0 | +0.0 |
 | cross | 72.4 | **80.3** | **+7.9 [+1.3,+15.8] ✔** | +6.6 | +1.3 |
@@ -7203,9 +7203,9 @@ The transport boundary **transfers as a fraction of depth**: 0.57·36 = L21 on a
 Prune-applied check: probabilities differ on 75% of items (median max|Δp| 1e-4 — small because only 90 of ~900 tokens
 survive into layers the answer depends on, and this model is deeper).
 
-## §39 ★★★ THE TSR IDENTITY, COMPLETE: gain = resolution headroom, slope 1.01, r = 0.966 (4 checkpoints x 3 benchmarks)
+## §39 ★★★ THE AVR IDENTITY, COMPLETE: gain = resolution headroom, slope 1.01, r = 0.966 (4 checkpoints x 3 benchmarks)
 
-Full breadth table (TSR − uniform@600, at 96–100% of the bar's token-layers; ✔ = CI clear of zero):
+Full breadth table (AVR − uniform@600, at 96–100% of the bar's token-layers; ✔ = CI clear of zero):
 
 | cell | single | cross | pooled |
 |---|---|---|---|
@@ -7222,13 +7222,13 @@ Full breadth table (TSR − uniform@600, at 96–100% of the bar's token-layers;
 ### The identity (10 stratum-cells with the uniform@900 diagnostic)
 **corr(gain, headroom) = +0.966 · slope = +1.01 · mean |gain − headroom| = 0.7pp**
 where headroom = acc(uniform@900) − acc(uniform@600), measurable from two baseline runs with **no method involved**.
-TSR converts the checkpoint's available resolution at a rate of 1.0 and never loses more than the headroom does.
+AVR converts the checkpoint's available resolution at a rate of 1.0 and never loses more than the headroom does.
 This replaces §26's "1 of 2": V*-Qwen3 won cross-instance (headroom +9.2), HR-4K-Qwen3 lost it (headroom **−3.0** —
 900 tokens is genuinely worse than 600 there), and both are the same mechanism.
 
-### What this makes TSR
+### What this makes AVR
 Not a method with variable efficacy but a **resolution converter with a free pruning step**, whose benefit is
-*predictable before deployment*. Practical rule: measure acc@900 − acc@600 on a held-out slice; that is what TSR will
+*predictable before deployment*. Practical rule: measure acc@900 − acc@600 on a held-out slice; that is what AVR will
 give you, at the compute of acc@600. Pruning cost across the 10 cells: +0.0 to +0.5 in 9, one exception
 (**HR-8K cross −1.8 ✗**). Prune-applied verified at the distribution level, not inferred (99% / 75% of items' output
 probabilities change while accuracy does not).
@@ -7242,23 +7242,23 @@ This is an independent generalisation test of §20B's transport boundary on a di
 
 V*Bench cross-instance (n=76), every arm at ~the 600-token bar:
 
-| checkpoint | bar | ridge **crop** | **TSR (no crop)** | oracle *crop* | crop − bar | **TSR − bar** |
+| checkpoint | bar | ridge **crop** | **AVR (no crop)** | oracle *crop* | crop − bar | **AVR − bar** |
 |---|---|---|---|---|---|---|
 | Qwen3-VL-2B | 65.8 | 65.8 | **76.3** | 75.0 | +0.0 | **+10.5 [+2.6,+18.4] ✔** |
 | Qwen2-VL-7B | 59.2 | 68.4 | 61.8 | 77.6 | +9.2 | +1.3 |
 | Qwen2.5-VL-7B | 67.1 | 64.5 | **72.4** | 80.3 | −2.6 | +7.9 [−1.3,+17.1] |
 | Qwen3-VL-8B | 73.7 | 69.7 | **80.3** | 81.6 | −3.9 | **+7.9 [+1.3,+15.8] ✔** |
 
-**Cropping on cross-instance: 1 of 4 positive. TSR on cross-instance: 4 of 4 positive, 2 with CIs clear.**
+**Cropping on cross-instance: 1 of 4 positive. AVR on cross-instance: 4 of 4 positive, 2 with CIs clear.**
 
-**The decisive number:** on Qwen3-VL-2B, TSR scores **76.3 against a 75.0 oracle crop** — it *exceeds the best
+**The decisive number:** on Qwen3-VL-2B, AVR scores **76.3 against a 75.0 oracle crop** — it *exceeds the best
 possible crop*. §36B's "25% irreducible error at perfect placement" is therefore a property of the **crop primitive**,
 not of the task. A method that never crops is not bound by it.
 
 ⇒ **Corrected statement of the scope law.** It is a law about **cropping**, not about allocation:
 *magnifying one region wins single-instance perception and costs cross-instance perception, for every
 attention-guided cropping method including ours (§34: single 7/7 positive, cross 6/7 non-positive).* Reallocating
-**resolution** — §26/§38/§39's TSR, question-agnostic, no crop, no router, at the bar's compute — wins cross-instance
+**resolution** — §26/§38/§39's AVR, question-agnostic, no crop, no router, at the bar's compute — wins cross-instance
 instead, in proportion to the checkpoint's measurable resolution headroom (§39: r=0.966, slope 1.01).
 
 ⇒ **Paper consequence.** The honest structure is **two primitives with a measurable, label-free selection rule**, not
@@ -7266,12 +7266,12 @@ one method with a scope limit: crop where the question is single-instance-like; 
 exists, measured offline as acc@900 − acc@600 on a held-out slice. That is not a router — no question classifier is
 involved, and the quantity is measured before deployment, not predicted per item.
 
-## §41 ★★★ RISK PROFILES: TSR never hurts; the crop has a 6-9 point failure mode. Pooled they are even.
+## §41 ★★★ RISK PROFILES: AVR never hurts; the crop has a 6-9 point failure mode. Pooled they are even.
 
-Prompted by the question "does TSR hurt single-object questions?" — it does not. Full comparison, both strata, all
+Prompted by the question "does AVR hurt single-object questions?" — it does not. Full comparison, both strata, all
 seven benchmark-checkpoint cells, everything at the ~600-token bar:
 
-| cell | TSR single | TSR cross | CROP single | CROP cross |
+| cell | AVR single | AVR cross | CROP single | CROP cross |
 |---|---|---|---|---|
 | V* Qwen3-VL-2B | +3.5 | **+10.5 ✔** | **+14.8 ✔** | +0.0 |
 | V* Qwen2-VL-7B | +3.5 | +1.3 | **+13.9 ✔** | +9.2 |
@@ -7282,19 +7282,19 @@ seven benchmark-checkpoint cells, everything at the ~600-token bar:
 | HR-8K Qwen3-VL-2B | **+6.5 ✔** | +1.8 | **+8.8 ✔** | **−8.8 ✗** |
 
 ```
-TSR  vs bar:  single 7/7 positive (min +2.8)   cross 6/7 positive (min −2.8)   → 13/14 cells positive, 0 significant losses
+AVR  vs bar:  single 7/7 positive (min +2.8)   cross 6/7 positive (min −2.8)   → 13/14 cells positive, 0 significant losses
 CROP vs bar:  single 7/7 positive (min +6.1)   cross 1/7 positive (min −8.8)   →  8/14 cells positive, 3 significant losses
-POOLED (natural benchmark mix): TSR better on 3 cells, CROP better on 2, tied on 2.
+POOLED (natural benchmark mix): AVR better on 3 cells, CROP better on 2, tied on 2.
 ```
 
-⇒ **TSR is the better single question-agnostic method, despite being weaker on single-instance.** It trades 3–10
+⇒ **AVR is the better single question-agnostic method, despite being weaker on single-instance.** It trades 3–10
 points of single-instance gain for the removal of a 6–9 point cross-instance failure mode, lands **even pooled**,
 needs **no boxed supervision** (the crop's ridge needs ~50), and adds no second forward pass. The crop wins only
 where the benchmark is single-instance-heavy *and* the checkpoint has little resolution headroom — i.e. V*Bench on
 Qwen3-VL-2B and Qwen2-VL-7B, **the two cells the method was developed on**. This is a selection-bias warning about
 our own development set and belongs in the paper as one.
 
-⇒ **Revised recommendation.** Lead with TSR as the default allocation policy; present depth re-ranking as the
+⇒ **Revised recommendation.** Lead with AVR as the default allocation policy; present depth re-ranking as the
 higher-ceiling option for single-instance-dominated deployments where ~50 boxes are available. The depth-filter
 mechanism (§19/§21) and the transport measurement (§20B/§39) underpin both and are unchanged.
 
@@ -7330,15 +7330,15 @@ intermediate-metric gap (§14W, §24, §30B, §29, now here).
 
 ### What it does support (efficiency)
 **Pruning 75% of visual tokens at L4 costs 1.0–3.7 points, neither significant, at 38% of the bar's compute** — a 62%
-prefill reduction, versus TSR's 35% at the boundary. For deployments that are compute-bound rather than
-accuracy-bound this dominates TSR; for accuracy at fixed compute it does not.
+prefill reduction, versus AVR's 35% at the boundary. For deployments that are compute-bound rather than
+accuracy-bound this dominates AVR; for accuracy at fixed compute it does not.
 Scripts: phase189a_hidden_probe_dump.py, phase189f_objprune.py, phase189f_analyze.py.
 
 ## §43 IS THERE ONE METHOD THAT WORKS ON BOTH STRATA? Yes for "never hurts"; no for "significantly wins both"
 
 Per-cell check, both strata simultaneously, everything at the ~600-token bar:
 
-| cell | TSR single | TSR cross | both +? | CROP single | CROP cross | both +? |
+| cell | AVR single | AVR cross | both +? | CROP single | CROP cross | both +? |
 |---|---|---|---|---|---|---|
 | V* Qwen3-VL-2B | +3.5 | **+10.5 ✔** | **YES** | **+14.8 ✔** | +0.0 | no |
 | V* Qwen2-VL-7B | +3.5 | +1.3 | **YES** | **+13.9 ✔** | +9.2 | YES |
@@ -7349,12 +7349,12 @@ Per-cell check, both strata simultaneously, everything at the ~600-token bar:
 | HR-8K Qwen3-VL-2B | **+6.5 ✔** | +1.8 | **YES** | **+8.8 ✔** | **−8.8 ✗** | no |
 
 ```
-TSR : positive on BOTH strata in 6/7 cells | significant on both in 0/7 | significantly NEGATIVE on either in 0/7
+AVR : positive on BOTH strata in 6/7 cells | significant on both in 0/7 | significantly NEGATIVE on either in 0/7
 CROP: positive on BOTH strata in 1/7 cells | significant on both in 0/7 | significantly negative on cross in 3/7
 ```
 
 **Answer, stated two ways.**
-1. *"A method that never hurts either question type"* — **yes, TSR.** 13/14 stratum-cells positive, zero significant
+1. *"A method that never hurts either question type"* — **yes, AVR.** 13/14 stratum-cells positive, zero significant
    losses, one forward pass, no boxed supervision. Its single failure to be positive (HR-4K-Qwen3 cross, −2.8 n.s.)
    is a cell where the *baseline itself* degrades with resolution (headroom −3.0), so nothing was available to win.
 2. *"A method that significantly wins both question types on the same cell"* — **no, and neither method does anywhere.**
@@ -7363,7 +7363,7 @@ CROP: positive on BOTH strata in 1/7 cells | significant on both in 0/7 | signif
    method limitation and must be stated as such in the paper.** HR-Bench (n=400/stratum) has the power but is the
    benchmark where cross-instance resolution headroom is smallest (−3.0 to +3.5).
 
-## §44 ✗ MERGE (ridge + TSR) REJECTED — 0 of 2; the two methods are incompatible by depth, not by tuning (phase 196)
+## §44 ✗ MERGE (ridge + AVR) REJECTED — 0 of 2; the two methods are incompatible by depth, not by tuning (phase 196)
 
 Design: localise@300 exit L20 -> ridge score map -> encode the FULL image at 900 tokens (no crop) -> prune at **L4**
 keeping the top 25% by the ridge map -> answer. 95% of the bar. The ridge chooses *where*, pruning chooses *how much*,
@@ -7398,7 +7398,7 @@ Scripts: phase196_merge.py, phase196_analyze.py.
 
 ⚠ **UPDATED.** The Qwen2-VL-7B leg finished at **n=191** (the table below and the first paper draft used the
 partial n=187). Recomputed on the completed run, common-item set, B=8000: NATIVE **71.2**; uniform@600 58.1
-(**−13.1 ✗**); block-mean 59.2 (**−12.0 ✗**); LASER 61.3 (**−9.9 ✗**); TSR 61.8 (**−9.4 ✗**); **ridge 70.2 (−1.0 n.s.)**;
+(**−13.1 ✗**); block-mean 59.2 (**−12.0 ✗**); LASER 61.3 (**−9.9 ✗**); AVR 61.8 (**−9.4 ✗**); **ridge 70.2 (−1.0 n.s.)**;
 oracle 87.4 (**+16.2 ✔**). Conclusions unchanged; the Qwen3 leg (n=190, one item lacks the LASER arm) is unaffected.
 
 Every prior result sits at an **imposed** 300/600-visual-token budget. The field publishes V*Bench at the model's
@@ -7411,7 +7411,7 @@ rather than assumed. Qwen3-VL-2B, V*Bench, n=190. **Native = 3,290 visual tokens
 | uniform@600 (our bar) | 600 | 62.3 | 65.8 | 63.7 | **−12.6 [−19.5,−5.8] ✗** |
 | ViCrop block-mean | 600 | 64.0 | 59.2 | 62.1 | **−14.2 [−22.6,−5.8] ✗** |
 | LASER (2026) | 600 | 64.0 | 65.8 | 64.7 | **−11.6 [−20.0,−3.2] ✗** |
-| TSR (ours) | 600 | 65.8 | **76.3** | 70.0 | −6.3 [−12.6,+0.0] |
+| AVR (ours) | 600 | 65.8 | **76.3** | 70.0 | −6.3 [−12.6,+0.0] |
 | **ridge crop (ours)** | **600** | **77.2** | 65.8 | **72.6** | **−3.7 [−12.1,+4.2] n.s.** |
 | GBT head (ours) | 600 | 78.1 | 65.8 | 73.2 | −3.2 [−11.1,+4.7] n.s. |
 | *oracle crop @600* | *600* | *96.5* | *75.0* | *87.9* | ***+11.6 [+4.2,+18.9] ✔*** |
@@ -7424,7 +7424,7 @@ rather than assumed. Qwen3-VL-2B, V*Bench, n=190. **Native = 3,290 visual tokens
 2. **Perfect allocation at 600 tokens beats uniform allocation at 3,290 tokens by +11.6 ✔.** Placement is worth
    more than **5.5x the compute**. This is the strongest single justification for the research programme.
 3. **The complementarity holds at native scale**: the ridge crop at 600 tokens *exceeds* native on single-instance
-   (77.2 vs 74.6) and TSR at 600 tokens nearly matches native on cross-instance (76.3 vs 78.9) — each at 18% compute.
+   (77.2 vs 74.6) and AVR at 600 tokens nearly matches native on cross-instance (76.3 vs 78.9) — each at 18% compute.
 4. **The contribution reframes** from "beats a compute-matched baseline" to "**matches native dynamic resolution at a
    fifth of the compute, where published allocation methods fall 12-14 points short of it**".
 
@@ -7456,7 +7456,7 @@ are what remove it.
 
 ⚠ Consistent with §6A (columnar), *not* with the withdrawn Phase 30b "sinks sit at the corners" reading.
 
-### §46B  The TSR survivor set is mostly sink tokens — which is why random keep matches it
+### §46B  The AVR survivor set is mostly sink tokens — which is why random keep matches it
 `scripts/fig_tsr_dump.py` (reuses phase185 machinery verbatim, runtime assert on the patched attention module),
 3 items, encode target 900 (realised 888), keep 10% (89 tokens):
 
@@ -7498,39 +7498,39 @@ ranking quality.
    script and a different ranker set.
 2. **Pruning 90% of visual tokens at L2 is near-lossless** — head@10% vs no pruning is +2.6 [−3.2,+8.4]
    and −0.5 [−5.8,+4.2]. But **blockmean is near-lossless too** (−0.5 / −1.5), so the head is not
-   required for it. Consistent with §26's TSR result at L16; this is the same phenomenon at a much
+   required for it. Consistent with §26's AVR result at L16; this is the same phenomenon at a much
    earlier cut, where the compute saving is larger.
 
 **Verdict:** the head is a better pruning ranker in direction on both models and at both keep
 fractions, but n=190 cannot resolve a ~2-4pp effect, and the cheaper block mean already buys the
 efficiency. Not adopted. Progressive scheduling adds nothing over a single early cut.
 
-### §20Q  ★ THE VRH GATE ON THE TWO FINALISED POLICIES — TWR does not need it, TSR is not rescued by it (Phase 189)
+### §20Q  ★ THE VRH GATE ON THE TWO FINALISED POLICIES — DWA does not need it, AVR is not rescued by it (Phase 189)
 §20I's gate was built on the GBT head. Tested on the paper's two finalised policies. (Name mapping
-assumed from the user: DWA → TWR/ridge, AVR → TSR; neither name appears in the repo.) Ridge
+assumed from the user: DWA → DWA/ridge, AVR → AVR; neither name appears in the repo.) Ridge
 placements recomputed with phase 182's exact spec; threshold = training-fold median, OOF.
 
 | | Qwen3 vs uniform@600 | Qwen2 vs uniform@600 |
 |---|---|---|
-| **LEG A** always-on TWR | **+8.9 [+0.5,+17.3]** ✔ | **+12.0 [+4.2,+19.9]** ✔ |
-| LEG A gated TWR (≈51% on) | +6.8 [+1.0,+12.6] ✔ | +5.8 [+0.5,+11.0] ✔ |
-| **LEG B** always-on TSR | +6.3 [+2.1,+11.0] ✔ | +2.6 [−2.1,+7.9] ✗ |
-| LEG B gated TSR (≈51% on) | +3.1 [+0.0,+6.3] ✗ | +3.1 [−0.5,+7.3] ✗ |
+| **LEG A** always-on DWA | **+8.9 [+0.5,+17.3]** ✔ | **+12.0 [+4.2,+19.9]** ✔ |
+| LEG A gated DWA (≈51% on) | +6.8 [+1.0,+12.6] ✔ | +5.8 [+0.5,+11.0] ✔ |
+| **LEG B** always-on AVR | +6.3 [+2.1,+11.0] ✔ | +2.6 [−2.1,+7.9] ✗ |
+| LEG B gated AVR (≈51% on) | +3.1 [+0.0,+6.3] ✗ | +3.1 [−0.5,+7.3] ✗ |
 | *(§20I reference)* always-on GBT head | +7.9 [−0.5,+16.2] ✗ | +6.8 [−1.0,+14.1] ✗ |
 | *(§20I reference)* gated GBT head | **+8.4 [+2.6,+14.1]** ✔ | **+6.3 [+1.0,+11.5]** ✔ |
 
-**1. TWR does not need the gate.** Always-on TWR already clears pooled on **both** models, and gating
+**1. DWA does not need the gate.** Always-on DWA already clears pooled on **both** models, and gating
 **costs** it 2.1pp / 6.2pp. The gate's value in §20I was specific to the GBT head's failure mode —
-the head loses on the items it mis-proposes, and skipping those rescued the pooled contrast. TWR
+the head loses on the items it mis-proposes, and skipping those rescued the pooled contrast. DWA
 apparently does not fail the same way, so declining to crop half the time just forfeits its wins.
 
-**2. TSR is not rescued by the gate.** Always-on is 1 of 2 (reproducing §26B's rejection from a
+**2. AVR is not rescued by the gate.** Always-on is 1 of 2 (reproducing §26B's rejection from a
 different script), and gating is 0 of 2 — it helps Qwen2 marginally (+2.6→+3.1) and costs Qwen3 half
-its gain (+6.3→+3.1). ⚠ Leg B is also a weaker construct by design: TSR proposes no region, so the
-"verifier" is a policy selector fed the localiser's window as a proxy, not a verifier of TSR itself.
+its gain (+6.3→+3.1). ⚠ Leg B is also a weaker construct by design: AVR proposes no region, so the
+"verifier" is a policy selector fed the localiser's window as a proxy, not a verifier of AVR itself.
 
 > **Consequence for the §20 line.** The gated verifier was the one thing in §20 that converted, but it
-> converted *on a localiser the paper no longer uses*. Against TWR it is a net negative. The honest
+> converted *on a localiser the paper no longer uses*. Against DWA it is a net negative. The honest
 > conclusion is that §20H/§20I stand as a mechanism result — attention-head verification predicts
 > proposal quality at AUROC 0.76 on both models — and **not** as a component of the final pipeline.
 
@@ -7561,11 +7561,11 @@ label-free `S_v` axis of §15C. Consistent with §20L's `y_acc` result. **Practi
 verifier needs no box annotation**, which removes the last cost objection independently.
 
 **Verdict: the §20 negatives stand.** The hybrid (1 of 2), the attention reinforcement (null on both),
-the dynamic-head idea, the thirteen verifier variants, and the gate hurting TWR (§20Q) are not
+the dynamic-head idea, the thirteen verifier variants, and the gate hurting DWA (§20Q) are not
 artefacts of a broken VRH port. The verifier itself is real and reproduces at 0.76 under both my
 looser setup and the paper's strict prescription.
 
-### §46C ★★ CORRECTION AND THE REAL RESULT: the outer-ring mask is load-bearing for block-mean and inert for TWR
+### §46C ★★ CORRECTION AND THE REAL RESULT: the outer-ring mask is load-bearing for block-mean and inert for DWA
 
 **The fault.** §46 computed the block-mean arg-max as a plain arg-max over the map. Every placement rule this
 project evaluates (`phase179_placements.py:25`, `phase184_allarms.py`) instead masks the outer ring
@@ -7577,8 +7577,8 @@ mask, not RNG). Our recomputed masked block-mean cell equals phase179's `vicrop_
 
 | rule (Qwen3-VL-2B, V*Bench, n=191, W=0.25) | coverage ≥ 0.5 | mean coverage |
 |---|---|---|
-| **TWR, ring-masked (deployed)** | **63.9%** | **0.655** |
-| TWR, no ring mask | 62.8% | 0.642 |
+| **DWA, ring-masked (deployed)** | **63.9%** | **0.655** |
+| DWA, no ring mask | 62.8% | 0.642 |
 | **block-mean, ring-masked (our baseline)** | **46.6%** | **0.475** |
 | block-mean, no ring mask (literal recipe) | 13.6% | 0.139 |
 
@@ -7587,15 +7587,15 @@ ridge cell reproduces phase193 on **191/191** there too):
 
 | rule (Qwen2-VL-7B, V*Bench, n=191) | coverage ≥ 0.5 | mean coverage |
 |---|---|---|
-| **TWR, ring-masked (deployed)** | **55.0%** | **0.565** |
-| TWR, no ring mask | 54.5% | 0.562 |
+| **DWA, ring-masked (deployed)** | **55.0%** | **0.565** |
+| DWA, no ring mask | 54.5% | 0.562 |
 | **block-mean, ring-masked (our baseline)** | **39.3%** | **0.392** |
 | block-mean, no ring mask (literal recipe) | 30.9% | 0.313 |
 
-Ring mask worth on Qwen2: **TWR +0.003, block-mean +0.079** — the same order-of-magnitude asymmetry (26×) as
-Qwen3's (28×). **TWR beats the ring-masked baseline on coverage on 2 of 2 models** (+17.3 and +15.7 points).
+Ring mask worth on Qwen2: **DWA +0.003, block-mean +0.079** — the same order-of-magnitude asymmetry (26×) as
+Qwen3's (28×). **DWA beats the ring-masked baseline on coverage on 2 of 2 models** (+17.3 and +15.7 points).
 
-**The ring mask is worth +0.012 mean coverage to TWR and +0.336 to block-mean — a 28× difference.** The sink
+**The ring mask is worth +0.012 mean coverage to DWA and +0.336 to block-mean — a 28× difference.** The sink
 statistic itself stands and replicates on two models: without the mask the block-mean arg-max lands in the grid's
 **last column** on **84.8% (Qwen3) / 61.8% (Qwen2)** of items against a **5.0%** chance rate. Top-row rate is
 80.1% (Qwen3) and **0.0%** (Qwen2), which is further confirmation of §6A's **columnar**, not cornered, reading —
@@ -7604,12 +7604,12 @@ the column effect is shared across models, the row effect is not.
 **What this means for the paper.** (1) Our `vicrop_block` baseline is a *strengthened* ViCrop, not the literal
 recipe; the comparison is therefore conservative and should be described that way. (2) The interesting claim is
 not "block-mean reads the sink" but **"the incumbent read-out needs an ad-hoc spatial patch to be usable at all,
-and TWR does not"** — TWR achieves the same effect by giving post-boundary layers negative weight, which is the
+and DWA does not"** — DWA achieves the same effect by giving post-boundary layers negative weight, which is the
 mechanism the ridge was derived from. (3) The abstract's coverage contrast is now 63.9% vs **46.6%** (was 13.6%).
 
-## §47 ✗ TSR DOES NOT STACK ON EXISTING PLACEMENT RULES — and the §39 identity predicts exactly why (phase 198)
+## §47 ✗ AVR DOES NOT STACK ON EXISTING PLACEMENT RULES — and the §39 identity predicts exactly why (phase 198)
 
-**The question.** TSR is a resolution converter and is orthogonal to *where* the crop goes, so it should be a
+**The question.** AVR is a resolution converter and is orthogonal to *where* the crop goes, so it should be a
 drop-in for any placement rule, ours or published: keep the same token-layer budget, but spend the answer pass on a
 higher-resolution crop that is pruned 90% at the boundary. This is **not** the §44/§196 merge, which pruned the
 *localisation* pass (structurally impossible, §29). Here the pruning is in the *answer* pass, which §37 already
@@ -7621,7 +7621,7 @@ showed composes mechanically.
 | `P_tsr` | localise@300 + crop@460 pruned 90% at L16 | ~16,700 | 98–102% |
 | `P_460` | localise@300 + crop@460 unpruned (diagnostic) | 21,700 | 125–130% |
 
-Placement rules P = `vicrop_block`, `laser`, `ridge`(TWR), `oracle` — the **same cells the paper evaluates**
+Placement rules P = `vicrop_block`, `laser`, `ridge`(DWA), `oracle` — the **same cells the paper evaluates**
 (phase179 + the ring-masked ridge). V*Bench, n=191, both core models, B=8000.
 
 ### P1 REJECTED, 0 of 2 — no rule gains, on either model
@@ -7629,22 +7629,22 @@ Placement rules P = `vicrop_block`, `laser`, `ridge`(TWR), `oracle` — the **sa
 |---|---|---|
 | vicrop_block | −1.0 [−4.7,+2.6] | +0.5 [−3.7,+4.7] |
 | LASER | +0.5 [−3.2,+4.2] | +1.6 [−2.6,+6.3] |
-| **ridge / TWR** | +1.6 [−1.6,+5.2] | −1.0 [−4.7,+2.6] |
+| **ridge / DWA** | +1.6 [−1.6,+5.2] | −1.0 [−4.7,+2.6] |
 | oracle | +1.6 [−1.6,+4.7] | −0.5 [−4.2,+3.1] |
 
-**Every CI spans zero on both models.** Stacking also fails to rescue a bad placement: `vicrop_block+TSR` is
+**Every CI spans zero on both models.** Stacking also fails to rescue a bad placement: `vicrop_block+AVR` is
 −2.6 / +2.6 against the bar, still not beating it.
 
 ### THE MECHANISM: there is no resolution headroom left on a crop
 The `P_460` diagnostic measures the headroom directly (crop@460 − crop@300, no method involved):
 **mean +0.81 pts across the 8 rule×model cells (range −1.0 to +1.6)**, against **+4.53 pts** of full-image headroom
 in §39. A 0.25×0.25 window re-encoded at 300 tokens has already put the object far above the encoding cliff;
-magnification has already been spent, so there is nothing left for TSR to convert.
+magnification has already been spent, so there is nothing left for AVR to convert.
 
 ### ★★ THE IDENTITY SURVIVES OUT OF DOMAIN — and predicts its own null
 On these 8 new cells, gain vs headroom: **r = +0.911, slope 1.03, mean |gain − headroom| = 0.40 pts.**
 §39 fitted the identity on full-image cells with headroom up to +12; it now holds on *cropped* cells with
-headroom near zero, and **correctly predicts that TSR does nothing there**. The identity is now supported on
+headroom near zero, and **correctly predicts that AVR does nothing there**. The identity is now supported on
 **18 stratum-cells** and is the first thing in this project that predicted a negative result before it was run.
 
 ### GUARD holds; S1 is null
@@ -7652,11 +7652,11 @@ headroom near zero, and **correctly predicts that TSR does nothing there**. The 
 for §26C. S1 (does the gain scale with placement quality?) gives r = +0.691 (Qwen3) and −0.444 (Qwen2) — signs
 disagree, no interaction, rejected.
 
-### ⇒ CONSEQUENCE: cropping and TSR are SUBSTITUTES, not complements
+### ⇒ CONSEQUENCE: cropping and AVR are SUBSTITUTES, not complements
 Both spend the same underlying resource — **effective resolution on the region that matters**. Cropping raises it
-*spatially targeted*; TSR raises it *uniformly*. That is why the two have complementary **scope** (§34: cropping
-owns single-instance, TSR reaches cross-instance) and yet do not **compose**: once you have cropped, the headroom
-TSR converts is gone, and once you have spent the budget on uniform resolution there is none left to crop with.
+*spatially targeted*; AVR raises it *uniformly*. That is why the two have complementary **scope** (§34: cropping
+owns single-instance, AVR reaches cross-instance) and yet do not **compose**: once you have cropped, the headroom
+AVR converts is gone, and once you have spent the budget on uniform resolution there is none left to crop with.
 This is a second, independent reason the two policies cannot be merged, and it is a cleaner one than §44's
 structural argument: even where the composition is mechanically sound, there is nothing left to buy.
 
@@ -7706,7 +7706,7 @@ removes most of the nuisance, so a masked test would measure nothing). n=126 ite
 and nearly tautological: the fitted weights track how well each layer's map aligns with the object.
 
 ### ⚠ Two paper claims corrected as a result
-1. **"TWR subtracts the late layers a conventional read-out adds"** — overstated. The block-mean band's *net*
+1. **"DWA subtracts the late layers a conventional read-out adds"** — overstated. The block-mean band's *net*
    weight is **+0.0006 (Q3) / −0.0005 (Q2)**, i.e. ≈ 0, not negative. What is true on **2 of 2**: of the layers the
    block mean adds at +1, **7 of 11 (Q3) and 7 of 12 (Q2) receive negative weight**. Reworded to that.
 2. **"its positive mass lies where transport has already finished"** (fig. caption) — **1 of 2, REJECTED.**
@@ -7722,13 +7722,13 @@ is real but the story we told about it was not.
 
 Script: `phase200_nuisance.py`.
 
-## §50 ★★★ WHY TWR WORKS: the conventional read-out fails BECAUSE of the item-independent component, and the
+## §50 ★★★ WHY DWA WORKS: the conventional read-out fails BECAUSE of the item-independent component, and the
 ## signed depth weighting is what removes it (phases 201, 202; CPU, both models, UNMASKED maps, n=126)
 
 ### §50A The failure is the nuisance (phase 201)
 Ablation defined in §49 and not changed: remove each map's projection onto the **item-mean** map, per layer.
 
-| | block-mean mean-cov | TWR mean-cov | TWR − block |
+| | block-mean mean-cov | DWA mean-cov | DWA − block |
 |---|---|---|---|
 | Qwen3 raw | 0.083 | 0.578 | **+0.495** |
 | Qwen3 nuisance-ablated | **0.438** | 0.539 | **+0.101** |
@@ -7736,8 +7736,8 @@ Ablation defined in §49 and not changed: remove each map's projection onto the 
 | Qwen2 nuisance-ablated | **0.490** | 0.518 | **+0.028** |
 
 **Q1 PASSES 2 of 2**: removing the item-independent component lifts the block mean by **+0.354 / +0.198**.
-**Q2** TWR is nearly unaffected (−0.039 / −0.070; the ≤0.05 bound holds on 1 of 2, direction consistent).
-**Q3 ⇒ TWR's advantage over the block mean is almost entirely nuisance-robustness**: ablate the nuisance and the
+**Q2** DWA is nearly unaffected (−0.039 / −0.070; the ≤0.05 bound holds on 1 of 2, direction consistent).
+**Q3 ⇒ DWA's advantage over the block mean is almost entirely nuisance-robustness**: ablate the nuisance and the
 gap collapses from +0.495 to +0.101 and from +0.296 to +0.028. This is the mechanism, measured.
 
 ### §50B It is the DEPTH FILTER that provides that robustness — not spatial priors (phase 202)
@@ -7751,7 +7751,7 @@ centre) do the work and "A only" lands near block-mean. That prediction is REFUT
 | R only (ranks) | 0.364 | 0.350 |
 | N+C only (spatial priors) | 0.483 | 0.415 |
 | A+R | **0.635** | 0.596 |
-| ALL (deployed TWR) | 0.578 | 0.588 |
+| ALL (deployed DWA) | 0.578 | 0.588 |
 
 **The signed per-layer weighting alone recovers +0.530 / +0.295 of the +0.495 / +0.296 total advantage.** Spatial
 priors help *alone* but add nothing on top of A, and the explicit last-column/last-row sink indicators carry
@@ -7763,7 +7763,7 @@ per-layer nuisance *loading* (1 of 2). Yet §50A/§50B show the depth weighting 
 weighting removes the item-independent component by a cross-layer contrast that a single per-layer loading number
 does not capture. We have the *what* causally; we do not yet have the *how*.
 
-⚠ **Minor, 1 of 2:** `A+R` (0.635) beats the deployed all-feature TWR (0.578) on Qwen3 and ties on Qwen2 (0.596 vs
+⚠ **Minor, 1 of 2:** `A+R` (0.635) beats the deployed all-feature DWA (0.578) on Qwen3 and ties on Qwen2 (0.596 vs
 0.588) — the geometry block may cost a little. Not adopted on one model.
 
 Scripts: `phase201_ablate_nuisance.py`, `phase202_feature_ablation.py`.
@@ -7779,7 +7779,7 @@ Crop at each layer's ring-masked arg-max, answer @300 on the crop. Only the read
 | L22–L27 | 36.6 | 51.3 | 58.1 |
 
 Reference arms on the same items: bar `uniform@600` **63.7**, block-mean 62.1, LASER 64.7, fixed L14 **37.9**,
-TWR **72.6**, oracle crop 87.9.
+DWA **72.6**, oracle crop 87.9.
 
 **Findings.**
 1. **Spread 34.6 → 70.2, a 35.6-point range from depth alone.** This is §1's "the depth choice dominates" measured
@@ -7787,8 +7787,8 @@ TWR **72.6**, oracle crop 87.9.
 2. **No layer inside the transport window beats not cropping at all** (max 53.4 vs the 63.7 bar). The usable band
    begins exactly at the boundary. This is the end-task version of §48(b)'s coverage curve, so §93b's
    "intermediate metrics over-report" caveat is now discharged for this claim.
-3. **TWR − best single layer = +2.6 [−3.1,+8.9] n.s.** The best layer (L17) was chosen *on the test set*, so this
-   is an optimistic baseline. The honest claim is therefore **TWR matches an oracle choice of read-out layer
+3. **DWA − best single layer = +2.6 [−3.1,+8.9] n.s.** The best layer (L17) was chosen *on the test set*, so this
+   is an optimistic baseline. The honest claim is therefore **DWA matches an oracle choice of read-out layer
    without being told which layer it is** — not that it beats it. Block-mean − best layer is **−7.9 ✗**.
 4. **The published fixed choice (L14) is 31.9 points below the oracle layer.**
 
@@ -7864,7 +7864,7 @@ under an analysis-time rule** (`phase203_analyze.py`: first layer whose mean p_c
 which needs no threshold.
 
 Scripts: `phase203_patch_lens.py`, `phase203_analyze.py`. Data: `phase203_patchlens_{qwen3,qwen2}.jsonl`.
-## §53 ★★ TWR'S MECHANISM, CORRECTED: THE BLOCK MEAN'S FAILURE IS THE ITEM-INDEPENDENT COMPONENT — BUT THE
+## §53 ★★ DWA'S MECHANISM, CORRECTED: THE BLOCK MEAN'S FAILURE IS THE ITEM-INDEPENDENT COMPONENT — BUT THE
 ## CORRECTION DOES NOT REQUIRE SUBTRACTION (phase 204, both models, CPU + end-task, complete)
 
 Pre-registered in `PREREG_MECH_THEORY.md`. Run because the 2026-09-21 audit found the paper's causal account
@@ -7891,7 +7891,7 @@ log-attention weights, the 28 rank weights, or both, at zero; all other features
 | arm | Qwen3 raw | Qwen2 raw | Qwen3 ablated | Qwen2 ablated |
 |---|---|---|---|---|
 | block mean (baseline) | 0.083 | 0.292 | **0.438** | **0.490** |
-| ridge (deployed TWR) | 0.578 | 0.588 | 0.539 | 0.518 |
+| ridge (deployed DWA) | 0.578 | 0.588 | 0.539 | 0.518 |
 | nnls_A | 0.609 | 0.587 | 0.529 | 0.519 |
 | nnls_R | 0.626 | 0.603 | 0.537 | 0.523 |
 | **nnls_AR (both blocks ≥ 0)** | **0.594** | **0.584** | 0.515 | 0.517 |
@@ -7902,7 +7902,7 @@ log-attention weights, the 28 rank weights, or both, at zero; all other features
 | map-space non-negative | 0.471 | 0.533 | 0.471 | 0.533 |
 
 **P-N1 is REFUTED 0 of 2. Non-negativity costs nothing.** Constraining both per-layer blocks to be non-negative
-retains the whole advantage (Qwen3 +0.510 vs TWR's +0.495; Qwen2 +0.292 vs +0.296) — with **44 of 56 (Qwen3) and
+retains the whole advantage (Qwen3 +0.510 vs DWA's +0.495; Qwen2 +0.292 vs +0.296) — with **44 of 56 (Qwen3) and
 43 of 56 (Qwen2) per-layer coefficients driven to exactly zero**. The NNLS solution is a *sparse positive layer selection*: log-attention
 layers **[4, 5, 17, 19]** (Qwen3) and **[19, 21]** (Qwen2), plus a broader positive rank block. The selected layers
 sit at the read-out band the signed fit also favours (L19 is its strongest positive, §19) and, on Qwen3, two early
@@ -7915,11 +7915,11 @@ the correction, not the mechanism.
 **What does matter, in the same table:** the depth *ordering* (permuting it costs 0.26 Qwen3 / 0.08 Qwen2 of the
 advantage; tying all layers to one weight costs 0.06 / 0.07) and, above all, the **supervised fit itself** — every
 fitted arm is far above the unsupervised block mean, and all of them collapse toward it on nuisance-ablated maps
-(advantage +0.03 to +0.10), where the block mean rises by +0.354 / +0.198. P-N3 replicates §50A: free-sign TWR's own
+(advantage +0.03 to +0.10), where the block mean rises by +0.354 / +0.198. P-N3 replicates §50A: free-sign DWA's own
 raw→ablated movement is −0.039 (pass) / −0.070 (fail), 1 of 2.
 
 ### 204d — the single-constraint fit matches, but is not evidence
-Imposing only Σ_l w_l α_l = 0 recovers TWR's advantage (0.619/0.589 vs 0.578/0.588). Since the non-negative fits
+Imposing only Σ_l w_l α_l = 0 recovers DWA's advantage (0.619/0.589 vs 0.578/0.588). Since the non-negative fits
 match without it, this is consistent with, not support for, the orthogonality account.
 
 ### A failed mechanism measure, reported
@@ -7931,7 +7931,7 @@ rests on the ablation, not on this statistic.
 | arm | Qwen3-VL-2B | Qwen2-VL-7B |
 |---|---|---|
 | uniform@600 (bar) | 63.9 | 58.1 |
-| ridge (TWR) | 72.8 | 70.2 |
+| ridge (DWA) | 72.8 | 70.2 |
 | **nnls_AR** | **71.7** | **68.1** |
 | map-space free-sign | 70.2 | 63.9 |
 | nnls − ridge | **−1.0 [−6.3,+4.2] n.s.** | **−2.1 [−5.8,+1.6] n.s.** |
@@ -7939,7 +7939,7 @@ rests on the ablation, not on this statistic.
 | nnls − bar | +7.9 [+0.0,+15.7] | +9.9 [+2.6,+17.8] ✔ |
 | map_free − bar | +6.3 [−2.1,+14.7] | +5.8 [−2.6,+14.7] |
 
-**P1 passes 2 of 2.** The non-negative sparse filter is statistically indistinguishable from TWR at the end task on
+**P1 passes 2 of 2.** The non-negative sparse filter is statistically indistinguishable from DWA at the end task on
 both checkpoints (and clears the bar itself on both). **The signedness of the deployed weights is an epiphenomenon of
 ridge collinearity (§21B), not the mechanism.** The map-space signed filter is the weakest fitted arm (n.s. over the
 bar on both models), so the feature space matters, not the sign of the map combination either.
@@ -7947,13 +7947,13 @@ bar on both models), so the feature space matters, not the sign of the map combi
 ### Consequences (paper corrections required)
 1. **"The correction requires subtraction, and a mean can only add" (main.tex §ridge) must be corrected.** The
    measured statement is: the correction requires a **supervised depth weighting**; its sign pattern is not
-   load-bearing. A non-negative variant with 4 (Qwen3) / 2 (Qwen2) selected log-attention layers matches TWR on
+   load-bearing. A non-negative variant with 4 (Qwen3) / 2 (Qwen2) selected log-attention layers matches DWA on
    coverage and end task.
-2. **Fig. 3's caption** ("TWR removes the serialisation sink by giving post-boundary layers negative weight rather
+2. **Fig. 3's caption** ("DWA removes the serialisation sink by giving post-boundary layers negative weight rather
    than by patching the geometry") carries the story §49 already forbade; it must be replaced by the corrected
    account.
 3. **What survives, strengthened:** the block mean's failure IS the item-independent component (block 0.083→0.438,
-   0.292→0.490 when ablated; all fitted arms nearly unchanged). TWR's advantage over the block mean is
+   0.292→0.490 when ablated; all fitted arms nearly unchanged). DWA's advantage over the block mean is
    *predominantly* nuisance-robustness, but not exclusively: on nuisance-ablated maps a residual +0.08/+0.03 remains.
 4. **Descriptive claims about the fitted weights stay** (7 of 11 / 7 of 12 negative in the block band, net ≈ 0);
    only the causal attribution changes.
@@ -7962,9 +7962,9 @@ bar on both models), so the feature space matters, not the sign of the map combi
 
 | prediction | outcome |
 |---|---|
-| P-N1 non-negative fit loses ≥0.05 to TWR | **REFUTED 0 of 2** (it gains +0.016 on Qwen3, ties on Qwen2) |
-| P-N2 non-negative fit on ablated maps recovers ≥80% of TWR's ablated advantage | 1 of 2 (76% Qwen3, 96% Qwen2) |
-| P-N3 free-sign TWR raw→ablated \|Δ\| ≤ 0.05 | 1 of 2 (−0.039 / −0.070), replicating §50A |
+| P-N1 non-negative fit loses ≥0.05 to DWA | **REFUTED 0 of 2** (it gains +0.016 on Qwen3, ties on Qwen2) |
+| P-N2 non-negative fit on ablated maps recovers ≥80% of DWA's ablated advantage | 1 of 2 (76% Qwen3, 96% Qwen2) |
+| P-N3 free-sign DWA raw→ablated \|Δ\| ≤ 0.05 | 1 of 2 (−0.039 / −0.070), replicating §50A |
 | 204d single constraint Σwα=0 recovers ≥80% | PASSES 2 of 2 (but NNLS passes without it: not diagnostic) |
 | 204e P1 non-negative arm shows no end-task loss | **PASSES 2 of 2** (−1.0, −2.1, CIs span zero) |
 | 204e P2 map-space free-sign filter clears the bar on both | **FAILS 0 of 2** (+6.3, +5.8, CIs span zero) |
@@ -7975,11 +7975,11 @@ not claimed.
 
 Scripts: `phase204_theory.py`, `phase204_endtask.py`, `phase204_endtask_analyze.py`. Data:
 `phase204_theory_{qwen3,qwen2}.json`, `phase204_endtask_{qwen3,qwen2}.jsonl`.
-## §54 ★★ TSR'S PREMISE AT ITS OPERATING POINT: AT THE BOUNDARY **ALL** VISUAL-Token VALUES ARE INERT, NOT ONLY
+## §54 ★★ AVR'S PREMISE AT ITS OPERATING POINT: AT THE BOUNDARY **ALL** VISUAL-Token VALUES ARE INERT, NOT ONLY
 ## THE PRUNED ONES (phase 205, Qwen3-VL-2B n=191; Qwen2 queued)
 
-Pre-registered in `PREREG_MECH_THEORY.md`. TSR encodes at 900 tokens, prunes 90% of the visual set at L16 and
-spends the saving on resolution. Behaviourally, TSR ≈ unpruned@900 (§26C/§38). This run tests the premise on
+Pre-registered in `PREREG_MECH_THEORY.md`. AVR encodes at 900 tokens, prunes 90% of the visual set at L16 and
+spends the saving on resolution. Behaviourally, AVR ≈ unpruned@900 (§26C/§38). This run tests the premise on
 hidden **values**, on the unpruned 900-token pass, with donor hidden states (a different image, same question)
 injected at the layer's output.
 
@@ -7989,12 +7989,12 @@ injected at the layer's output.
 | **kept** positions @L16 (90 of 900) | **0.0065** | **3.1%** |
 | dropped positions @L8 (transport window) | **0.3407** | **20.9%** |
 | dropped positions @L24 | 0.0003 | 0.5% |
-| TSR (attention keep) vs unpruned base | 0.0025 | argmax agreement 97.9% |
-| TSR (random keep) vs unpruned base | 0.0075 | argmax agreement 97.4% |
+| AVR (attention keep) vs unpruned base | 0.0025 | argmax agreement 97.9% |
+| AVR (random keep) vs unpruned base | 0.0075 | argmax agreement 97.4% |
 
-**P-T2 PASSES.** TSR is an output-distribution identity for the unpruned 900-token model (KL 0.0025, 97.9%
+**P-T2 PASSES.** AVR is an output-distribution identity for the unpruned 900-token model (KL 0.0025, 97.9%
 agreement), and attention keep ≈ random keep (ΔKL 0.0050). This is §42's "selection stops mattering at the
-boundary" measured at the value level, at TSR's own operating point.
+boundary" measured at the value level, at AVR's own operating point.
 
 **P-T1a and P-T1b PASS; P-T1c FAILS — and the failure is the sharper result.** Replacing the dropped values at L16
 is at the noise floor (0.0022), and replacing them at L8 is large (0.3407, 20.9% flips). But replacing the **kept**
@@ -8005,7 +8005,7 @@ the kept set retains only a small residual influence (3.1% vs 1.0% flips), which
 conservative choice, but the *choice* of which tokens to keep is free.
 
 **Consequence for the theory.** Proposition 5's premise ("value-inertness") is measured, not assumed, and it holds
-for the whole visual set at L16 — so any keep-set rule, including random, is equivalent, and TSR's gain reduces by
+for the whole visual set at L16 — so any keep-set rule, including random, is equivalent, and AVR's gain reduces by
 accounting to the resolution headroom of the checkpoint (Proposition 4). The §26C/§38 behavioural equivalence and
 this value-level test now agree.
 
@@ -8083,7 +8083,7 @@ Every headline claim in `paper/main.tex`, its strongest evidence, its class, and
 the claim was tested by changing the model's computation (mask, patch, prune, ablate, oracle), not by observation.
 The audit that produced this table also found the wording faults corrected in the paper on 2026-09-21 (transport
 "flips no answers" → the measured 12%/5% at L16 and ~0 from L20; Table 1's mixed-source row → 176c's 1.266/0.532;
-native-resolution "both" → TWR both / TSR one; "pruning free in 9 of 10" → §38's corrected wording; the scope-law
+native-resolution "both" → DWA both / AVR one; "pruning free in 9 of 10" → §38's corrected wording; the scope-law
 mechanism clause → §33's integration account; gate-max "above every published rule" → true on Qwen3 only).
 
 | # | claim | evidence | class | models | status |
@@ -8096,11 +8096,11 @@ mechanism clause → §33's integration account; gate-max "above every published
 | 6 | ranking matters before the boundary and not after | objectness-probe vs random keep at L4 (§42); random = attention at L16/L24 (§26C); value patching (§54) | intervention | 2 models | SOLID |
 | 7 | the block mean's failure is the item-independent component | nuisance ablation (§50A, §53): block 0.083→0.438, 0.292→0.490 | intervention | 2 models (coverage) | SOLID |
 | 8 | ~~signed weights / subtraction are the mechanism~~ | non-negative fits retain the advantage (44/56 coefficients zeroed), map-space sign gap 0.044/0.002, end task −1.0 n.s. (§53) | intervention | 2 models (coverage); Qwen3 end task | **CLAIM WITHDRAWN**; the paper's mechanism paragraph, Fig. 3 caption and appendix now state the corrected account |
-| 9 | TWR beats every published placement rule at equal compute | paired end-task contrasts, 9/9 pooled (§25/§34) | evaluation | 2 models × 2 benchmarks | SOLID |
-| 10 | TSR pruning is free | pruned vs unpruned @900 (§26C/§38); value patching at L16 (§54) | intervention | 2 models behavioural; Qwen3 value-level | SOLID behaviourally; value-level Qwen2 queued |
-| 11 | TSR's gain = resolution headroom | 10-cell identity, r=0.966, slope 1.01 (§39/§47); distributional equivalence (§54) | accounting + intervention | 4 checkpoints | SOLID |
+| 9 | DWA beats every published placement rule at equal compute | paired end-task contrasts, 9/9 pooled (§25/§34) | evaluation | 2 models × 2 benchmarks | SOLID |
+| 10 | AVR pruning is free | pruned vs unpruned @900 (§26C/§38); value patching at L16 (§54) | intervention | 2 models behavioural; Qwen3 value-level | SOLID behaviourally; value-level Qwen2 queued |
+| 11 | AVR's gain = resolution headroom | 10-cell identity, r=0.966, slope 1.01 (§39/§47); distributional equivalence (§54) | accounting + intervention | 4 checkpoints | SOLID |
 | 12 | cropping helps single-instance and is non-positive cross-instance | 14-cell scope table (§34/§41) + oracle ceiling (§36) | evaluation + intervention | 4 checkpoints | SOLID; mechanism clause corrected (integration, not coverage) |
-| 13 | TWR matches native dynamic resolution at 14–18% of the compute | end-task vs native (§45) | evaluation | 2 models (TWR); TSR on Qwen3 only | SOLID as now worded |
+| 13 | DWA matches native dynamic resolution at 14–18% of the compute | end-task vs native (§45) | evaluation | 2 models (DWA); AVR on Qwen3 only | SOLID as now worded |
 | 14 | placement is worth more than 5–7× the compute | oracle-crop arm beats native (§45) | intervention | 2 models | SOLID |
 | 15 | native-resolution location is decodable in the read-out band | linear probe from the answer-position state (§55) | measurement | 2 models | SOLID (probe; shuffle control max 0.26) |
 
@@ -8114,12 +8114,12 @@ and row 1's 36-layer leg by §58, all on 2026-09-21).
 | **kept** positions @L16 | **0.0027** | **0.5%** |
 | dropped positions @L8 | **0.2622** | **29.8%** |
 | dropped positions @L24 | 0.0006 | 0.5% |
-| TSR (attention keep) vs unpruned base | 0.0037 | agreement 96.3% |
-| TSR (random keep) vs unpruned base | 0.0047 | agreement 96.9% |
+| AVR (attention keep) vs unpruned base | 0.0037 | agreement 96.3% |
+| AVR (random keep) vs unpruned base | 0.0047 | agreement 96.9% |
 
 The Qwen3 pattern replicates: the boundary patch is at the floor for **both** the dropped and the kept set (the kept
 set is, if anything, the more inert of the two on this model — 0.5% vs 3.7% flips), while the same patch at L8 is
-large (29.8% flips). Proposition 5's premise therefore holds on 2 of 2 models, at TSR's own operating point.
+large (29.8% flips). Proposition 5's premise therefore holds on 2 of 2 models, at AVR's own operating point.
 
 **Pre-registered P-T2 is 2 of 3 conditions on this model.** KL ≤ 0.02 (0.0037) and attention-keep ≈ random-keep
 (ΔKL 0.0009) pass; arg-max agreement is **96.3%, just under the pre-registered 97% bar** (Qwen3: 97.9%). We report
@@ -8141,7 +8141,7 @@ protocol (mask only the final prompt token's attention over the image columns, a
 The answer position's attention to the image is causally inert on **2 of 2** checkpoints, while the all-rows mask
 destroys the answer on both — a 37× and 16× separation. The paper's Table 1 is now a two-model table and the
 caption no longer needs the Qwen3 qualifier. Data: `phase176_sens_{qwen3,qwen2}.json`.
-### §51B ✅ QWEN2 LEG — THE READ-OUT DEPTH CURVE REPLICATES, AND TWR BEATS THE ORACLE LAYER THERE (phase 199, n=191)
+### §51B ✅ QWEN2 LEG — THE READ-OUT DEPTH CURVE REPLICATES, AND DWA BEATS THE ORACLE LAYER THERE (phase 199, n=191)
 
 `phase199_layersweep.py qwen2` completes the two-model record for the paper's headline (i). Same pipeline: crop at
 each layer's ring-masked arg-max, answer @300 on the crop; reference arms on the same items from
@@ -8153,14 +8153,14 @@ each layer's ring-masked arg-max, answer @300 on the crop; reference arms on the
 | **L16–L21** | 46.4 | 55.4 | **62.8 (L21)** |
 | L22–L27 | 39.8 | 46.9 | 58.6 |
 
-Reference arms: bar `uniform@600` **58.1**, block-mean 59.2, LASER 61.3, fixed L14 **38.2**, TWR **70.2**, oracle
+Reference arms: bar `uniform@600` **58.1**, block-mean 59.2, LASER 61.3, fixed L14 **38.2**, DWA **70.2**, oracle
 crop 87.4.
 
 **The Qwen3 findings all replicate, and one is stronger.**
 1. **Spread 36.1 → 62.8**, a 26.7-point range from depth alone (Qwen3: 35.6).
 2. **No layer inside the transport window beats not cropping** (max 39.8 vs the 58.1 bar) — by a wider margin than
    Qwen3's (53.4 vs 63.7).
-3. **TWR − best single layer = +7.3 [+1.0,+13.6] ✔** — on this checkpoint TWR *significantly beats* an oracle choice
+3. **DWA − best single layer = +7.3 [+1.0,+13.6] ✔** — on this checkpoint DWA *significantly beats* an oracle choice
    of read-out layer (Qwen3: +2.6 n.s.). The best layer was chosen on the test set, so this is the conservative
    direction. Block-mean − best layer is −3.7 n.s. (Qwen3: −7.9 ✗).
 4. **The published fixed choice (L14) is 19.9 points below the bar** (Qwen3: 25.7).
@@ -8244,7 +8244,7 @@ cross-instance questions.
 ⚠ End-task row is Qwen3 only (phase 199 qwen2 leg running); placement rows are 2 of 2.
 
 ## §60 RENAME (user request, 2026-09-21)
-TWR → **DWA (Depth-Weighted Attention)**; TSR → **AVR (Adaptive Visual Resolution)**. Prose and all 19 figures
+DWA → **DWA (Depth-Weighted Attention)**; AVR → **AVR (Adaptive Visual Resolution)**. Prose and all 19 figures
 regenerated; no arm identifier in the data or in FINDINGS was touched, so `tsr900`, `ridge300` etc. still match the
 logged runs. Note the new names drop the "transport" link that the old ones carried, so the paper now has to make
 the derivation explicit in text rather than in the acronym.

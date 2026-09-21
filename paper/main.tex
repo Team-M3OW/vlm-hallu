@@ -764,7 +764,7 @@ $r=+0.635$) and L18 (Qwen2, $+0.603$).
 
 \section{Propositions, and what validates them}\label{app:theory}
 
-We state one theorem, four propositions and two lemmas. They are not deep results --- the theorem is a tail-dominance
+We state two theorems, four propositions and two lemmas. They are not deep results --- one theorem is a tail-dominance
 argument and the lemmas are one-line linear algebra --- but each makes a prediction that could have failed on data,
 and we report where they hold approximately rather than exactly. All measurements are out-of-fold on both core
 checkpoints; $n=126$ (modal grid) for coverage, $n=191$ for end-task and distributional tests.
@@ -863,6 +863,46 @@ zero. That the fit is a matched filter over depth, weighting by per-layer signal
 each of its predictions, and wrong in kind --- the block mean already retains $77\%$ of attainable signal-to-noise
 on both models while its coverage is several times worse, and a mean-based quantity cannot explain an arg-max
 failure.
+
+\begin{theorem}[A single-depth read-out is lossy unless that depth is sufficient]\label{thm:suff}
+Let $c^\star$ be the cell containing the evidence and $A=(A_1,\dots,A_L)$ the depth profile. For any rule
+$\hat c=g(A_\ell)$ reading a single layer: (i) $c^\star\to A\to A_\ell\to\hat c$ is a Markov chain, so
+$I(c^\star;\hat c)\le I(c^\star;A_\ell)\le I(c^\star;A)$; (ii) the right inequality is an equality iff
+$c^\star\perp A\mid A_\ell$, i.e.\ $A_\ell$ is sufficient for $c^\star$ within the profile; (iii) by Fano,
+$\Pr[\hat c\neq c^\star]\ge(H(c^\star)-I(c^\star;A_\ell)-1)/\log|\mathcal{C}|$.
+\end{theorem}
+
+\begin{proof}
+$A_\ell$ is a coordinate projection of $A$ and $\hat c$ is post-processing of $A_\ell$, so the chain holds and
+the data-processing inequality applies along each link, giving (i). For (ii),
+$I(c^\star;A)-I(c^\star;A_\ell)=I(c^\star;A\mid A_\ell)\ge0$ by the chain rule, with equality exactly under
+conditional independence. (iii) is Fano applied to that chain.
+\end{proof}
+
+Theorem~\ref{thm:suff} is vacuous until sufficiency is decided, and sufficiency is an empirical property of a
+given model, so we test its equality condition. If $A_\ell$ were sufficient its arg-max would be correct
+wherever any layer's is, so the best single depth would match the family's envelope. Cropping at every one of
+the $28$ layers' arg-max and answering gives:
+
+\begin{table}[h]\centering\small
+\setlength{\tabcolsep}{5pt}
+\caption{The sufficiency test at the end task. A sufficient layer would make the first two columns equal.}
+\begin{tabular}{lccccc}
+\toprule
+& best depth & some depth & gap & every depth & spread over depth\\
+\midrule
+Qwen3-VL-2B & $70.2$ & $\mathbf{95.3}$ & $+25.1$ & $5.2$ & $34.6$--$70.2$\\
+Qwen2-VL-7B & $62.8$ & $\mathbf{89.5}$ & $+26.7$ & $9.9$ & $36.1$--$62.8$\\
+\bottomrule
+\end{tabular}\label{tab:suff}
+\end{table}
+
+Sufficiency is rejected on both checkpoints by $25$ and $27$ points. The escape is to read every depth: DWA
+is $+2.6$ [$-3.7,+8.9$] and $+7.3$ [$+1.0,+13.1$] against the best single depth --- a depth chosen \emph{on
+the test set}, so an optimistic baseline --- clear on one checkpoint and matching on the other, while the
+published fixed choice sits $31.9$ and $19.9$ points below that oracle. The scope of the test is stated: the
+envelope is measured over the arg-max read-out family, which is the class a depth-selection rule chooses among,
+not over all measurable functions of $A$.
 
 \begin{proposition}[Post-boundary inertness makes pruning free, and makes AVR a resolution converter]\label{prop:avr}
 \emph{Suppose the output distribution is invariant to the image tokens' states at layers beyond $P$. Then for any
