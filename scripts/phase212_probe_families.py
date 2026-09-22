@@ -12,10 +12,10 @@ img=Image.new("RGB",(448,448),(120,140,160))
 for tag,mid in CANDS:
     print(f"\n=== {tag}  {mid}")
     try:
-        cfg=AutoConfig.from_pretrained(mid)
+        cfg=AutoConfig.from_pretrained(mid,trust_remote_code=True)
         print("   config:",type(cfg).__name__,"| image_token_id:",getattr(cfg,"image_token_id",getattr(cfg,"image_token_index","?")))
-        m=AutoModelForImageTextToText.from_pretrained(mid,dtype=torch.bfloat16,device_map={"":0}).eval()
-        pr=AutoProcessor.from_pretrained(mid)
+        m=AutoModelForImageTextToText.from_pretrained(mid,dtype=torch.bfloat16,device_map={"":0},trust_remote_code=True).eval()
+        pr=AutoProcessor.from_pretrained(mid,trust_remote_code=True)
         # locate decoder layers
         cand=[("model.language_model.layers",lambda m:m.model.language_model.layers),
               ("language_model.model.layers",lambda m:m.language_model.model.layers),

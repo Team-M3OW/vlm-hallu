@@ -13,8 +13,9 @@ Usage:  phase213_multi.py <model-key> <benchmark-key>
 The attention patch is discovered from the LOADED model's own attention class module at runtime and asserted,
 because hard-coding module names silently voided a run once (§38B fault 1).
 """
-import json, os, sys, time, random, importlib, numpy as np, torch
+import json, os, sys, time, random, importlib, io, base64, numpy as np, torch
 from PIL import Image
+for v in ("HF_TOKEN","HUGGING_FACE_HUB_TOKEN"): os.environ.pop(v,None)  # the env token is invalid; use the stored login
 os.environ.setdefault("HF_HUB_CACHE","/media/kavinder/hdd2/hf_cache")
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF","expandable_segments:True")
 from transformers import AutoProcessor, AutoModelForImageTextToText
@@ -46,6 +47,16 @@ def load_bench(key):
                        e["question"]+"\nAnswer yes or no.", 0 if str(e["answer"]).strip().lower()=="yes" else 1,
                        e["category"], "yesno")
         return it
+    if key in ("hr4k","hr8k"):
+        cfg="hrbench_4k" if key=="hr4k" else "hrbench_8k"
+        ds=load_dataset("DreamMr/hr-bench","hrbench_version_split")[cfg]
+        def it():
+            for e in ds:
+                q=e["question"]+"\n"+"\n".join(f"({c}) {e[c]}" for c in "ABCD" if c in e)+\
+                  "\nAnswer with the option's letter from the given choices directly."
+                yield (str(e.get("index",e.get("id",0))), e["image"], q,
+                       "ABCD".index(str(e["answer"]).strip()[0]), e.get("category","all"), "mcq4")
+        return it
     raise SystemExit(f"unknown benchmark {key}")
 
 def main():
@@ -71,6 +82,8 @@ def main():
             b=getattr(module,"_prune_bias",None)
             if b is not None and b.shape[-1]==w.shape[-1]: w=w+b.to(w.dtype).view(1,1,1,-1)
             w=torch.nn.functional.softmax(w,dim=-1,dtype=torch.float32).to(query.dtype)
+            if getattr(module,"_capture",False):
+                module._lastrow=w[0,:,-1,:].float().mean(0).detach().cpu().numpy()
             return torch.matmul(w,vs).transpose(1,2).contiguous(), w
         return patched
     QM.eager_attention_forward=make_patched(QM)
@@ -83,7 +96,9 @@ def main():
     def chat(t): return pr.apply_chat_template([{"role":"user","content":[{"type":"image"},{"type":"text","text":t}]}],
                                                tokenize=False,add_generation_prompt=True)
     def build(i,t): return pr(images=i,text=chat(t),return_tensors="pt")
-    def ntok(inp): return int((inp["input_ids"][0]==itid).sum())
+    def ntok(x):
+        inp=x if isinstance(x,dict) else x
+        return int((inp["input_ids"][0]==itid).sum())
     def fit(img,target,refine=6,tol=0.10):
         W_,H_=img.size; best=None; sc=(target/max(ntok(build(img,"x")),1))**0.5
         for _ in range(refine):
@@ -102,13 +117,35 @@ def main():
             b=torch.zeros(inp["input_ids"].shape[1],device=model.device)
             b[torch.as_tensor(drop,device=model.device)]=-1e4
             for li in range(frm,NL): layers[li].self_attn._prune_bias=b
-        with torch.no_grad(): out=model(**inp,output_attentions=want)
+        for l in layers: l.self_attn._capture=bool(want)
+        with torch.no_grad(): out=model(**inp)
         lg=out.logits[0,-1].float()
         p=torch.softmax(torch.stack([torch.logsumexp(lg[i],0) for i in opts]),0)
         A=None
-        if want: A=np.stack([out.attentions[L][0,:,-1,:].float().mean(0).cpu().numpy() for L in range(NL)])
+        if want: A=np.stack([layers[L].self_attn._lastrow for L in range(NL)])
+        for l in layers: l.self_attn._capture=False
         del out; torch.cuda.empty_cache(); clear()
         return [round(float(v),6) for v in p.tolist()], A
+    # ---- per-architecture budget discovery (Prop. 2) -------------------------------------------
+    # Anyres tilers quantise resolution, so a fixed 600/900 pair is meaningless for them. Find the
+    # achievable visual-token counts, then solve Prop. 2 for the largest keep fraction that still fits
+    # the bar:  k = (E_lo*NL - E_hi*(P+1)) / (E_hi*(NL-1-P)).  If k < 0.05 the step is too coarse and
+    # AVR is not budget-feasible on this architecture -- recorded, not fudged.
+    probe=Image.new("RGB",(1200,900),(120,140,160))
+    achievable=sorted({ntok(build(probe.resize((max(32,int(1200*f)),max(32,int(900*f)))),"x"))
+                       for f in (0.12,0.2,0.28,0.4,0.56,0.8,1.0,1.6,2.2)})
+    achievable=[a for a in achievable if a>0]
+    E_lo_a=achievable[0]; best=None
+    for E in achievable[1:]:
+        k=(E_lo_a*NL - E*(P+1))/max(E*(NL-1-P),1)
+        if k>=0.05 and (best is None or E>best[0]): best=(E,k)
+    if best is None:
+        E_hi_a,K_a,feasible=achievable[-1],K,False
+    else:
+        E_hi_a,K_a,feasible=best[0],min(best[1],0.5),True
+    print(f"   achievable visual-token counts: {achievable}",flush=True)
+    print(f"   bar E_lo={E_lo_a}  AVR E_hi={E_hi_a}  keep k={K_a:.3f}  "
+          f"{'FEASIBLE' if feasible else 'NOT budget-feasible (resolution axis too coarse)'}",flush=True)
     rng=random.Random(213); it=load_bench(BK)
     done=set()
     if os.path.exists(OUT): done={json.loads(l)["qid"] for l in open(OUT)}
@@ -117,29 +154,39 @@ def main():
         for qid,imsrc,text,lab,cat,kind in it():
             if n>=N_ITEMS: break
             if qid in done: continue
-            try: img=(Image.open(imsrc) if isinstance(imsrc,str) else imsrc).convert("RGB")
-            except Exception: continue
+            img=None
+            if isinstance(imsrc,str):
+                # HR-Bench stores images as base64 strings, not paths. Try both, loudly.
+                try: img=Image.open(io.BytesIO(base64.b64decode(imsrc)))
+                except Exception:
+                    try: img=Image.open(imsrc)
+                    except Exception as ex: print(f"   image decode failed for {qid}: {type(ex).__name__}",flush=True)
+            else: img=imsrc
+            if img is None: continue
+            img=img.convert("RGB")
             opts=MCQ if kind=="mcq4" else YES
             rec={"qid":qid,"category":cat,"label":lab,"kind":kind,"probs":{},"tokens":{},"nl":NL,"P":P}
             ok=True
-            for nm,E in (("uniform@lo",E_LO),("uniform@hi",E_HI)):
+            for nm,E in (("uniform@lo",E_lo_a),("uniform@hi",E_hi_a)):
                 sm,rt=fit(img,E)
                 if rt==0: ok=False; break
                 inp=build(sm,text).to(model.device)
                 rec["probs"][nm],_=run(inp,opts); rec["tokens"][nm]=ntok(inp)
             if not ok: continue
-            sm,_=fit(img,E_HI); inp=build(sm,text).to(model.device)
+            sm,_=fit(img,E_hi_a); inp=build(sm,text).to(model.device)
             pos=(inp["input_ids"][0]==itid).nonzero().flatten()
             if len(pos)==0: continue
             base,nt=int(pos[0]),int(len(pos))
             _,A=run(inp,opts,want=True)
             Ai=A[:,base:base+nt]; Ai=Ai/np.maximum(Ai.sum(1,keepdims=True),1e-12)
-            s=Ai[max(0,P-4):P+1].mean(0); keep=max(1,int(round(K*nt)))
+            s=Ai[max(0,P-4):P+1].mean(0); keep=max(1,int(round(K_a*nt)))
             rec["probs"]["avr"],_=run(inp,opts,drop=(base+np.argsort(-s)[keep:]).tolist(),frm=P+1)
             sr=np.array([rng.random() for _ in range(nt)])
             rec["probs"]["avr_rand"],_=run(inp,opts,drop=(base+np.argsort(-sr)[keep:]).tolist(),frm=P+1)
             rec["probs"]["suffix_mask"],_=run(inp,opts,drop=list(range(base,base+nt)),frm=P)
-            rec["tokens"]["avr"]=nt
+            rec["tokens"]["avr"]=nt; rec["keep_frac"]=K_a; rec["avr_feasible"]=feasible
+            rec["tl"]={"bar":rec["tokens"]["uniform@lo"]*NL,
+                       "avr":nt*(P+1)+keep*(NL-1-P)}
             fout.write(json.dumps(rec)+"\n"); fout.flush(); n+=1
             if n%20==0: print(f"  [{n}] {(time.time()-t0)/n:.1f}s/item",flush=True)
     print(f"Done -> {OUT}",flush=True)

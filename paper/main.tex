@@ -764,9 +764,9 @@ $r=+0.635$) and L18 (Qwen2, $+0.603$).
 
 \section{Propositions, and what validates them}\label{app:theory}
 
-We state two theorems, four propositions and two lemmas. They are not deep results --- one theorem is a tail-dominance
-argument and the lemmas are one-line linear algebra --- but each makes a prediction that could have failed on data,
-and we report where they hold approximately rather than exactly. All measurements are out-of-fold on both core
+We state four theorems, three propositions and two lemmas. They are not deep results --- two are tail-dominance and
+sufficiency statements, two are information bounds, and the lemmas are one-line linear algebra --- but each makes a
+prediction that could have failed on data, and we report where they hold approximately rather than exactly. All measurements are out-of-fold on both core
 checkpoints; $n=126$ (modal grid) for coverage, $n=191$ for end-task and distributional tests.
 
 \textbf{Setup.} For item $i$, layer $\ell$, cell $c$, let $A_\ell^{(i)}(c)\ge0$ be the last-prompt-token attention
@@ -904,22 +904,53 @@ published fixed choice sits $31.9$ and $19.9$ points below that oracle. The scop
 envelope is measured over the arg-max read-out family, which is the class a depth-selection rule chooses among,
 not over all measurable functions of $A$.
 
-\begin{proposition}[Post-boundary inertness makes pruning free, and makes AVR a resolution converter]\label{prop:avr}
-\emph{Suppose the output distribution is invariant to the image tokens' states at layers beyond $P$. Then for any
-keep-set $S$, retaining only $S$ after $P$ leaves the output unchanged, so AVR at encode $E$ scores what uniform
-encoding at $E$ scores, and AVR's gain over a bar at $E_0$ equals $\mathrm{acc}(E)-\mathrm{acc}(E_0)$.}
-\end{proposition}
+\begin{theorem}[Decoding bound, and a certified gap for the conventional read-out]\label{thm:info}
+For any read-out decision $\hat c$ of a per-cell score and target cell $T$:
+(i) $I(\hat c;T)\le H(\hat c)\le\log|\mathcal C|$;
+(ii) $I(\hat c;T)\ge H(T)-H_b(P_e)-P_e\log(|\mathcal C|-1)$ with $P_e=\Pr[\hat c\ne T]$;
+(iii) if $\hat c$ is constant then $I(\hat c;T)=0$.
+\end{theorem}
 \begin{proof}
-The premise equates the option distributions of the pruned and unpruned models; subtracting the bar's accuracy gives
-the gain statement.
+(i) $I(\hat c;T)=H(\hat c)-H(\hat c\mid T)\le H(\hat c)\le\log|\mathcal C|$. (ii) Fano's inequality.
+(iii) $H(\hat c)=0$, so (i) gives $I=0$.
 \end{proof}
-The premise is what Appendix~\ref{app:transport} and Figure~\ref{fig:mech} measure. The conclusion is what
+
+The bounds are exact and directly measurable, and the same maps admit an oracle decision that \emph{is} the target,
+so $I(\text{oracle};T)=H(T)=6.06$ bits on the modal-grid items. The conventional read-out does not reach that: the
+literal block mean (no ring mask) has decision entropy $1.02$ and $3.46$ bits on the two checkpoints and lands in
+the grid's last column on $84.8\%$ and $61.8\%$ of the full item set, so it can carry at most that much --- a
+certified gap of $\ge5.0$ and $\ge2.6$ bits. The ring mask restores the baseline's decision entropy ($6.30$/$4.60$
+bits) but not its accuracy; the fitted read-out attains the same entropy with higher coverage ($0.605$/$0.581$
+against $0.459$/$0.402$). The failure is in the decoder, not the representation. Two consequences. The information
+a decision can carry is raised only by making it \emph{varied} or \emph{accurate} --- the bounds never mention
+cancellation --- so a non-negative depth fit reaches the same terms by selecting the depths where the
+item-independent component is least dominant (\S\ref{sec:ridge}). And the depth \emph{ordering} changes both terms
+while the sign of the weights does not.
+
+\begin{theorem}[The information horizon]\label{thm:horizon}
+Suppose the visual-token values after layer $p$ are output-invariant:
+$I(V_{>p};Y\mid\text{state}_p)=0$ (value-inertness). Then (i) pruning to any keep-set loses no answer
+information; (ii) AVR's gain over the bar $E_0$ is the resolution information gain
+$\mathrm{acc}(E)-\mathrm{acc}(E_0)$, bounded by $I(X;Y)-I(Z_{E_0};Y)$; and (iii) the information-bearing depth is
+$p+1$ layers, so the affordable resolution multiplier is $N/(p+1)=1.647\times$ over uniform-depth encoding.
+\end{theorem}
+\begin{proof}
+(i) The premise makes the answer conditionally independent of those values given the state at $p$, and the keep-set
+is a function of them. (ii) Pruning is information-free by (i), so AVR and uniform encoding at $E$ induce the same
+distribution; the data-processing inequality bounds the remaining difference by the information the bar's encoding
+fails to carry. (iii) Token-layer accounting with the information-bearing depth.
+\end{proof}
+
+The premise is measured with its violation bounded by Pinsker, $\mathrm{TV}\le\sqrt{\mathrm{KL}/2}$: at the
+boundary the answer distribution depends on the token values by at most $0.033$--$0.044$ in total variation, while
+the same patch one window earlier moves it by $0.36$--$0.41$ (Appendix~\ref{app:mech}). The horizon is sharp, and it
+is the same $0.57\times$ depth the masking experiments locate. The conclusion is what
 Appendix~\ref{app:identity} tests: gain tracks headroom with $r=0.966$ over ten cells, and again with $r=0.911$
 over eight further cells whose headroom is near zero, where it correctly predicts that AVR does nothing.
 \emph{Where it is only approximate:} the premise holds to KL~$\approx5\times10^{-4}$, not to zero, so the
 conclusion is approximate too. Measured slippage is at most $0.5$ points in seven of ten cells and $-1.8$ in one.
-The proposition's real content is that the \emph{choice} of keep-set is irrelevant, which is why random keep
-matches attention keep on $96.3\%$ of items.
+The theorem's real content is that the \emph{choice} of keep-set is irrelevant, which is why random keep matches
+attention keep on $96.3\%$ of items.
 
 \begin{proposition}[The budget determines the affordable resolution]\label{prop:budget}
 \emph{Pruning to a fraction $k$ at layer $P$ of $N$ costs $\mathrm{TL}=E(P{+}1)+kE(N{-}1{-}P)$ token-layers.

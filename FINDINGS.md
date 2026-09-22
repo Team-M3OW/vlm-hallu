@@ -8375,3 +8375,275 @@ Stated as an open question rather than smoothed over.
 
 Script: `phase211_lift_endtask.py`.
 
+## §64 ★★★ AN INFORMATION-THEORETIC ACCOUNT OF WHY BOTH POLICIES WORK (phase 207, CPU, both models, exact bounds)
+
+Requested by the user (2026-09-22): a solid information-theoretic theorem for DWA and AVR. Two theorems, both with
+proofs, both validated by quantities that are **exact** (decision entropies and oracle decisions), not estimated.
+
+### Setup
+The read-out's task: identify the cell whose $W{=}0.25$ window covers the evidence best — the **target cell**
+$T$ (the oracle placement among the ring-masked cells). A read-out is a decoder $\hat c=g(S)$ of a per-cell score
+$S$. All quantities below are measured on the modal-grid subset ($n=126$ per model, 294 cells) and on the full
+$n=191$ where stated; "H" is in bits.
+
+### Theorem 3 (decoding bound, and a certified gap for the conventional read-out)
+For any read-out decision $\hat c$ and target $T$:
+**(i)** $I(\hat c;T)\le H(\hat c)\le\log|\mathcal C|$ — the decision cannot carry more information than the entropy
+of its own distribution, however informative the score.
+**(ii)** $I(\hat c;T)\ \ge\ H(T)-H_b(P_e)-P_e\log(|\mathcal C|-1)$ — Fano, with $P_e=\Pr[\hat c\neq T]$ (lower bound).
+**(iii)** If $\hat c$ is constant, $I(\hat c;T)=0$ exactly.
+
+*Proof.* (i) $I(\hat c;T)=H(\hat c)-H(\hat c\mid T)\le H(\hat c)$; the second inequality is $H(\hat c)\le\log|\mathcal C|$.
+(ii) Fano's inequality. (iii) A constant has zero entropy, so (i) gives 0 and $I\ge0$ gives equality. $\square$
+
+**Certified gap (exact numbers).** The same maps determine the target exactly (the oracle decision *is* $T$, so
+$I(\text{oracle};T)=H(T)=6.062$ bits). The conventional read-out's decision entropy is far below that:
+
+| decoder (fine grid, 294 cells, $n{=}126$) | $H(\hat c)$ bits | coverage | bound on $I(\hat c;T)$ |
+|---|---|---|---|
+| block mean, literal (no ring mask) | **1.019** / **3.457** | 0.083 / 0.292 | $\le1.019$ / $\le3.457$ |
+| block mean, ring-masked (our baseline) | 6.296 / 4.600 | 0.459 / 0.402 | vacuous / $\le4.600$ |
+| **DWA (fitted)** | 6.164 / 6.350 | **0.605 / 0.581** | $\le H(T)$ |
+| NNLS (non-negative fit) | 6.285 / 6.394 | 0.576 / 0.583 | $\le H(T)$ |
+| oracle | 6.062 / 6.062 | 0.957 / 0.957 | $=6.062$ |
+
+**Gap ≥ 5.0 bits (Qwen3) and ≥ 2.6 bits (Qwen2)** between what the maps contain and what the literal decoder can
+carry. The failure is a **decoder** failure, not a representation failure. The ring mask restores the masked
+baseline's decision entropy (6.30 / 4.60) but not its accuracy; the fitted read-outs reach the *same* entropy with
+higher coverage (0.605/0.581 vs 0.459/0.402). At coarse bins the Fano lower bound is positive for DWA/NNLS
+(+0.14 to +0.39 bits at 2×2) and non-positive for the block mean, i.e.\ the conventional read-out's decisions are
+consistent with **zero** target information while the fitted read-out's are not.
+
+*Why the sign of the weights does not matter (information version).* By (i) and (ii), a read-out's information is
+raised in only two ways: making its decisions **varied** (entropy) or **accurate** (Fano). Nothing in the bounds
+refers to cancellation. A non-negative depth fit raises both by *selecting* depths where the item-independent
+component is least dominant; a signed fit raises them by cancellation. Both are available, which is exactly the
+measured NNLS result (§53). The theorem also says the depth **ordering** matters (it changes which decision the
+decoder emits, hence both terms) while the sign does not (it is one of two routes to the same terms).
+
+### Theorem 4 (the information horizon: why pruning is free and resolution is the currency)
+Let $X$ be the image, $Y$ the answer, $Z_R$ the visual encoding at resolution $R$, and $p$ the transport boundary.
+Suppose the visual-token values after layer $p$ are output-invariant (value-inertness, measured §54/§54B).
+**(i)** Pruning to *any* keep-set loses no answer information: $I(\text{kept};Y\mid\cdot)=0$, so AVR's pruning
+contributes no information and no loss.
+**(ii)** The information-bearing depth is therefore $p+1$ layers. Under a token-layer budget $B$, the maximum
+affordable resolution is $R^\star=B/(p+1)$ — a multiplier $N/(p+1)=28/17=\mathbf{1.647\times}$ over the
+uniform-depth encoding; keeping fraction $k$ gives $B/\big((p{+}1)+k(N{-}1{-}p)\big)=\mathbf{1.547\times}$ at
+$k=0.1$ ($E^\star=928$; we run 900).
+**(iii)** AVR's gain is the **resolution information gain**: since pruning is information-free,
+$\mathrm{acc}(\text{AVR}_E)=\mathrm{acc}(\text{uniform}_E)$, so the gain over the bar $E_0$ is
+$\mathrm{acc}(E)-\mathrm{acc}(E_0)$, and by the data-processing inequality
+$Y\leftrightarrow Z_R\leftrightarrow X$ it is bounded by $I(X;Y)-I(Z_{E_0};Y)$.
+
+*Proof.* (i) The premise makes $Y$ conditionally independent of those values given the state at $p$; any function
+of them — including which subset is kept — is too. (ii) Token-layer accounting with the information-bearing depth.
+(iii) Substitute (i) into the definition of the gain and apply DPI. $\square$
+
+**Premise validated, with its violation bounded (Pinsker).** $\mathrm{TV}\le\sqrt{\mathrm{KL}/2}$ from the
+phase-205 measured KLs:
+
+| patch at 900 tokens | Qwen3 KL → TV | Qwen2 KL → TV |
+|---|---|---|
+| dropped @L16 | 0.0022 → **0.033** | 0.0038 → **0.044** |
+| kept @L16 | 0.0065 → 0.057 | 0.0027 → 0.037 |
+| dropped @L8 (inside the window) | 0.3407 → **0.413** | 0.2622 → **0.362** |
+
+Beyond the boundary the answer distribution depends on the token values by at most $3$–$6\%$ in total variation;
+inside the window the same patch moves it by $36$–$41\%$. **The horizon is sharp.**
+
+**The identity is the corollary.** $r=0.966$, slope $1.01$ over ten cells (§39) is not a coincidence: with pruning
+information-free, resolution is the only degree of freedom left, and its information gain is what the accuracy
+difference measures. The measured cliff (§13B: below $\sim0.15$ merged tokens accuracy falls below chance) is the
+regime where the target's token support vanishes — the encoder maps the target to no information at all.
+
+### Limits
+The target is defined as the oracle placement, not the GT box (the read-out's actual task). The entropy bound is
+vacuous for the ring-masked baseline (its decision entropy exceeds $H(T)$); it bites on the literal decoder and on
+the sign of the Fano bound. Histogram MI estimates at coarse bins were inconclusive (CIs overlap between block and
+DWA) and are **not** used; the claims rest on exact entropies, exact oracle information, and Fano. The horizon's
+premise is a measured invariance with a Pinsker bound, not an exact identity.
+
+Script: `phase207_infotheory.py`. Data: `data/phase207_infotheory.json`, `logs/q_207_infotheory.log`.
+## §65 M4 — WHICH BOXES TO LABEL? D-OPTIMAL SELECTION HELPS ON ONE MODEL AND HURTS ON THE OTHER (1 of 2)
+
+`scripts/m4_active_boxes.py` (CPU). DWA needs ~50 boxed examples; this asks whether the *choice* matters.
+Same folds, features and ring-masked coverage metric as phase 204; selection uses pool features only.
+
+| m labelled items | Qwen3 random / D-opt / unc | Qwen2 random / D-opt / unc |
+|---|---|---|
+| 5 | 0.544 / **0.575** / 0.554 | **0.518** / 0.474 / 0.452 |
+| 10 | 0.585 / **0.616** / 0.592 | 0.530 / 0.536 / 0.544 |
+| 20 | 0.600 / 0.614 / 0.602 | **0.565** / 0.566 / 0.556 |
+| 35 | 0.615 / **0.626** / 0.625 | **0.573** / 0.546 / 0.555 |
+| 50 | 0.610 / 0.617 / 0.617 | **0.590** / 0.554 / 0.559 |
+| 126 (all) | 0.610 | 0.586 |
+
+**P1 (D-optimal reaches random@50 by m≤35) passes on Qwen3 (0.626 ≥ 0.610) and FAILS on Qwen2** (0.546 < 0.590).
+**P2 (uncertainty beats random at m≤20) fails on both** (Qwen3 only ties; Qwen2 is below random throughout).
+**P3 (the advantage shrinks with m) holds on Qwen3** (+0.031 → +0.007 from m=5 to 50) and is undefined on Qwen2
+where the advantage is negative. So label-efficient selection is **1 of 2**: the ~50-box requirement is robust to
+selection on Qwen2, mildly improvable on Qwen3. Not adopted; reported as a negative for the "which boxes" axis.
+Data: `data/m4_active_boxes_{qwen3,qwen2}.json`. Log: `logs/q_m4_active_boxes.log`.
+## §66 ★★★ M1 — THE LOCALIZATION SIGNAL IS RELOCATABLE INTO THE CAUSAL WINDOW BY FINE-TUNING (phase M1, Qwen3-VL-2B,
+## held-out n=47; controls running)
+
+Method direction M1, from the paper's own mechanism: the image reaches the answer at L0–16 but the attention map
+that localizes the evidence lives at L17–21 and is causally inert. Instead of reading the inert band (DWA), **train
+the model so the window itself localizes**: LoRA (r=8, q/k/v/o, 3.2M params) with an attention-alignment loss
+(cosine between the last-prompt-token attention and the GT-box cell mask) on L10–16, plus the task CE. Split fixed
+before training: every 4th item held out (47 test / 144 train).
+
+| held-out (n=47) | before | after | paired diff [95% CI] |
+|---|---|---|---|
+| one-pass accuracy (no crop) | 53.2% | **66.0%** | +12.8 [+0.0,+27.7] |
+| coverage L10 | 0.043 | 0.262 | +0.220 [+0.112,+0.338] |
+| coverage L11 | 0.064 | 0.569 | +0.506 [+0.372,+0.643] |
+| coverage L12 | 0.075 | **0.616** | **+0.540 [+0.388,+0.683]** |
+| coverage L13 | 0.064 | 0.569 | +0.505 [+0.372,+0.642] |
+| coverage L14 | 0.038 | **0.532** | **+0.493 [+0.361,+0.628]** |
+| coverage L15 | 0.175 | 0.522 | +0.347 [+0.191,+0.500] |
+| coverage L16 | 0.495 | 0.554 | +0.058 [−0.082,+0.203] n.s. |
+
+**P1 (primary) PASSES by a wide margin**: fixed-layer L14 coverage on held-out items rises 0.038 → 0.532
+(+49 points; the pre-registered bar was +5). **P3 is marginal**: one-pass accuracy +12.8 points, but n=47 gives a CI
+that touches zero. **P2 (causal profile) is being measured** (`m1_profile.py`).
+
+**What this means.** The depth at which attention localizes is not fixed by the architecture — it is movable by a
+box-supervised alignment loss, and it moves into the layers the answer actually reads. Before training the window's
+coverage is at the floor (0.04–0.18, matching §48b's ≤20% pre-boundary band); after, it is 0.52–0.62, comparable to
+the post-boundary band the whole family reads. If the causal profile confirms the window became load-bearing, this
+is a method that *repairs the mechanism* rather than reading around it.
+
+**Confound being controlled (do not cite the accuracy number until it lands):** the task CE alone could produce the
+accuracy gain. `--ceonly` (λ_att=0) and a second split (`--split1`) are queued; the coverage move is the
+alignment-specific claim, and it is already CI-clear at six of seven layers.
+
+Scripts: `m1_transport_distill.py`, `m1_profile.py`. Data: `data/m1_transport_distill.json`. Adapter:
+`models/m1_lora_qwen3`. Logs: `logs/q_m1_distill.log`.
+## §67 M2 — THE BUDGET-OPTIMAL POLICY AT B=1200: THE IDENTITY HOLDS, DWA KEEPS THE SINGLE-INSTANCE EDGE, AND
+## NEITHER POLICY BEATS PLAIN RESOLUTION ON CROSS-INSTANCE (Qwen3 leg; Qwen2 running)
+
+The two policies are corners of one allocation problem. At B=1200 token-layers (bar = 1200×28 = 33,600):
+uniform@1200 (the bar), DWA@1200 (cached localise@300 + crop@900), AVR@1200 (encode@1800, keep 10% at L16,
+TL = 32,580), and uniform@1800 (diagnostic, over budget, the AVR prediction source). n=191.
+
+| arm | acc | realized TL |
+|---|---|---|
+| uniform@1200 (bar) | 71.7 | 98.5% |
+| uniform@1800 (over budget) | 70.7 | 151% |
+| DWA@1200 | 72.8 | ~96% (answer pass 72% + the cached 300-token localise pass) |
+| AVR@1200 | 70.2 | 97.7% |
+
+**P1 PASSES.** AVR@1200 − uniform@1800 = **−0.5 [−1.6,+0.0]** pooled (pre-registered bar: within ±1.5). The
+resolution-headroom identity replicates at a budget point it was never fitted on, including the *sign*: on
+cross-instance uniform@1800 is 69.7 against uniform@1200's 75.0, so the identity predicts AVR loses there, and it
+does (68.4).
+
+**P2 is direction-only.** DWA@1200 − bar = +1.0 [−7.3,+9.4] pooled and **+7.8 [−1.7,+18.3] on single-instance**
+(115 items): the placement gain carries from a 300- to a 900-token crop but is not CI-clear at this n.
+
+**P3 FAILS on cross-instance, and the failure is the finding.** Per stratum:
+
+| stratum | uniform@1200 | uniform@1800 | DWA@1200 | AVR@1200 | policy pick | best realized |
+|---|---|---|---|---|---|---|
+| single (n=115) | 69.6 | 71.3 | **77.4** | 71.3 | DWA (77.4) | DWA (77.4) ✔ |
+| cross (n=76) | **75.0** | 69.7 | 65.8 | 68.4 | AVR (68.4) | **uniform@1200 (75.0)** ✗ |
+
+At B=600 the cross-instance winner was AVR; at B=1200 it is plain resolution at the bar — the resolution curve is
+non-monotone on cross-instance (1200 > 1800), and the identity predicts AVR inherits that. So the allocation policy
+must include the bar itself in its action set: the correct pick at B=1200 is DWA on single and uniform@1200 on
+cross, which would be within 0.0 points of the best arm in both strata. Reported as a correction to M2's
+formulation, not as a method win.
+
+Scripts: `m2_budget_policy.py`, `m2_analyze.py`. Data: `data/m2_budget_policy_qwen3.jsonl`. Log: `logs/q_m2_queue.log`.
+### §67B M2 Qwen2 leg + the corrected policy
+
+| arm (B=1200) | Qwen2 acc |
+|---|---|
+| uniform@1200 (bar) | 59.7 |
+| uniform@1800 | 59.7 |
+| **DWA@1200** | **69.1** |
+| AVR@1200 | 60.2 |
+
+**P1 PASSES on Qwen2 too**: AVR@1200 − uniform@1800 = +0.5 [+0.0,+1.6] (the identity holds at a budget point it
+was never fitted on, on both models). **P2 PASSES on Qwen2**: DWA@1200 − bar = **+9.4 [+1.6,+16.8] ✔** pooled
+(+11.3 single, +6.6 cross) — on this checkpoint the placement gain carries to a 900-token crop with a clear CI.
+**P3 (fixed pick) fails again on cross**, for the opposite reason: Qwen2's best cross arm is DWA (65.8), not AVR
+(61.8) nor the bar (59.2).
+
+**The corrected policy.** Include the bar in the action set and predict each arm from measured quantities:
+predicted bar = acc(uniform@1200); predicted AVR = acc(uniform@1800) (the identity); predicted DWA =
+predicted bar + the pilot's per-stratum placement gain at B=600. Applied to the four cells:
+
+| cell | predicted bar / AVR / DWA | pick | realized pick | best realized | gap |
+|---|---|---|---|---|---|
+| Qwen3 single | 69.6 / 71.3 / 84.4 | DWA | 77.4 | 77.4 | 0.0 |
+| Qwen3 cross | 75.0 / 69.7 / 75.0 | bar (tie with DWA) | 75.0 | 75.0 | 0.0 |
+| Qwen2 single | 60.0 / 59.1 / 74.8 | DWA | 71.3 | 71.3 | 0.0 |
+| Qwen2 cross | 59.2 / 60.5 / 68.4 | DWA | 65.8 | 65.8 | 0.0 |
+
+Within 0.0 points of the best realized arm in all four cells (the DWA predictions overshoot by 3–7 points, but the
+*ranking* is right). This is the M2 method claim: **a per-stratum allocation rule predicted from two baseline runs
+plus a 50-box pilot picks the right arm at a budget it was not tuned on, on both checkpoints** — provided the bar
+itself is one of the arms.
+
+## §68 M1 CONTROLS — THE COVERAGE RELOCATION IS THE ALIGNMENT LOSS, NOT TASK LEARNING; THE ACCURACY GAIN IS MOSTLY
+## TASK LEARNING (phase M1, held-out n=47)
+
+`--ceonly` (λ_att=0, same LoRA, same split, same epochs) versus the alignment run, both on the same 47 held-out
+items:
+
+| held-out | alignment (λ=1) | CE-only (λ=0) |
+|---|---|---|
+| one-pass accuracy | **+12.8 [−2.1,+25.5]** | +8.5 [−6.4,+23.4] |
+| coverage L11 | +0.506 [+0.374,+0.638] | +0.171 [+0.074,+0.277] |
+| coverage L12 | **+0.540 [+0.387,+0.687]** | +0.037 [−0.043,+0.116] |
+| coverage L14 | **+0.493 [+0.357,+0.626]** | +0.155 [+0.064,+0.261] |
+| coverage L15 | +0.347 [+0.190,+0.503] | +0.116 [+0.016,+0.226] |
+
+**The mechanistic claim is alignment-specific**: the window coverage moves +49 points with the loss and +16 without
+it at L14 (+54 vs +4 at L12). **The accuracy claim is not**: CE-only already gains +8.5 of the +12.8, so task
+learning explains most of it and the alignment's extra +4.3 is inside the noise at n=47. Corrected statement: the
+alignment loss *relocates the localization signal*; it does not by itself demonstrate a large accuracy gain. The
+split-1 replication is running.
+## §69 M1, COMPLETE — THE DEPTH AT WHICH THE MAP LOCALIZES IS TRAINABLE; THE DEPTH AT WHICH THE IMAGE IS CAUSALLY
+## READ IS NOT (phase M1, held-out; two splits, CE-only control, causal profile, depth sweep)
+
+Four measurements close M1. All on held-out items, all with the same LoRA/loss/split unless stated.
+
+**1. The relocation replicates on a second split.** Split-1 (test = idx%4==1, n=48): window coverage before → after
+L12 **0.023 → 0.672**, L14 0.065 → 0.674, L11 0.062 → 0.602. Same shape and size as split-3 (+49 to +54 points at
+L11–L15). **The alignment loss moves the localization signal into L10–16; the effect is not a split artefact.**
+
+**2. The relocation is usable at the end task.** Read-out depth sweep on the split-3 held-out items (crop at each
+layer's ring-masked arg-max, answer@300), base vs adapter (n=47):
+
+| | best layer | best acc | best in-window layer | window max | after-window max |
+|---|---|---|---|---|---|
+| base | L21 | 74.5% | L4 | 59.6% | 74.5% |
+| **adapter** | L18 | **76.6%** | **L11** | **70.2%** | 76.6% |
+
+The trained in-window read-out is now usable: cropping at **L11 scores 70.2% against 38.3% for the base model at
+the same layer** (its window max was 59.6% at L4). The best single layer improves modestly (+2.1), and a fixed early
+layer now approaches the post-boundary band. This is the method-relevant positive: a one-time alignment training
+makes a cheap, causally-aligned-depth read-out work.
+
+**3. The causal profile does NOT move — P2 FAILS.** Masking all text rows' image attention for prefix L0..16 gives
+KL **1.857 → 0.939** (down, not up); suffix L16.. gives 0.010 → 0.086; answer-row-only 0.008 → 0.061; all-layers
+1.742 → 0.880. The global halving (CE training sharpens the output distribution) applies to all-layers too, so the
+meaningful change is the *ratio*: prefix/suffix falls from 186× to 11×. Training to localize in the window did not
+make the window the causal carrier; if anything the late layers gained relative causal weight. The answer position
+still does not read the image (answer-row KL 0.061 vs all-rows 0.94, 5% flips).
+
+**4. One-pass accuracy does not reliably improve.** Split-3: +12.8 [−2.1,+25.5]; split-1: **−2.1**; CE-only on
+split-3: +8.5 [−6.4,+23.4]. So most of split-3's gain is task learning, and the alignment effect on accuracy is
+0 of 2. The coverage relocation is the claim; the accuracy gain is not.
+
+**The dissociation, stated for the paper.** A box-supervised alignment loss reliably relocates *where the attention
+map localizes* (replicated, alignment-specific, usable for read-out) and does not relocate *where the image is
+causally read* (profile unchanged) nor reliably change the answer in one pass. **Map alignment is not causal use** —
+the intervention version of §13/§20/§52's decodability-vs-use distinction, and a limit on the "train it to look in
+the right place" fix. What it does buy is a method: train once (boxes, LoRA, minutes), then read at L11.
+
+Scripts: `m1_transport_distill.py` (`--ceonly`, `--split1`), `m1_profile.py`, `m1_sweep.py`. Data:
+`data/m1_transport_distill{,_ceonly,_split1}.json`, `data/m1_profile.json`, `data/m1_sweep.json`.

@@ -276,3 +276,31 @@ cd paper && ~/.local/bin/tectonic -X compile main.tex --keep-logs
 
 **One process-safety note.** Twice in this session a `pkill -f <pattern>` killed the caller because the
 pattern appeared in the caller's own command line. Kill by PID, or exclude ancestry.
+
+---
+
+## Addendum (2026-09-22, 02:20) — information-theoretic theorems added
+
+The user asked for "a solid information-theoretic theorem about why DWA and AVR work". Added as **Theorems 3 and 4
+in `app:theory`** (`paper/main.tex`, labels `thm:info`, `thm:horizon`), with proofs, and logged as **`FINDINGS §64`**.
+The section intro now reads "four theorems, three propositions and two lemmas"; your old **Proposition 1
+(post-boundary inertness) was replaced by Theorem 4** because the theorem strictly subsumes it (zero-information
+premise instead of distribution equality, plus the horizon), and keeping both would have been redundant. Your
+validation paragraph (r=0.966/0.911, 0.5pp slippage, 96.3% keep-set) was preserved verbatim inside Theorem 4.
+
+**Theorem 3 (decoding bound).** For any decision ĉ and target T: I(ĉ;T) ≤ H(ĉ); I(ĉ;T) ≥ Fano; constant ⇒ 0 bits.
+Measured (exact, no estimation): the maps' oracle decision *is* the target, so I(oracle;T) = H(T) = 6.06 bits, while
+the literal block-mean decoder has H(ĉ) = 1.02/3.46 bits (last-column 84.8%/61.8%) → **certified gap ≥5.0/≥2.6
+bits**. The ring mask restores entropy but not accuracy; the fitted read-out matches entropy with higher coverage.
+Corollary: the bounds mention only decision *entropy* and *accuracy* — never cancellation — which is the
+information-theoretic statement of why the sign of the weights does not matter (ties to the NNLS result).
+
+**Theorem 4 (information horizon).** Value-inertness ⇒ pruning is information-free; AVR's gain is the resolution
+information gain bounded by DPI; the information-bearing depth is p+1, so the affordable multiplier is
+N/(p+1) = 1.647× (1.547× at keep 10%). Premise validated with its violation Pinsker-bounded:
+TV ≤ 0.033–0.044 at the boundary vs 0.36–0.41 one window earlier.
+
+New artifacts: `scripts/phase207_infotheory.py`, `data/phase207_infotheory.json`, `logs/q_207_infotheory.log`.
+Histogram MI estimates at coarse bins were inconclusive and are **not** used; the claims rest on exact entropies,
+exact oracle information, Fano and Pinsker. Nothing committed. If you edit `app:theory`, do not re-add a separate
+post-boundary-inertness proposition — Theorem 4 is it.
