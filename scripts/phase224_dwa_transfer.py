@@ -36,7 +36,9 @@ from transformers import AutoProcessor, AutoModelForImageTextToText
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; Image.MAX_IMAGE_PIXELS=None; W=0.25
 MODELS={"qwen3_2b":("Qwen/Qwen3-VL-2B-Instruct","qwen3"),"qwen2_7b":("Qwen/Qwen2-VL-7B-Instruct","qwen2"),
         "llava_ov":("llava-hf/llava-onevision-qwen2-7b-ov-hf","llava_ov"),
-        "llava_next":("llava-hf/llava-v1.6-vicuna-7b-hf","llava_next")}
+        "llava_next":("llava-hf/llava-v1.6-vicuna-7b-hf","llava_next"),
+        "smolvlm":("HuggingFaceTB/SmolVLM-Instruct","smolvlm"),
+        "internvl3_8b":("OpenGVLab/InternVL3-8B-hf","internvl3_8b")}
 MK,BK = sys.argv[1], sys.argv[2]
 N=int(sys.argv[3]) if len(sys.argv)>3 else 300
 mid,wtag=MODELS[MK]
@@ -101,13 +103,23 @@ def fit_budget(img,target,refine=6,tol=0.08):
         sc*=(target/r)**0.5
     return best[0]
 def answer(img,q,B):
+    """Returns (probs, visual_token_count). The count matters: on anyres families fit_budget
+    CANNOT reach a 300-token crop because the achievable floor is ~1317, so bar and crop both land
+    on the floor and DWA still totals ~2x the bar. `dwa_t - bar` is therefore NOT equal-compute on
+    those families; `dwa_t - block` is, since both pay the same localise pass and one crop."""
     inp=build(fit_budget(img,B),q).to(model.device)
+    n=int((inp["input_ids"][0]==itid).sum())
     with torch.no_grad(): lg=model(**inp).logits[0,-1].float()
     p=torch.softmax(torch.stack([torch.logsumexp(lg[i],0) for i in MCQ]),0)
-    del inp; torch.cuda.empty_cache(); return [round(float(v),6) for v in p.tolist()]
+    del inp; torch.cuda.empty_cache(); return [round(float(v),6) for v in p.tolist()], n
 def localise(img,q,B=300):
-    """one forward at the localise budget; return per-layer last-row attention over the image grid"""
-    inp=build(fit_budget(img,B),q).to(model.device)
+    """One forward at the localise budget; return per-layer last-row attention over the image grid.
+    If the layout carries a `resize`, the localise pass uses that FIXED square input instead of the
+    token budget: the weights were fitted (phase214) on features built that way, and applying them
+    to a differently-tiled grid would be applying them to a different feature space."""
+    L=LAYOUT.get(MK) or {}
+    src=img.resize((L["resize"],L["resize"]),Image.BICUBIC) if L.get("resize") else fit_budget(img,B)
+    inp=build(src,q).to(model.device)
     gh,gw,off=grid_of(inp)
     if gh*gw==0: del inp; torch.cuda.empty_cache(); return None
     pos=(inp["input_ids"][0]==itid).nonzero().flatten()
@@ -141,13 +153,27 @@ def crop(img,cx,cy):
 from datasets import load_dataset
 cfg="hrbench_4k" if BK=="hr4k" else "hrbench_8k"
 ds=load_dataset("DreamMr/hr-bench","hrbench_version_split")[cfg]
-items=[]
+# HR-Bench is 200 unique questions x 4 cyclic option permutations (group = index//4, one category
+# per group). Sample COMPLETE groups, stratified over single/cross, so cycles are never split and
+# both strata are represented; the group id is stored so CIs can cluster-bootstrap by question
+# rather than by item (items inside a cycle share an image and are correlated).
+byg={}
 for e in ds:
-    if len(items)>=N: break
+    i=int(e.get("index",0)); g=i//4
     q=e["question"]+"\n"+"\n".join(f"({c}) {e[c]}" for c in "ABCD" if c in e)+\
       "\nAnswer with the option's letter from the given choices directly."
-    items.append((str(e.get("index",len(items))),e["image"],q,"ABCD".index(str(e["answer"]).strip()[0]),
-                  e.get("category","all")))
+    byg.setdefault(g,[]).append((str(i),e["image"],q,"ABCD".index(str(e["answer"]).strip()[0]),
+                                 e.get("category","all"),g,str(e.get("cycle_category",""))))
+sing=sorted(g for g,v in byg.items() if v[0][4]=="single")
+cros=sorted(g for g,v in byg.items() if v[0][4]=="cross")
+ngrp=max(1,N//4); take=[]
+for k in range(max(len(sing),len(cros))):
+    if len(take)>=ngrp: break
+    if k<len(sing) and len(take)<ngrp: take.append(sing[k])
+    if k<len(cros) and len(take)<ngrp: take.append(cros[k])
+items=[it for g in sorted(take) for it in byg[g]]
+ns=sum(1 for it in items if it[4]=="single"); nc=len(items)-ns
+print(f"{BK}: {len(items)} items from {len(take)} groups  (single {ns}, cross {nc})",flush=True)
 print(f"{BK}: {len(items)} items",flush=True)
 
 def as_img(v):
@@ -158,14 +184,14 @@ def as_img(v):
 
 # ---- pass 1: features for every item (needed to standardise on the TARGET distribution) ----
 FE=[]; keep=[]
-for i,(qid,imv,q,lab,cat) in enumerate(items):
+for i,(qid,imv,q,lab,cat,grp,cyc) in enumerate(items):
     try: img=as_img(imv)
     except Exception as ex: print(f"  item {qid}: image decode failed: {ex}",flush=True); continue
     r=localise(img,q)
     if r is None:
         print(f"  item {qid}: no usable grid; skipped",flush=True); continue
     A,gh,gw=r; X,dep=feats(A,gh,gw)
-    FE.append((X,dep,gh,gw)); keep.append((qid,img,q,lab,cat))
+    FE.append((X,dep,gh,gw)); keep.append((qid,img,q,lab,cat,grp,cyc))
     if (i+1)%25==0: print(f"  feats [{i+1}/{len(items)}]",flush=True)
 if not FE: raise SystemExit("no items produced a usable grid -- layout is wrong for this family")
 ALL=np.vstack([x for x,_,_,_ in FE]); mu,sd=ALL.mean(0),ALL.std(0)+1e-9
@@ -175,7 +201,7 @@ done=set()
 if os.path.exists(OUT): done={json.loads(l)["qid"] for l in open(OUT)}
 t0=time.time()
 with open(OUT,"a") as f:
-    for (X,dep,gh,gw),(qid,img,q,lab,cat) in zip(FE,keep):
+    for (X,dep,gh,gw),(qid,img,q,lab,cat,grp,cyc) in zip(FE,keep):
         if qid in done: continue
         rm=ringmask(gh,gw)
         s=np.c_[(X-mu)/sd,np.ones(len(X))]@Wv
@@ -183,10 +209,10 @@ with open(OUT,"a") as f:
         c_t=((j%gw+.5)/gw,(j//gw+.5)/gh)
         k=int(np.argmax(np.where(rm.ravel(),dep.ravel(),-1e9)))
         c_b=((k%gw+.5)/gw,(k//gw+.5)/gh)
-        rec={"qid":qid,"category":cat,"label":lab,"grid":[gh,gw],
+        rec={"qid":qid,"category":cat,"label":lab,"group":grp,"cycle":cyc,"grid":[gh,gw],
              "cell":{"dwa_t":list(c_t),"block":list(c_b)},
-             "probs":{"bar":answer(img,q,600),
-                      "block":answer(crop(img,*c_b),q,300),
-                      "dwa_t":answer(crop(img,*c_t),q,300)}}
+             "probs":{},"tokens":{}}
+        for nm,im_,B_ in (("bar",img,600),("block",crop(img,*c_b),300),("dwa_t",crop(img,*c_t),300)):
+            pr_,nt_=answer(im_,q,B_); rec["probs"][nm]=pr_; rec["tokens"][nm]=nt_
         f.write(json.dumps(rec)+"\n"); f.flush()
 print(f"Done -> {OUT}  ({(time.time()-t0)/60:.1f} min)",flush=True)

@@ -11,12 +11,20 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF","expandable_segments:True")
 from transformers import AutoProcessor, AutoModelForImageTextToText
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; Image.MAX_IMAGE_PIXELS=None
 MK=sys.argv[1]; N=int(sys.argv[2]) if len(sys.argv)>2 else 24
-MID={"llava_next":("llava-hf/llava-v1.6-vicuna-7b-hf",336),"gemma3_4b":("google/gemma-3-4b-it",None)}[MK]
+MID={"llava_next":("llava-hf/llava-v1.6-vicuna-7b-hf",336),"gemma3_4b":("google/gemma-3-4b-it",None),
+     "smolvlm":("HuggingFaceTB/SmolVLM-Instruct",384),
+     "internvl3_8b":("OpenGVLab/InternVL3-8B-hf",448)}[MK]
 mid,base_px=MID
 model=AutoModelForImageTextToText.from_pretrained(mid,dtype=torch.bfloat16,device_map={"":0},
                                                   attn_implementation="eager").eval()
 pr=AutoProcessor.from_pretrained(mid)
-layers=model.model.language_model.layers; NL=len(layers)
+layers=None
+for _f in (lambda m:m.model.language_model.layers, lambda m:m.language_model.model.layers,
+           lambda m:m.model.text_model.layers, lambda m:m.model.layers):
+    try: layers=_f(model); break
+    except Exception: pass
+assert layers is not None, "decoder layers not found"
+NL=len(layers)
 itid=getattr(model.config,"image_token_id",getattr(model.config,"image_token_index",None))
 print(f"{MK}: NL={NL} itid={itid}  sliding_window={getattr(model.config.text_config,'sliding_window',None) if hasattr(model.config,'text_config') else None}",flush=True)
 def chat(t): return pr.apply_chat_template([{"role":"user","content":[{"type":"image"},{"type":"text","text":t}]}],tokenize=False,add_generation_prompt=True)
@@ -48,6 +56,12 @@ def cov(cx,cy,gt):
     gx0,gy0,gx1,gy1=gt
     return max(0.,min(gx1,x1)-max(gx0,x0))*max(0.,min(gy1,y1)-max(gy0,y0))/max((gx1-gx0)*(gy1-gy0),1e-12)
 n_img=recs[0]["n_img"]
+import collections as _c
+_n=_c.Counter(r["n_img"] for r in recs).most_common(1)[0][0]
+_drop=[r for r in recs if r["n_img"]!=_n]
+if _drop: print(f"  dropping {len(_drop)} items whose token count != modal {_n}",flush=True)
+recs=[r for r in recs if r["n_img"]==_n]
+n_img=_n
 np.save(f"{D}/data/phase220b_dump_{MK}.npy",np.stack([r["attn"] for r in recs]))
 json.dump([{"qid":r["qid"],"gt":r["gt"],"n_img":r["n_img"]} for r in recs],open(f"{D}/data/phase220b_meta_{MK}.json","w"))
 cands=[]

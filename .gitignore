@@ -29,3 +29,5 @@ models/
 *.bin
 *.tgz
 data/phase173_*heads.npz
+build/
+paper/build/

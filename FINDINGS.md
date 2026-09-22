@@ -8647,3 +8647,240 @@ the right place" fix. What it does buy is a method: train once (boxes, LoRA, min
 
 Scripts: `m1_transport_distill.py` (`--ceonly`, `--split1`), `m1_profile.py`, `m1_sweep.py`. Data:
 `data/m1_transport_distill{,_ceonly,_split1}.json`, `data/m1_profile.json`, `data/m1_sweep.json`.
+
+## §70 ⚠ CORRECTION — THE SCOPE SECTION'S "93.4%" WAS A CONTAINMENT CLAIM BACKED BY A COVERAGE NUMBER
+
+`scripts/check_union_window.py` (CPU, V*Bench box JSONs). The paper asserted that "a W=0.25 window
+*can contain both boxes* on 93.4% of relational items", citing §33's `1-crop oracle (union) 93.4%`
+row. Those are different quantities. Recomputing strict containment — does the union of the GT boxes
+fit inside a single W=0.25 window in both axes — on the same item set (54 multi-box
+`relative_position` items, mean 1.71 boxes, matching §33 exactly):
+
+| quantity | value |
+|---|---|
+| union fits inside one W=0.25 window | **32/54 = 59.3%** |
+| §33's "1-crop oracle (union)" | 93.4% |
+
+So on ~41% of relational items **no fixed W=0.25 window can contain the evidence at all**, and the
+fixed window size is itself a cause of the cross-instance failure — not merely the placement. The
+paper's argument ("the cause is not that the window excludes the second object") was therefore
+overstated in the direction that flattered the method. Corrected in `sec:scope`: the geometric cause
+is now reported at 59.3%, with the non-recovery claim restricted to the 59.3% where a containing
+window does exist.
+
+**This is the fourth coverage-style metric in this project that over-reported against the quantity
+actually claimed** (after the L20 exit, the label-free normalisation, and the log-only feature
+ablation). The pattern is now consistent enough to belong in the paper as a methodological point
+rather than as four separate footnotes.
+
+## §71 ★★★ DWA TRANSFERS OFF V*: V*-FITTED WEIGHTS, APPLIED COLD TO HR-BENCH, ON BOTH QWEN CHECKPOINTS
+
+`phase224_dwa_transfer.py`, `table_transfer.py`. Weights fitted OOF on V* (`fig_ridge_w_*.npy`),
+applied to HR-Bench with NO refit; only the feature standardisation is recomputed on the target
+(label-free). Arms at the bar: `bar` uniform@600, `block` depth-block arg-max crop, `dwa_t` transfer
+crop. n=400 items / 100 question groups per cell; CIs are a CLUSTER bootstrap over groups, because
+HR-Bench is 200 questions x 4 cyclic option permutations and the 4 items in a cycle share an image.
+
+**PRE-REGISTERED** (fixed in the phase224 docstring before any HR-Bench number was seen): adopt iff
+`dwa_t - block` excludes zero on >=2 of 4 cells. Beating `bar` alone was explicitly ruled insufficient.
+
+| cell | pooled `dwa_t - block` | verdict |
+|---|---|---|
+| Qwen2-VL-7B HR-4k | **+14.5 [+7.5,+21.8]** | ✔ |
+| Qwen2-VL-7B HR-8k | **+9.2 [+2.0,+17.0]** | ✔ |
+| Qwen3-VL-2B HR-4k | +5.2 [−2.0,+12.5] | ✗ |
+| Qwen3-VL-2B HR-8k | +5.8 [−1.0,+12.8] | ✗ |
+
+**RESULT: 2 of 4 -> ADOPT**, but it clears the bar exactly, and the split is NOT random: both
+Qwen2-VL-7B cells pass and both Qwen3-VL-2B cells fail. The pooled effect is model-structured and
+must be reported that way, not as "2 of 4".
+
+**The stratified picture is stronger and more consistent.** `dwa_t - block` on single-instance:
++9.5✔, +5.0 n.s., +10.5✔, +10.0✔ — 3 of 4 CI-clear, all positive, all ≈+5 to +10, matching the V*
+margins (+10.5 Qwen3 / +11.0 Qwen2). The placement DOES carry across benchmarks.
+
+**The scope law replicates on a second benchmark family, 4/4 in direction.** `dwa_t - bar` on
+cross-instance: −13.5✔, −10.0 n.s., −15.5✔, −17.5✔. HR-Bench is a balanced 400/400 single/cross
+design, so the flat pooled `dwa_t - bar` (−0.2, −2.2, −1.8, −3.8) is a MIXTURE ARTEFACT: a real
++5..+13 on half the data averaged against a real −10..−17 on the other half. Pooled accuracy on a
+balanced benchmark is the wrong statistic for a method with a scope law.
+
+**The incumbent collapses on cross-instance**: `block - bar` = −33.0✔, −23.5✔, −15.5✔, −19.0✔.
+Depth-weighted placement is far less wrong than single-block placement even where cropping is the
+wrong thing to do (`dwa_t - block` on cross: +19.5✔, +13.5✔, +0.0, +1.5).
+
+## §72 ★★★ GEMMA-3: THE INCUMBENT READ-OUT IS WORTH ZERO, DEPTH RE-WEIGHTING IS WORTH +16.2
+
+`phase215_dwa_eval.py gemma3_4b` -> `phase215b_dwaeval_gemma3_4b.jsonl`, V*, n=191.
+
+**This run only happened because the guard was wrong.** phase214/215 aborted Gemma on
+`assert block_mean_coverage > 2*chance`. That gates on the INCUMBENT, while its stated job was
+validating the grid assumption. On Gemma those come apart: block-mean coverage is 0.071 vs chance
+0.066 (1.1x) while the OOF ridge on the SAME maps reaches 0.395 (6.0x). A scrambled grid would put
+every read-out at chance, so the ridge is the stronger test of the assumption. Guard moved to the
+ridge; block-mean is now reported as a result. Earlier claims that "DWA extraction on Gemma is at
+chance" were an artefact of gating on the baseline and are WITHDRAWN.
+
+| arm | acc | visual tokens |
+|---|---|---|
+| bar | 36.1 | 256 |
+| bar_matched | 35.6 | 256 |
+| block-mean (incumbent) | 36.6 | 256 |
+| **DWA** | **52.9** | 256 (+256 localise) |
+
+- DWA − block **+16.2 [+9.4,+23.6] ✔**
+- DWA − bar **+16.8 [+9.4,+24.1] ✔**
+- block − bar **+0.5 [−6.8,+7.9]** — the published rule buys nothing on this architecture
+- single `direct_attributes` **+21.7 [+11.3,+32.2] ✔**; cross `relative_position` +9.2 [+0.0,+18.4] n.s.
+
+**COST, stated honestly.** DWA is 2.00x the bar (512 vs 256 tokens). `bar_matched` — a single pass
+at the DWA total — came back at 256 tokens, IDENTICAL to bar, because Gemma-3 encodes every image
+at a fixed 256 tokens. The bar cannot absorb the extra compute. So the 2x price is real, but on
+this architecture a second pass is the ONLY way to spend more compute on vision (AVR is impossible
+here for the same reason: 0 flips, bitwise-identical arms, E_lo==E_hi==256). Gemma is the cleanest
+case in the project of the paper's thesis: same attention, same budget per pass; selecting one
+depth block gains nothing, re-weighting depth gains +16.2.
+
+## §73 ⚠ phase215 WAS NOT BUDGET-MATCHED — earlier LLaVA-OV DWA number withdrawn
+
+phase215 compared a 384x384 downscaled `bar` against NATIVE-resolution crops and recorded no token
+counts. Measured on LLaVA-OV V* images: the crop pass alone costs 1.09-1.58x the bar (1845-2358 vs
+1494 tokens), and DWA also needs the localise pass, so the reported "+14.1 DWA − bar" ran at
+~2.1-2.6x the bar's compute. It was tabulated next to the Qwen numbers, which ARE budget-matched
+via phase223. **That number is withdrawn.** phase215 now records every arm's visual-token count and
+adds `bar_matched`, a single pass at the DWA total. Re-running.
+
+## §74 ⚠ HONEST NEGATIVE — DWA TRANSFER ADDS NOTHING OVER THE INCUMBENT ON LLaVA-OneVision
+
+`phase224_dwa_transfer.py llava_ov hr8k 400`, cluster bootstrap over 100 question groups.
+
+| stratum | bar | block | dwa_t | dwa_t − block |
+|---|---|---|---|---|
+| pooled | 50.7 | 51.7 | 53.5 | +1.8 [−3.0,+6.8] n.s. |
+| single | 48.5 | 56.5 | 55.5 | **−1.0 [−8.0,+7.0]** n.s. |
+| cross | 53.0 | 47.0 | 51.5 | +4.5 [−1.5,+10.0] n.s. |
+
+DWA does NOT beat the block-mean incumbent on this family. Note `block − bar` on single is +8.0:
+unlike Gemma, the published read-out genuinely works on LLaVA-OV, so there is little to repair.
+
+**Scope of the pre-registration, corrected.** `table_transfer.py` initially printed "2 of 5 -> ADOPT"
+after llava_ov landed. The rule was registered over the FOUR QWEN cells; letting a later family grow
+the denominator against a fixed >=2 threshold silently weakens the test. The script now reports the
+registered rule over Qwen cells only (2 of 4 -> ADOPT) and lists other families as out-of-sample.
+
+**A hypothesis, NOT a finding.** The DWA−block margin looks largest where block is worst (Gemma
+block at 1.1x chance -> +16.2; LLaVA-OV block working -> ~0). But Qwen3's block coverage (0.466) is
+close to LLaVA-OV's (0.453) while DWA still gains +10.5 on V*, so the relationship does not hold
+cleanly. Recorded as a lead, not a mechanism.
+
+**Consequence for the paper's claim.** DWA's advantage over the incumbent is NOT universal across
+architectures. Supported on Qwen2-VL-7B, Qwen3-VL-2B and Gemma-3-4B; absent on LLaVA-OneVision.
+That must be stated as a scope limit, not averaged away.
+
+## §75 ★★★ ON LLaVA-OV, DWA'S ENTIRE APPARENT GAIN WAS COMPUTE, NOT PLACEMENT — and the headroom
+## identity says exactly when that happens
+
+`phase215_dwa_eval.py llava_ov` with the §73 cost accounting -> `phase215b_dwaeval_llava_ov.jsonl`,
+V*, n=191. `bar_matched` is a single pass at the DWA TOTAL (localise + crop).
+
+| arm | acc | visual tokens |
+|---|---|---|
+| bar | 52.9 | 1485 |
+| block-mean | 61.8 | 1882 |
+| DWA | 67.0 | 1882 (+1485 localise = 3367) |
+| **bar_matched** | **66.0** | **2900** |
+
+- DWA − bar **+14.1 [+7.3,+21.5] ✔**  <- the WITHDRAWN number, reproduces exactly
+- DWA − block +5.2 [−1.0,+11.5] n.s.
+- **DWA − bar_matched +1.0 [−5.8,+7.9] n.s.**  <- the honest equal-compute comparison
+
+**DWA buys nothing on LLaVA-OV once compute is matched.** The +14.1 was 2.27x the bar's budget.
+This is the exact critique this paper levels at the published family ("none budget-match; at equal
+compute the family is worth −1.6 to +3.1") landing on OUR OWN method. It must be reported that way.
+
+**When does DWA beat the matched bar? When the architecture has no resolution headroom left.**
+
+| model | bar | bar_matched | headroom | DWA − bar_matched |
+|---|---|---|---|---|
+| Gemma-3-4B | 36.1 | 35.6 | **0.0** (fixed 256 tok, no ladder) | **+17.3 ✔** |
+| LLaVA-OneVision-7B | 52.9 | 66.0 | **+13.1** | +1.0 n.s. |
+
+Gemma CANNOT convert compute into resolution -- every image encodes to 256 tokens -- so a second
+pass is the only way to spend it and DWA's gain is real. LLaVA-OV has 13 points of unspent headroom,
+and buying resolution works as well as cropping. This is the SAME resolution-headroom identity that
+governs AVR (AVR gain = acc@hi − acc@lo, r=0.966), now governing DWA's value too. Caveat: Qwen has
+headroom AND DWA still beats its matched bar (+8.9/+12.0, budget-matched by construction in
+phase223), so headroom alone does not fully determine the outcome. Recorded as a strong regularity
+with a known exception, not a law.
+
+## §74B ⚠ CORRECTION TO §74 — LLaVA-OV IS WEAKLY POSITIVE, NOT NULL. §74 generalised from one cell.
+
+§74 was written when only the HR-8k cell existed and claimed "DWA transfer adds nothing over the
+incumbent on LLaVA-OV". The HR-4k cell then came in significant. Full picture, block-relative:
+
+| cell | `dwa_t − block` (or `dwa − block` on V*) | |
+|---|---|---|
+| V* (phase215b) | +5.2 [−1.0,+11.5] | n.s. |
+| HR-4k | **+6.2 [+1.0,+12.2]** | ✔ |
+| HR-8k | +1.8 [−3.0,+6.8] | n.s. |
+
+All three positive, 1 of 3 CI-clear. The honest statement is **weakly positive on LLaVA-OV**, not
+null. §74's headline overgeneralised from a single cell and is superseded.
+
+**Which comparison is cost-fair, and which is not.** On anyres families `fit_budget` cannot reach
+the 300-token crop target because the achievable floor is ~1317, so BOTH `bar` and the crop land on
+the floor and DWA still totals ~2x the bar. Therefore on these families:
+  - `dwa_t − bar` is **NOT** budget-matched and must not be quoted as an equal-compute result
+    (llava_ov HR-4k single shows +20.5 ✔ this way -- inflated exactly as the V* +14.1 was).
+  - `dwa_t − block` **IS** cost-fair: both arms pay the same localise pass and one crop at the same
+    budget. This is what was pre-registered, and it is the number to report.
+**GAP: phase224 does not record token counts**, unlike phase215b. It should, so the cost of every
+transfer arm is auditable rather than inferred. Logged for fixing.
+
+## §76 ★★★ FOUR FAMILIES: DWA BEATS THE PUBLISHED READ-OUT ON 4 OF 5. The stronger claim holds on 3.
+
+`table_dwa_families.py` (regenerates from raw per-item outputs). V*, n=191 per family.
+
+| model | bar | block | DWA | bar_matched | cost | DWA−block (cost-fair) | DWA−bar_matched |
+|---|---|---|---|---|---|---|---|
+| Qwen3-VL-2B | 63.9 | 62.3 | 72.8 | — | 1.00x | +10.5 ✔ (phase184) | **+8.9 ✔** |
+| Qwen2-VL-7B | 58.1 | 59.2 | 70.2 | — | 1.00x | +11.0 ✔ (phase184) | **+12.0 ✔** |
+| Gemma-3-4B | 36.1 | 36.6 | 52.9 | 35.6 | 2.00x | **+16.2 ✔** | **+17.3 ✔** |
+| InternVL3-8B | 60.2 | 66.0 | 76.4 | 70.7 | 8.37x | **+10.5 [+3.7,+17.3] ✔** | +5.8 [−2.1,+13.6] |
+| LLaVA-OV-7B | 52.9 | 61.8 | 67.0 | 66.0 | 2.27x | +5.2 [−1.0,+11.5] | +1.0 [−5.8,+7.9] |
+
+**TWO CLAIMS, DIFFERENT SCOPE — do not conflate them.**
+1. "Depth re-weighting beats the published single-block read-out." `DWA − block`, cost-fair (both
+   arms pay one localise pass + one crop at the same budget). **4 of 5 families ✔**. LLaVA-OV
+   positive, n.s.
+2. "Cropping is worth it at all versus spending the same compute on resolution." `DWA − bar_matched`.
+   **3 of 5 ✔**. Fails on InternVL and LLaVA-OV — precisely the two families with resolution
+   headroom left to spend (§75).
+
+**InternVL's 8.37x cost ratio is a WEAK-BAR artefact, not a real 8x method cost.** Its ladder jumps
+from 256 tokens (one tile @448px) straight to 1792, so fit_budget targeting 600 lands on 256 while
+the native-resolution crop costs ~1792. `bar_matched` (70.7) is the meaningful reference; the 60.2
+bar is not, and the +16.2 "literature-style" figure from it must not be quoted.
+
+**Independent support for the transport account.** InternVL's layout probe found its best read-out
+band at L18–27 of 28 — post-boundary, on an architecture the theory was never fitted to, with the
+same 28-layer depth as Qwen so no rescaling is needed.
+
+## §77 TRANSFER IS WEAK OUTSIDE QWEN — 1 of 3 out-of-sample cells
+
+With InternVL3-8B HR-4k in, the block-relative transfer picture beyond the pre-registered Qwen cells:
+
+| cell | `dwa_t − block` | |
+|---|---|---|
+| LLaVA-OV HR-4k | +6.2 [+0.8,+12.0] | ✔ |
+| LLaVA-OV HR-8k | +1.8 [−3.0,+6.5] | n.s. |
+| InternVL3-8B HR-4k | +0.8 [−3.8,+5.2] | n.s. |
+
+The pre-registered rule (Qwen cells only) still reads 2 of 4 -> ADOPT and is unchanged; these are
+out-of-sample and do not enter it. But the honest summary is that **V*-fitted weights transfer to a
+new benchmark reliably only on Qwen**. Note this does NOT affect §76: InternVL's DIRECT V* fit beats
+the incumbent by +10.5 ✔. What fails to carry is the cold weight transfer, not the method.
+
+Also note `block − bar` on InternVL HR-4k single is +13.0 ✔ — as on LLaVA-OV, the incumbent read-out
+works well on this architecture, leaving little for re-weighting to add. The two families where
+transfer fails are the two where block already works.

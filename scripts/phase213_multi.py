@@ -27,6 +27,7 @@ MK, BK = sys.argv[1], sys.argv[2]
 N_ITEMS=int(sys.argv[3]) if len(sys.argv)>3 else 200
 OUT=f"{D}/data/phase213_{MK}_{BK}.jsonl"
 E_LO,E_HI,K=600,900,0.10
+E_CAP=3000   # visual-token ceiling: above this the hi arm OOMs a 48GiB card on 7B checkpoints
 
 # ---------------- benchmarks ----------------
 def load_bench(key):
@@ -135,14 +136,33 @@ def main():
     achievable=sorted({ntok(build(probe.resize((max(32,int(1200*f)),max(32,int(900*f)))),"x"))
                        for f in (0.12,0.2,0.28,0.4,0.56,0.8,1.0,1.6,2.2)})
     achievable=[a for a in achievable if a>0]
-    E_lo_a=achievable[0]; best=None
-    for E in achievable[1:]:
-        k=(E_lo_a*NL - E*(P+1))/max(E*(NL-1-P),1)
-        if k>=0.05 and (best is None or E>best[0]): best=(E,k)
-    if best is None:
-        E_hi_a,K_a,feasible=achievable[-1],K,False
+    # The bar is the achievable count NEAREST the intended budget, not the smallest one. Taking the
+    # minimum made the "600-token bar" a 20-token bar on Qwen's native dynamic resolution (its
+    # achievable set reaches down to 20), which is not the equal-compute bar the paper claims.
+    # For anyres tilers the minimum usually IS the nearest, so their behaviour is unchanged.
+    # Is this architecture's resolution axis CONTINUOUS or quantised? The 9-point probe ladder above
+    # is only a coarse sample: Qwen scales visual tokens continuously with image size, so 600/900 are
+    # reachable and the ladder merely missed them. Taking achievable[0] there made the "600-token
+    # bar" a 20-token bar and sent the hi arm to 6674 tokens (21 GiB -> OOM). Decide by asking fit()
+    # directly, and only fall back to the discrete ladder for anyres tilers that truly quantise.
+    _,r_lo=fit(probe,E_LO); _,r_hi=fit(probe,E_HI)
+    continuous=(abs(r_lo-E_LO)/E_LO<=0.10 and abs(r_hi-E_HI)/E_HI<=0.10)
+    if continuous:
+        E_lo_a,E_hi_a=E_LO,E_HI
+        k=(E_LO*NL - E_HI*(P+1))/max(E_HI*(NL-1-P),1)
+        feasible=k>=0.05; K_a=min(k,0.5) if feasible else K
+        print(f"   resolution axis CONTINUOUS (probe hit {r_lo}/{r_hi} for {E_LO}/{E_HI})",flush=True)
     else:
-        E_hi_a,K_a,feasible=best[0],min(best[1],0.5),True
+        E_lo_a=min(achievable,key=lambda a:abs(a-E_LO)); best=None
+        hi_cands=[a for a in achievable if a>E_lo_a and a<=E_CAP]
+        for E in hi_cands:
+            k=(E_lo_a*NL - E*(P+1))/max(E*(NL-1-P),1)
+            if k>=0.05 and (best is None or E>best[0]): best=(E,k)
+        if best is None:
+            E_hi_a,K_a,feasible=(hi_cands[0] if hi_cands else E_lo_a),K,False
+        else:
+            E_hi_a,K_a,feasible=best[0],min(best[1],0.5),True
+        print(f"   resolution axis QUANTISED (anyres); using the achievable ladder",flush=True)
     print(f"   achievable visual-token counts: {achievable}",flush=True)
     print(f"   bar E_lo={E_lo_a}  AVR E_hi={E_hi_a}  keep k={K_a:.3f}  "
           f"{'FEASIBLE' if feasible else 'NOT budget-feasible (resolution axis too coarse)'}",flush=True)

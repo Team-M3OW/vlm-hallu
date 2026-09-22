@@ -33,24 +33,24 @@ Vision--language models on high-resolution imagery must decide where to spend a 
 evidence not given resolution is destroyed before the language model runs. The prevailing remedy is
 attention-guided cropping: read the model's own attention over image positions, crop where it peaks, re-encode.
 Every such method must choose a depth at which to read that map, and published methods hand-pick a single layer or
-average a fixed block.
-We show that this choice dominates every other design decision, and that the depth these methods read is not the
-depth at which the image reaches the answer. Masking text-to-image attention layer by layer localises that transport
-to the first two thirds of the stack: blocking every layer from layer~16 of~28 onward leaves the answer almost
-unchanged (KL $0.014$/$0.029$; $12\%$/$5\%$ of answers flipped) and from layer~20 onward flips essentially none.
-The boundary falls at the same fraction of depth, $0.57$, on a $36$-layer checkpoint as on the two $28$-layer ones,
+average a fixed block. We show this choice dominates every other design decision, and that the depth these methods
+read is not the depth at which the image reaches the answer. Masking text-to-image attention layer by layer
+localises that transport to the first two thirds of the stack: blocking every layer from layer~16 of~28 onward
+leaves the answer almost unchanged (KL $0.014$/$0.029$) and from layer~20 onward flips essentially no answers. The
+boundary falls at the same fraction of depth, $0.57$, on a $36$-layer checkpoint as on the two $28$-layer ones,
 entirely before the band these methods read.
-Two policies follow from that measurement rather than from tuning. \textbf{Depth-Weighted Attention} (DWA)
-replaces a hand-picked depth with one closed-form ridge solve over the whole depth profile, fitted from about
-fifty boxed examples. \textbf{Adaptive Visual Resolution} (AVR) discards
-$90\%$ of visual tokens at the boundary, where they are causally inert, and spends the freed compute on encoding
-resolution.
-At matched compute DWA beats every published placement rule in all nine pooled comparisons, by $7.9$ and $8.9$
-points over the strongest, and lands its crop on the evidence $63.9\%$ and $55.0\%$ of the time against $46.6\%$ and $39.3\%$. AVR converts a
-checkpoint's resolution headroom at rate $1.01$ ($r=0.966$) across four checkpoints and three benchmarks. Against
-models at their \emph{native} dynamic resolution --- $5.5\times$ and $7.2\times$ the budget on the two core
-checkpoints --- DWA is statistically indistinguishable on both using $14$--$18\%$ of the visual-token compute, and
-AVR matches on one, whereas every published rule falls $9.9$--$14.2$ points short of native.
+Two policies follow from that measurement rather than from tuning. \textbf{Depth-Weighted Attention} (DWA) replaces
+a hand-picked depth with one closed-form ridge solve over the whole depth profile, fitted from about fifty boxed
+examples. \textbf{Adaptive Visual Resolution} (AVR) discards $90\%$ of visual tokens at the boundary, where they are
+causally inert, and spends the freed compute on encoding resolution.
+At matched compute DWA beats every published placement rule in all nine pooled comparisons. Across four
+architectures --- native dynamic resolution, a fixed-token encoder, dynamic tiling and anyres --- depth
+re-weighting beats the published single-block read-out on four of five checkpoints, by $+10.5$ to $+16.2$ points.
+On Gemma-3 the incumbent is indistinguishable from random ($1.1\times$ chance coverage, $+0.5$ points) while
+re-weighting the \emph{same} attention is worth $+16.2$. AVR converts a checkpoint's resolution headroom at rate
+$1.01$ ($r{=}0.966$). Against models at their \emph{native} dynamic resolution --- $5.5\times$ and $7.2\times$ the
+budget --- DWA is statistically indistinguishable on both using $14$--$18\%$ of the visual-token compute, whereas
+every published rule falls $9.9$--$14.2$ points short.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -61,7 +61,7 @@ gone before the language model runs. The model still \emph{localises} it --- its
 region --- but it cannot \emph{perceive} it.
 
 The standard remedy is attention-guided cropping: run the model once, read its attention over image positions, crop
-where the attention peaks, and re-encode that crop at higher density~\citep{vicrop,zoomeye}. Every method in this
+where the attention peaks, and re-encode that crop at higher density~\citep{zhang2025vicrop,vicrop,zoomeye}. Every method in this
 family faces one decision that is rarely examined: \textbf{at which layer should the attention map be read?}
 Published methods pick a single mid-network layer or average a fixed block of late layers.
 
@@ -88,6 +88,44 @@ that does not depend on the image, and the fit's job is to learn which handful o
 (\S\ref{app:theory}).
 \textbf{Adaptive Visual Resolution} (AVR, \S\ref{sec:tsr}) drops $90\%$ of visual tokens at the boundary, where
 they no longer carry the image, and spends the saved compute on encoding resolution instead.
+
+\section{Related work}\label{sec:related}
+
+\textbf{Attention-guided cropping.} \citet{zhang2025vicrop} establish the premise this family rests on --- a model's
+attention concentrates on the right region even when its answer is wrong --- and turn it into a training-free crop,
+evaluated over seven VQA datasets; \citet{liu2026vea} probe the same disconnect. ViCrop~\citep{vicrop,zhang2025vicrop}
+crops at the peak of a fixed mid-layer attention map;
+ZoomEye~\citep{zoomeye} searches a tree of crops with repeated model queries. VisLens~\citep{vislens} reaches the
+same place without attention at all, decoding visual tokens through a tuned logit lens, matching them against the
+query, and feeding the crop back alongside the original image in one pass. Every attention-based member fixes the
+read-out depth by hand, and none of them budget-match against simply spending the same tokens on resolution ---
+Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
+
+\textbf{Layer-adaptive read-outs.} LASER~\citep{laser} selects the attention layer per sample by contrasting the map
+with and without the query, and reports that no single ``magic layer'' suffices --- a conclusion we reach
+independently and extend causally. ILVAD~\citep{ilvad} accumulates newly-activated tokens across adjacent layers;
+TRACE~\citep{trace} identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo~\citep{virgo}
+reports our cross-instance finding (``patch-based zooming \ldots\ can split large objects and destroy global spatial
+context'') and resolves it with a three-way router keyed on object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
+(i) the causal localisation of the transport window rather than a correlational choice of layer, (ii) a
+\emph{supervised} read-out fitted over all depths rather than a rule chosen by hand, and (iii) budget-matched,
+stratified evaluation including against native resolution.
+
+\textbf{Depth selection in language models.} DoLa~\citep{dola} contrasts a mature and a premature layer; SLED~\citep{sled}
+weights all early layers by gradient alignment; confident-layer decoding stops at an entropy valley near the output.
+We port each to this setting and all fail (\S\ref{sec:neg}) for one measurable reason: in these vision--language
+models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\%$ reported for language models ---
+yet per-layer accuracy still climbs monotonically to the last layer, so on the \emph{decoding} axis there is no
+better layer to select. The \emph{read-out} axis is different and we are explicit about it: a well-chosen fixed
+layer does work (L17 scores $70.2\%$ against a $63.7\%$ no-crop bar), but it cannot be identified without labels,
+the published choice is $31.9$ points worse than it, and per-sample selection (LASER) reaches only $64.7\%$.
+Re-weighting matches the oracle fixed layer without needing to know it.
+
+\textbf{Visual-token pruning.} FastV~\citep{chen2024fastv} prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
+fixed ratio; HiRED~\citep{hired} allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
+derive the pruning depth from the transport measurement rather than tuning it, and show that at that depth the
+\emph{choice} of surviving tokens is irrelevant --- random keep matches attention keep --- while one layer earlier it
+is worth $+8.4$ and $+8.9$ points.
 
 \section{Setup}\label{sec:setup}
 
@@ -123,7 +161,38 @@ positive mass sits after the boundary: that holds on this checkpoint and reverse
 two-model rule of \S\ref{app:proto} it is not a result.}\label{fig:filter}
 \end{figure}
 
-\section{Where the image reaches the answer}\label{sec:transport}
+\section{The depth at which the map is read dominates}\label{sec:depth}
+
+Before proposing anything we establish the size of the effect that motivates it. We hold the pipeline
+fixed --- same model, same question, same ${\sim}600$ visual-token budget, same fixed $W{=}0.25$ window ---
+and vary \emph{only} the layer whose attention arg-max supplies the crop, sweeping all $28$ layers on both
+checkpoints and answering at each.
+
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_layer_accuracy2.pdf}
+\caption{\textbf{End-task accuracy of cropping at each layer's arg-max, both checkpoints.} Every arm answers at
+${\sim}600$ visual tokens, so only the read-out depth varies. The spread from depth alone is $35.6$ points on Qwen3
+and $26.7$ on Qwen2, and inside the transport window no layer beats simply not cropping on either. The curve steps
+up at the boundary and peaks at L17 (Qwen3) / L21 (Qwen2). DWA reads all $28$ layers and sits above every single
+layer on both: against the best one --- chosen \emph{on the test set}, so an optimistic baseline --- it is $+2.6$
+n.s.\ on Qwen3 and $+7.3$ [$+1.0,+13.6$] on Qwen2, i.e.\ it matches or beats an oracle choice of layer without being
+told which layer that is. The published fixed choice (L14) is $24$--$32$ points below that oracle.}
+\label{fig:layeracc}
+\end{figure}
+
+Three facts follow, and each is measured rather than argued. First, the spread attributable to depth alone is
+$35.6$ points on Qwen3-VL-2B and $26.7$ on Qwen2-VL-7B --- larger than the gap between any two methods compared in
+this literature. Second, \emph{every} layer inside the transport window scores below not cropping at all, on both
+checkpoints: read the map too early and attention-guided cropping is actively harmful. Third, the fixed layer used
+by published practice is $24$--$32$ points below the best layer, and in the pooled comparison of
+Table~\ref{tab:main} it scores $38.2\%$ against a $63.9\%$ no-crop bar --- cropping at a hand-picked depth is worse
+than not cropping.
+
+This is the decision the family does not examine, and it dominates every other design choice in it. The rest of the
+paper asks why the good depths are where they are (\S\ref{sec:transport}), and what follows from knowing
+(\S\ref{sec:policies}).
+
+\section{Where does the image actually reach the answer?}\label{sec:transport}
 
 We install a hook that masks a chosen set of query positions from attending to the image-token columns, at chosen
 layers only, and measure the KL divergence at the output.
@@ -169,7 +238,13 @@ $+8.4$ and $+8.9$ points over random. At and after it, ranking is worth nothing:
 both models at every keep ratio. The boundary is not merely where pruning becomes cheap --- it is where selection
 ceases to matter.
 
-\section{Policy I: Depth-Weighted Attention (DWA)}\label{sec:ridge}
+\section{Two policies that follow from the measurement}\label{sec:policies}
+
+Both policies below are derived from the boundary located in \S\ref{sec:transport} rather than tuned: one
+replaces the hand-picked read-out depth, the other exploits the fact that visual tokens are causally inert past
+the boundary. Neither introduces a hyperparameter chosen on test data.
+
+\subsection{Depth-Weighted Attention (DWA)}\label{sec:ridge}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_pipe_ridge.pdf}
@@ -210,7 +285,7 @@ full-data gain. A training-free variant --- the maximum over the four question-c
 and $60.7$: above every published rule on Qwen3, and above the block-mean and fixed-layer rules on Qwen2 (LASER
 reaches $61.3$ there), but $3.7$ and $9.5$ points below the fitted filter.
 
-\section{Policy II: Adaptive Visual Resolution (AVR)}\label{sec:tsr}
+\subsection{Adaptive Visual Resolution (AVR)}\label{sec:tsr}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_pipe_tsr.pdf}
@@ -245,7 +320,7 @@ Qwen3 but is the better schedule on Qwen2, whose resolution curve is flat beyond
 schedule differs by checkpoint, so we claim only that the cut must not fall inside the window. Pruning \emph{after}
 the boundary saves less for no additional accuracy.
 
-\section{Results}\label{sec:results}
+\section{Evaluation}\label{sec:results}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_infer_ridge.pdf}
@@ -343,6 +418,63 @@ native on single-instance ($+2.6$) and AVR matches it on cross-instance ($-2.6$)
 on single-instance (Qwen3): \textbf{placement is worth more than $5$--$7\times$ the compute}. This is the strongest single
 argument for allocation research, and it is a ceiling nobody has approached.
 
+\subsection{Four architectures, and what equal compute does to the comparison}\label{sec:families}
+
+The results so far use two Qwen checkpoints, whose resolution axis is continuous: a crop can be
+encoded at exactly half the bar, so \emph{localise@300 + crop@300} is budget-matched against
+\texttt{uniform@600} by construction. Most other families quantise resolution --- anyres tilers and
+fixed-token encoders cannot reach half the bar at all --- so a two-pass method there necessarily
+costs more than one pass, and the comparison has to be made explicitly rather than assumed. We
+therefore report, for every family, the visual-token cost of each arm and a
+\texttt{bar\_matched} arm: a \emph{single} pass given the same total budget the two-pass method consumes.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{DWA across four architectures}, \vstar, $n{=}191$ each. \texttt{block} is the
+published single-block read-out, the incumbent. \emph{cost} is DWA's total visual tokens over the
+bar's. \ok\ = 95\% CI excludes zero. \textbf{DWA $-$ block} is cost-fair: both arms pay one localise
+pass and one crop at the same budget. \textbf{DWA $-$ bar\_matched} asks the different question of
+whether cropping beats spending the same compute on resolution.}
+\begin{tabular}{lccccccc}
+\toprule
+model & bar & block & DWA & bar\_m & cost & DWA$-$block & DWA$-$bar\_m\\
+\midrule
+Qwen3-VL-2B & 63.9 & 62.3 & 72.8 & --- & $1.00\times$ & \gd{$+10.5$}~\ok & \gd{$+8.9$}~\ok\\
+Qwen2-VL-7B & 58.1 & 59.2 & 70.2 & --- & $1.00\times$ & \gd{$+11.0$}~\ok & \gd{$+12.0$}~\ok\\
+Gemma-3-4B & 36.1 & 36.6 & 52.9 & 35.6 & $2.00\times$ & \gd{$+16.2$}~\ok & \gd{$+17.3$}~\ok\\
+InternVL3-8B & 60.2 & 66.0 & 76.4 & 70.7 & $8.37\times$ & \gd{$+10.5$}~\ok & $+5.8$\\
+LLaVA-OneVision-7B & 52.9 & 61.8 & 67.0 & 66.0 & $2.27\times$ & $+5.2$ & $+1.0$\\
+\bottomrule
+\end{tabular}\label{tab:families}
+\end{table}
+
+\textbf{The read-out claim holds on four of five families.} Depth re-weighting beats the published
+single-block read-out at matched cost on Qwen3, Qwen2, Gemma-3 and InternVL3, and is positive but
+not significant on LLaVA-OneVision. The families span four different visual-token designs: native
+dynamic resolution, a fixed $256$-token encoder, $448$-pixel dynamic tiling, and anyres.
+
+\textbf{Gemma-3 is the cleanest case, because there the incumbent does nothing at all.} Its
+block-mean arg-max covers ground-truth boxes at $0.071$ against a $0.066$ chance rate --- $1.1\times$,
+i.e.\ indistinguishable from random --- and is worth $+0.5$ points $[-6.8,+7.9]$ at the end task.
+The depth-weighted read-out of \emph{the same attention} reaches $0.395$ coverage ($6.0\times$
+chance) and $+16.2$ points. Selecting one depth band recovers nothing; re-weighting depth recovers
+sixteen points.
+
+\textbf{On the stronger claim we are narrower, and the headroom identity says why.} Against a bar
+given the same total budget, DWA wins on three of five. It fails on exactly the two families that
+still have unspent resolution headroom: LLaVA-OneVision gains $13.1$ points from
+$52.9$ to $66.0$ simply by encoding at the higher budget, and InternVL3 gains $10.5$. Gemma-3, whose
+encoder emits $256$ tokens for every image, gains $-0.5$: it \emph{cannot} convert compute into
+resolution, and there DWA's advantage is largest. This is the same identity that governs AVR
+(Appendix~\ref{app:identity}) now governing when placement is worth buying at all. Qwen is the
+exception that keeps it a regularity rather than a law: it has headroom and DWA still wins.
+
+\textbf{A caution about how this family is usually evaluated.} The column the literature reports is
+DWA $-$ bar, and it is systematically the most flattering one: $+14.1$~\ok\ on LLaVA-OneVision and
+$+16.2$~\ok\ on InternVL3, both of which fall to a non-significant $+1.0$ and $+5.8$ once the bar is
+given the same compute. InternVL3's $8.37\times$ ratio is itself an artefact worth naming: its ladder
+jumps from $256$ tokens to $1792$, so a $600$-token target lands on $256$ while the crop costs
+$1792$. We report the matched column throughout and recommend it be required.
+
 \subsection{A scope law}\label{sec:scope}
 
 \begin{table}[h]\centering\small
@@ -372,9 +504,12 @@ significant losses & 0 & \textbf{3} & 0 & \textbf{0}\\
 
 Across 14 cells (3 benchmarks $\times$ 4 checkpoints $\times$ 2 strata), attention-guided cropping helps
 single-instance perception in $7/7$ and is non-positive on cross-instance in $6/7$, significantly negative in three
-($-6.0$, $-8.8$, $-8.8$). This holds for \emph{every} method in the family, ours included. The cause is not that the
-window excludes the second object --- a $W{=}0.25$ window can contain both boxes on $93.4\%$ of relational items ---
-but that the relation is not recovered from the magnified view (Appendix~\ref{app:neg}). AVR shows the opposite
+($-6.0$, $-8.8$, $-8.8$). This holds for \emph{every} method in the family, ours included. The cause is partly, but
+only partly, geometric. On \vstar's $54$ multi-box items (mean $1.71$ boxes) the union of the boxes fits inside a
+single $W{=}0.25$ window on $59.3\%$ of them: for the other ${\sim}41\%$ no fixed window of that size can contain the
+evidence, so the fixed window is itself a cause and not merely the placement. On the $59.3\%$ where a containing
+window does exist, the relation is still not recovered from the magnified view (Appendix~\ref{app:neg}) --- placement
+is not the binding constraint there. AVR shows the opposite
 profile --- positive on both strata in $6/7$ cells with no significant loss anywhere --- but gives up $3$--$10$
 points of single-instance gain.
 
@@ -383,41 +518,16 @@ $25\%$ and $22\%$ of the time against $3.5\%$ and $6.1\%$ for single-instance. C
 predominantly perceptual, and no crop, multi-crop, composition or pruning schedule reached it (\S\ref{sec:neg}).
 
 
-\section{Related work}\label{sec:related}
+\subsection{Practical guidance}\label{sec:guide}
 
-\textbf{Attention-guided cropping.} \citet{liu2026vea} document the gap this family exploits, that a model's
-attention can concentrate correctly while its answer is wrong. ViCrop~\citep{vicrop} crops at the peak of a fixed mid-layer attention map;
-ZoomEye~\citep{zoomeye} searches a tree of crops with repeated model queries. VisLens~\citep{vislens} reaches the
-same place without attention at all, decoding visual tokens through a tuned logit lens, matching them against the
-query, and feeding the crop back alongside the original image in one pass. Every attention-based member fixes the
-read-out depth by hand, and none of them budget-match against simply spending the same tokens on resolution ---
-Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
-
-\textbf{Layer-adaptive read-outs.} LASER~\citep{laser} selects the attention layer per sample by contrasting the map
-with and without the query, and reports that no single ``magic layer'' suffices --- a conclusion we reach
-independently and extend causally. ILVAD~\citep{ilvad} accumulates newly-activated tokens across adjacent layers;
-TRACE~\citep{trace} identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo~\citep{virgo}
-reports our cross-instance finding (``patch-based zooming \ldots\ can split large objects and destroy global spatial
-context'') and resolves it with a three-way router keyed on object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
-(i) the causal localisation of the transport window rather than a correlational choice of layer, (ii) a
-\emph{supervised} read-out fitted over all depths rather than a rule chosen by hand, and (iii) budget-matched,
-stratified evaluation including against native resolution.
-
-\textbf{Depth selection in language models.} DoLa~\citep{dola} contrasts a mature and a premature layer; SLED~\citep{sled}
-weights all early layers by gradient alignment; confident-layer decoding stops at an entropy valley near the output.
-We port each to this setting and all fail (\S\ref{sec:neg}) for one measurable reason: in these vision--language
-models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\%$ reported for language models ---
-yet per-layer accuracy still climbs monotonically to the last layer, so on the \emph{decoding} axis there is no
-better layer to select. The \emph{read-out} axis is different and we are explicit about it: a well-chosen fixed
-layer does work (L17 scores $70.2\%$ against a $63.7\%$ no-crop bar), but it cannot be identified without labels,
-the published choice is $31.9$ points worse than it, and per-sample selection (LASER) reaches only $64.7\%$.
-Re-weighting matches the oracle fixed layer without needing to know it.
-
-\textbf{Visual-token pruning.} FastV~\citep{chen2024fastv} prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
-fixed ratio; HiRED~\citep{hired} allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
-derive the pruning depth from the transport measurement rather than tuning it, and show that at that depth the
-\emph{choice} of surviving tokens is irrelevant --- random keep matches attention keep --- while one layer earlier it
-is worth $+8.4$ and $+8.9$ points.
+The two policies have different cost and risk profiles, and the choice does not require a question classifier. The
+DWA needs ${\sim}50$ boxed examples, two forward passes and $1.4$--$2.0\times$ wall-clock; it has the higher
+ceiling ($+14.8$ on single-instance) and a $6$--$9$ point cross-instance failure mode. AVR needs no supervision, one
+forward pass and ${\sim}1\times$ wall-clock; it is positive on both strata in 6 of 7 cells with no significant loss
+anywhere, and its benefit is predictable from two baseline runs. Head to head the two are even pooled (mean
+difference $+0.2$ points over seven cells). We recommend AVR as the default and DWA where boxed
+supervision exists and single-instance perception dominates. We note that DWA's pooled margin over AVR
+is concentrated on the two cells on which it was developed.
 
 \section{What does not work}\label{sec:neg}
 
@@ -433,24 +543,32 @@ full resolution funded by pruning. Depth \emph{selection} rules ported from the 
 final-layer entropy rises on $54$--$88\%$ of items while per-layer accuracy still climbs monotonically to the last
 layer. There is no better layer to select.
 
-\section{Practical guidance}\label{sec:guide}
-
-The two policies have different cost and risk profiles, and the choice does not require a question classifier. The
-DWA needs ${\sim}50$ boxed examples, two forward passes and $1.4$--$2.0\times$ wall-clock; it has the higher
-ceiling ($+14.8$ on single-instance) and a $6$--$9$ point cross-instance failure mode. AVR needs no supervision, one
-forward pass and ${\sim}1\times$ wall-clock; it is positive on both strata in 6 of 7 cells with no significant loss
-anywhere, and its benefit is predictable from two baseline runs. Head to head the two are even pooled (mean
-difference $+0.2$ points over seven cells). We recommend AVR as the default and DWA where boxed
-supervision exists and single-instance perception dominates. We note that DWA's pooled margin over AVR
-is concentrated on the two cells on which it was developed.
-
 \section{Limitations}\label{sec:lim}
 
 $n=191$ on \vstar\ gives per-stratum CI half-widths near $10$ points; no method is significantly positive on both
 strata in any single cell, which is a power limitation as much as a method one. DWA needs ${\sim}50$
-boxed examples and two forward passes ($1.4$--$2.0\times$ wall-clock); AVR needs neither. Our two core checkpoints
-share a model family. DWA's pooled margin over AVR is concentrated on the two cells it was developed on.
+boxed examples and two forward passes; AVR needs neither.
+DWA's pooled margin over AVR is concentrated on the two cells it was developed on.
 Pruning at the boundary is free in 9 of 10 cells; the exception (HR-Bench~8K, cross-instance, $-1.8$\,\no) is real.
+
+\textbf{The two claims have different scope, and we do not merge them.} That depth re-weighting beats the
+published single-block read-out holds at matched cost on four of five architectures
+(Table~\ref{tab:families}); on LLaVA-OneVision it is positive but not significant. That cropping is
+worth its compute \emph{at all}, against a bar given the same total budget, holds on only three of
+five, failing on the two families with unspent resolution headroom. A practitioner whose checkpoint
+can still buy resolution should buy resolution first.
+
+\textbf{The transfer arm is adopted on a threshold it clears exactly.} Its pre-registered rule --- $\lvert$DWA
+$-$ block$\rvert$ excluding zero on ${\geq}2$ of $4$ Qwen cells --- passes $2$ of $4$, and the split is not random:
+both Qwen2-VL-7B cells pass and both Qwen3-VL-2B cells fail. Stratified, the single-instance margin is
+the consistent quantity ($+9.5$, $+5.0$, $+10.5$, $+10.0$; three of four CIs clear).
+
+\textbf{Two of the five families required a measured token layout before any method could be run at
+all}, and a wrong layout is empirically indistinguishable from an incompatible architecture: our
+first attempt put Gemma-3 and LLaVA-NeXT at $1.1\times$ and $1.14\times$ chance and we wrongly concluded
+both were incompatible. Attention-based allocation is more sensitive to visual-token layout than this
+literature acknowledges, and we report the layout we measured for each family rather than deriving it
+from tile arithmetic (Appendix~\ref{app:faults}).
 
 \section{Conclusion}
 
@@ -986,17 +1104,6 @@ property of the question type and not of the method.
 
 \section{Additional visualisations}\label{app:vis}
 
-\begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{figs/fig_layer_accuracy2.pdf}
-\caption{\textbf{End-task accuracy of cropping at each layer's arg-max, both checkpoints.} Every arm answers at
-${\sim}600$ visual tokens, so only the read-out depth varies. The spread from depth alone is $35.6$ points on Qwen3
-and $26.7$ on Qwen2, and inside the transport window no layer beats simply not cropping on either. The curve steps
-up at the boundary and peaks at L17 (Qwen3) / L21 (Qwen2). DWA reads all $28$ layers and sits above every single
-layer on both: against the best one --- chosen \emph{on the test set}, so an optimistic baseline --- it is $+2.6$
-n.s.\ on Qwen3 and $+7.3$ [$+1.0,+13.6$] on Qwen2, i.e.\ it matches or beats an oracle choice of layer without being
-told which layer that is. The published fixed choice (L14) is $24$--$32$ points below that oracle.}
-\label{fig:layeracc}
-\end{figure}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_layer_disagreement.pdf}

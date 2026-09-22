@@ -3,10 +3,11 @@ Phase 214: DWA (Depth-Weighted Attention) across model families.
 
 DWA needs a 2D grid of visual tokens to score. Families expose one differently:
   Qwen-VL      explicit image_grid_thw                      -> grid is given
-  LLaVA-*      anyres: [base tile g*g][row newlines][tiles]  -> the BASE TILE is a contiguous PREFIX of
-               length g*g and is a uniform low-res view of the whole image; we use it as the grid.
-               Verified arithmetically (1176 = 576+24+576 ; 1485 = 729+27+729) and, below, EMPIRICALLY:
-               the block-mean arg-max must cover ground-truth boxes far above chance or we abort.
+  LLaVA-*      anyres: [base tile][row newlines][tiles]. The layout is MEASURED per family by the
+               phase220/220b sweep (grid x band, scored against GT boxes) and read from
+               data/phase224_layout.json, because the base-tile-prefix guess was wrong for
+               LLaVA-NeXT: a row-separator token per row makes the row stride 25 against 24 visual
+               columns, so the usable grid is a 25x25 SUFFIX (8.5x chance) not a 24x24 prefix (1.14x).
   InstructBLIP 32 unordered Q-Former queries                -> NO spatial grid; DWA inapplicable.
 
 Stage 1 dumps per-layer maps; stage 2 fits the ridge out-of-fold and answers on the crop.
@@ -20,7 +21,9 @@ from transformers import AutoProcessor, AutoModelForImageTextToText
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; Image.MAX_IMAGE_PIXELS=None
 MODELS={"llava_ov":("llava-hf/llava-onevision-qwen2-7b-ov-hf",384,14),
         "llava_next":("llava-hf/llava-v1.6-vicuna-7b-hf",336,14),
-        "gemma3_4b":("google/gemma-3-4b-it",None,None)}
+        "gemma3_4b":("google/gemma-3-4b-it",None,None),
+        "smolvlm":("HuggingFaceTB/SmolVLM-Instruct",384,None),
+        "internvl3_8b":("OpenGVLab/InternVL3-8B-hf",448,None)}
 MK=sys.argv[1]; N=int(sys.argv[2]) if len(sys.argv)>2 else 200
 OUT=f"{D}/data/phase214_dwa_{MK}.jsonl"; W=0.25
 mid,base_px,patch=MODELS[MK]
@@ -37,12 +40,24 @@ opt=[sorted({tok(x,add_special_tokens=False)["input_ids"][-1] for x in [c,f" {c}
 def chat(t): return pr.apply_chat_template([{"role":"user","content":[{"type":"image"},{"type":"text","text":t}]}],
                                            tokenize=False,add_generation_prompt=True)
 def build(i,t): return pr(images=i,text=chat(t),return_tensors="pt")
+# Measured layouts (phase220/phase220b sweep over grid AND band, verified against GT-box coverage).
+# LLaVA-NeXT anyres appends a row-separator token per row, so the row STRIDE is 25 while there are
+# 24 visual columns; the usable grid is a 25x25 SUFFIX, not the 24x24 base-tile prefix assumed here
+# originally. That assumption put the maps at 1.14x chance; the suffix reaches 8.5x.
+_LAYOUT_PATH=f"{D}/data/phase224_layout.json"
+LAYOUT=json.load(open(_LAYOUT_PATH)) if os.path.exists(_LAYOUT_PATH) else {}
 def grid_of(inp,img):
     if "image_grid_thw" in inp:
         g=inp["image_grid_thw"].tolist()[0]; return g[1]//2,g[2]//2,0
-    if base_px:                      # LLaVA anyres: base tile is the prefix
+    n=int((inp["input_ids"][0]==itid).sum())
+    L=LAYOUT.get(MK)
+    if L:
+        gh,gw=L["gh"],L["gw"]
+        off=n-gh*gw if L.get("mode","suffix")=="suffix" else 0
+        if off>=0 and gh*gw<=n: return gh,gw,off
+    if base_px:
         g=base_px//patch; return g,g,0
-    n=int((inp["input_ids"][0]==itid).sum()); s=int(round(n**0.5))
+    s=int(round(n**0.5))
     return (s,s,0) if s*s==n else (0,0,0)
 def run(inp,want=False):
     with torch.no_grad(): out=model(**inp,output_attentions=want)
@@ -85,10 +100,12 @@ with open(OUT,"a") as fout:
         gh,gw,off=grid_of(inp,img_in)
         if gh==0: print("no grid; abort"); break
         pos=(inp["input_ids"][0]==itid).nonzero().flatten()
-        if len(pos)<gh*gw: continue
+        if len(pos)<off+gh*gw: continue
         base=int(pos[0])
         _,A=run(inp,want=True)
-        Ai=A[:,base:base+gh*gw]                      # the base-tile prefix
+        # grid_of returns an OFFSET into the image-token block; it must be applied. Without it a
+        # suffix layout (LLaVA-NeXT) still read the first gh*gw tokens, i.e. the wrong region.
+        Ai=A[:,base+off:base+off+gh*gw]
         Ai=Ai/np.maximum(Ai.sum(1,keepdims=True),1e-12)
         lab="ABCD".index(e["label"]) if isinstance(e["label"],str) else int(e["label"])
         rec={"qid":qid,"category":e["category"],"label":lab,"grid":[gh,gw],"nl":NL,

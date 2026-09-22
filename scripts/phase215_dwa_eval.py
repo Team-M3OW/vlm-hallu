@@ -14,7 +14,9 @@ from transformers import AutoProcessor, AutoModelForImageTextToText
 D="/home/kavinder/ARNABI_ARSH/vlm-hallu"; Image.MAX_IMAGE_PIXELS=None; W=0.25
 MODELS={"llava_ov":("llava-hf/llava-onevision-qwen2-7b-ov-hf",384),
         "llava_next":("llava-hf/llava-v1.6-vicuna-7b-hf",336),
-        "gemma3_4b":("google/gemma-3-4b-it",None)}
+        "gemma3_4b":("google/gemma-3-4b-it",None),
+        "smolvlm":("HuggingFaceTB/SmolVLM-Instruct",384),
+        "internvl3_8b":("OpenGVLab/InternVL3-8B-hf",448)}
 MK=sys.argv[1]; mid,base_px=MODELS[MK]
 rows=[json.loads(l) for l in open(f"{D}/data/phase214_dwa_{MK}.jsonl")]
 print(f"{MK}: {len(rows)} items with maps",flush=True)
@@ -51,9 +53,12 @@ for i,r in enumerate(rows):
 X=np.vstack(X); Y=np.concatenate(Y); G=np.concatenate(G); covgrid=np.array(covgrid)
 bm=np.array([covgrid[i,blockcell[i]] for i in range(len(rows))])
 chance=covgrid.mean()
-print(f"  GUARD block-mean coverage {bm.mean():.3f} vs chance {chance:.3f}  "
-      f"{'PASS' if bm.mean()>2*chance else 'FAIL -> grid assumption wrong, aborting'}",flush=True)
-assert bm.mean()>2*chance, "base-tile grid assumption rejected"
+# The guard validates the GRID assumption, not the incumbent. Those come apart: on Gemma-3 the
+# block-mean arg-max sits at chance (0.071 vs 0.070) while the OOF ridge reaches 0.395 (5.6x) on
+# the SAME maps -- this paper's thesis, not a grid bug. A scrambled grid puts every read-out at
+# chance, so the ridge is the stronger test; block-mean is reported as a result. Guard moved below.
+print(f"  block-mean coverage {bm.mean():.3f} vs chance {chance:.3f} "
+      f"({bm.mean()/max(chance,1e-9):.1f}x)",flush=True)
 P=np.zeros(len(Y))
 for s in (700,701,702):
     rng=np.random.default_rng(s); gs=np.unique(G); perm={g:i for i,g in enumerate(rng.permutation(gs))}
@@ -66,16 +71,33 @@ P=(P/3).reshape(len(rows),ncell)
 ridgecell=[int(np.argmax(np.where(rm,P[i],-1e9))) for i in range(len(rows))]
 rc=np.array([covgrid[i,ridgecell[i]] for i in range(len(rows))])
 print(f"  coverage: block-mean {bm.mean():.3f}  DWA {rc.mean():.3f}",flush=True)
+print(f"  GUARD ridge OOF coverage {rc.mean():.3f} vs chance {chance:.3f} "
+      f"({rc.mean()/max(chance,1e-9):.1f}x)  "
+      f"{'PASS' if rc.mean()>2*chance else 'FAIL -> grid assumption rejected, aborting'}",flush=True)
+assert rc.mean()>2*chance, "grid assumption rejected: even the OOF ridge is at chance"
 # ---- end task ----
 model=AutoModelForImageTextToText.from_pretrained(mid,dtype=torch.bfloat16,device_map={"":0}).eval()
 pr=AutoProcessor.from_pretrained(mid); tok=pr.tokenizer
 opt=[sorted({tok(x,add_special_tokens=False)["input_ids"][-1] for x in [c,f" {c}"]}) for c in "ABCD"]
 def chat(t): return pr.apply_chat_template([{"role":"user","content":[{"type":"image"},{"type":"text","text":t}]}],tokenize=False,add_generation_prompt=True)
+ITID=getattr(model.config,"image_token_id",getattr(model.config,"image_token_index",None))
+def ntok(im):
+    return int((pr(images=im,text=chat("x"),return_tensors="pt")["input_ids"][0]==ITID).sum())
 def ans(im,t):
     inp=pr(images=im,text=chat(t),return_tensors="pt").to(model.device)
+    n=int((inp["input_ids"][0]==ITID).sum())
     with torch.no_grad(): lg=model(**inp).logits[0,-1].float()
     p=torch.softmax(torch.stack([torch.logsumexp(lg[i],0) for i in opt]),0)
-    del inp; torch.cuda.empty_cache(); return [round(float(v),6) for v in p.tolist()]
+    del inp; torch.cuda.empty_cache(); return [round(float(v),6) for v in p.tolist()], n
+def fit_to(img,target,refine=6,tol=0.10):
+    """resize so the encode costs ~target visual tokens (anyres will quantise; best effort)"""
+    W_,H_=img.size; r0=max(ntok(img),1); sc=(target/r0)**0.5; best=None
+    for _ in range(refine):
+        cur=img.resize((max(32,int(W_*sc)),max(32,int(H_*sc))),Image.BICUBIC); r=ntok(cur)
+        if best is None or abs(r-target)<abs(best[1]-target): best=(cur,r)
+        if r==0 or abs(r-target)/target<=tol: break
+        sc*=(target/max(r,1))**0.5
+    return best
 def crop(img,j):
     cx,cy=(j%gw+.5)/gw,(j//gw+.5)/gh
     iw,ih=img.size; x0=min(max(0,(cx-W/2)*iw),iw-W*iw); y0=min(max(0,(cy-W/2)*ih),ih-W*ih)
@@ -84,7 +106,7 @@ from huggingface_hub import snapshot_download
 from datasets import load_dataset
 root=snapshot_download("craigwu/vstar_bench",repo_type="dataset")
 ex={f"{e['category']}/{e['question_id']}":e for e in load_dataset("craigwu/vstar_bench")["test"]}
-OUT=f"{D}/data/phase215_dwaeval_{MK}.jsonl"
+OUT=f"{D}/data/phase215b_dwaeval_{MK}.jsonl"
 done=set()
 if os.path.exists(OUT): done={json.loads(l)["qid"] for l in open(OUT)}
 t0=0
@@ -93,10 +115,20 @@ with open(OUT,"a") as f:
         if r["qid"] in done: continue
         e=ex[r["qid"]]; img=Image.open(os.path.join(root,e["image"])).convert("RGB")
         base=img.resize((base_px,base_px),Image.BICUBIC) if base_px else img
+        # phase215 originally compared a downscaled bar against NATIVE-resolution crops, which is
+        # not budget-matched: on LLaVA-OV the crop pass alone costs 1.09-1.58x the bar, and DWA
+        # also needs the localise pass, so DWA ran at ~2.1-2.6x the bar's compute. We now record
+        # every arm's visual-token count and add `bar_matched`: a single pass at the DWA TOTAL
+        # (localise + crop), which is the honest equal-compute comparison.
+        pb,nb_=ans(base,e["text"])
+        cb_img=crop(img,blockcell[i]); cd_img=crop(img,ridgecell[i])
+        pbl,nbl=ans(cb_img,e["text"]); pdw,ndw=ans(cd_img,e["text"])
+        total=nb_+ndw                       # localise pass + crop pass
+        bm_img,nbm=fit_to(img,total)
+        pbm,nbm=ans(bm_img,e["text"])
         rec={"qid":r["qid"],"category":r["category"],"label":r["label"],
-             "probs":{"bar":ans(base,e["text"]),
-                      "block":ans(crop(img,blockcell[i]),e["text"]),
-                      "dwa":ans(crop(img,ridgecell[i]),e["text"])},
+             "probs":{"bar":pb,"block":pbl,"dwa":pdw,"bar_matched":pbm},
+             "tokens":{"bar":nb_,"block":nbl,"dwa":ndw,"dwa_total":total,"bar_matched":nbm},
              "cov":{"block":float(bm[i]),"dwa":float(rc[i])}}
         f.write(json.dumps(rec)+"\n"); f.flush(); t0+=1
         if t0%25==0: print(f"  [{t0}]",flush=True)
