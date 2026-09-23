@@ -48,6 +48,24 @@ def realworldqa(limit=None):
         n+=1
         if limit and n>=limit: break
 
+def docvqa(limit=None):
+    """lmms-lab/DocVQA validation (5349). Open-ended; answers are lists, scored by normalised
+    any-answer match (ANLS approximated by exact match). Document pages are high-resolution, so
+    unlike TextVQA the bar is resolution-starved and cropping has measured headroom (ViCrop reports
+    +1.6 to +3.9 here against a fixed-resolution baseline)."""
+    from datasets import load_dataset
+    ds=load_dataset("lmms-lab/DocVQA","DocVQA",split="validation"); n=0
+    for e in ds:
+        ans=[str(a).strip() for a in e["answers"]]; ans=[a for a in ans if a]
+        if not ans: continue
+        q=str(e["question"]).strip()+"\nAnswer with a single word or short phrase."
+        qt=e.get("question_types") or []
+        stratum=str(qt[0]) if isinstance(qt,list) and qt else "doc"
+        img=e["image"]
+        yield (f"docvqa/{e['questionId']}", img.convert("RGB"), q, ans, stratum, "open")
+        n+=1
+        if limit and n>=limit: break
+
 def gqa(limit=None):
     """lmms-lab/GQA testdev_balanced (12578 instructions over 398 images). Open-ended; the standard
     metric is exact match on the short answer. GQA is one of the four benchmarks the attention-
@@ -137,7 +155,7 @@ def _hrbench(cfg,limit=None):
 def hr4k(limit=None): return _hrbench("hrbench_4k",limit)
 def hr8k(limit=None): return _hrbench("hrbench_8k",limit)
 
-LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,"textvqa":textvqa,"gqa":gqa,
+LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,"textvqa":textvqa,"gqa":gqa,"docvqa":docvqa,
         "vstar":vstar,"hr4k":hr4k,"hr8k":hr8k}
 if __name__=="__main__":
     import collections

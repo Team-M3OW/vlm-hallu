@@ -16,7 +16,7 @@ D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rng = np.random.default_rng(0)
 MODELS = ["qwen3_2b", "qwen2_7b", "internvl3_8b", "llava_ov"]
 NAMES = {"qwen3_2b": "Qwen3-VL-2B", "qwen2_7b": "Qwen2-VL-7B", "internvl3_8b": "InternVL3-8B", "llava_ov": "LLaVA-OV-7B"}
-BENCH = [("vstar", "V*Bench"), ("hr4k", "HR-Bench 4K"), ("gqa", "GQA"), ("textvqa", "TextVQA")]
+BENCH = [("vstar", "V*Bench"), ("hr4k", "HR-Bench 4K"), ("gqa", "GQA"), ("textvqa", "TextVQA"), ("docvqa", "DocVQA")]
 
 
 def load(m, b):
@@ -52,6 +52,19 @@ for m in MODELS:
     for b, nm in BENCH:
         rows = load(m, b)
         r = delta(rows, "dwa_t", "block") if rows else None
+        row += f"{('%.1f [%.1f,%.1f]' % (r[0], r[1], r[2])):>22s}" if r else f"{'-- running --':>22s}"
+    print(row)
+print()
+print()
+print("=" * 100)
+print("DWA - uniform@600 (method vs the equal-compute bar)")
+print("=" * 100)
+print(f"{'model':15s}" + "".join(f"{nm:>22s}" for _, nm in BENCH))
+for m in MODELS:
+    row = f"{NAMES[m]:15s}"
+    for b, nm in BENCH:
+        rows = load(m, b)
+        r = delta(rows, "dwa_t", "uniform@lo") if rows else None
         row += f"{('%.1f [%.1f,%.1f]' % (r[0], r[1], r[2])):>22s}" if r else f"{'-- running --':>22s}"
     print(row)
 print()
