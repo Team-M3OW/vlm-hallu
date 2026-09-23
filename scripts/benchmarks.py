@@ -48,6 +48,21 @@ def realworldqa(limit=None):
         n+=1
         if limit and n>=limit: break
 
+def gqa(limit=None):
+    """lmms-lab/GQA testdev_balanced (12578 instructions over 398 images). Open-ended; the standard
+    metric is exact match on the short answer. GQA is one of the four benchmarks the attention-
+    cropping literature evaluates on (ViRGo: V*, HR-Bench4K, GQA size bins, TextVQA)."""
+    from datasets import load_dataset
+    imgs={r["id"]: r["image"] for r in load_dataset("lmms-lab/GQA","testdev_balanced_images",split="testdev")}
+    ds=load_dataset("lmms-lab/GQA","testdev_balanced_instructions",split="testdev"); n=0
+    for e in ds:
+        img=imgs.get(e["imageId"])
+        if img is None: continue
+        q=str(e["question"]).strip()+"\nAnswer with a single word or short phrase."
+        yield (f"gqa/{e['id']}", img, q, str(e["answer"]).strip(), "gqa", "open")
+        n+=1
+        if limit and n>=limit: break
+
 def textvqa(limit=None):
     """lmms-lab/textvqa validation (5000). Open-ended; gold is the 10 human answers and an item counts
     as correct on a normalised match to ANY of them (the harness's approximation of VQA accuracy).
@@ -122,7 +137,7 @@ def _hrbench(cfg,limit=None):
 def hr4k(limit=None): return _hrbench("hrbench_4k",limit)
 def hr8k(limit=None): return _hrbench("hrbench_8k",limit)
 
-LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,"textvqa":textvqa,
+LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,"textvqa":textvqa,"gqa":gqa,
         "vstar":vstar,"hr4k":hr4k,"hr8k":hr8k}
 if __name__=="__main__":
     import collections

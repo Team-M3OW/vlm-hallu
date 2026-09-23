@@ -11,7 +11,7 @@ import benchmarks as B
 D=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rng=np.random.default_rng(0)
 MODELS=["qwen3_2b","qwen2_7b","internvl3_8b","llava_ov"]
-BENCH=["vstar","hr4k","cvbench","realworldqa","textvqa"]
+BENCH=["vstar","hr4k","cvbench","realworldqa","textvqa","gqa"]
 NAMES={"qwen3_2b":"Qwen3-VL-2B","qwen2_7b":"Qwen2-VL-7B","internvl3_8b":"InternVL3-8B","llava_ov":"LLaVA-OV-7B"}
 def load(m,b):
     f=f"{D}/data/phase225_{m}_{b}.jsonl"
