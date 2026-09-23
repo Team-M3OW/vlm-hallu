@@ -610,6 +610,14 @@ $1792$. We report the matched column throughout and recommend it be required.
 
 \subsection{A scope law}\label{sec:scope}
 
+\textbf{Scope of this section.} The law below is the original two-stratum form, measured on the seven
+\vstar/HR-Bench cells. \S\ref{sec:condition} generalises it: the condition that decides the sign is
+\emph{whether answering requires the whole scene}, which subsumes the single-/cross-instance split rather than
+replacing it. CV-Bench's Count and Depth strata are neither single- nor cross-instance under any reading, and are
+hurt by cropping as badly as relational questions ($-13.3$ and $-15.0$); conversely a single-object question whose
+answer needs the scene is hurt too. The table is retained because it is where the effect was first isolated and
+because its per-stratum CIs are the tightest we have.
+
 \begin{table}[h]\centering\small
 \caption{\textbf{The scope law.} Accuracy difference vs.\ the equal-compute bar, per stratum, all seven
 benchmark~$\times$~checkpoint cells. Cropping helps single-instance everywhere and is non-positive on cross-instance
@@ -647,8 +655,9 @@ profile --- positive on both strata in $6/7$ cells with no significant loss anyw
 points of single-instance gain.
 
 The ceiling explains why cropping cannot be repaired here. With \emph{perfect} placement, cross-instance still fails
-$25\%$ and $22\%$ of the time against $3.5\%$ and $6.1\%$ for single-instance. Cross-instance error is not
-predominantly perceptual, and no crop, multi-crop, composition or pruning schedule reached it (\S\ref{sec:neg}).
+$25\%$ and $22\%$ of the time against $3.5\%$ and $6.1\%$ for single-instance. The residual is not predominantly
+perceptual, and no crop, multi-crop, composition or pruning schedule reached it (\S\ref{sec:neg}). The general form
+of the condition --- the whole scene is required --- is measured directly in \S\ref{sec:condition}.
 
 
 \subsection{Practical guidance}\label{sec:guide}
@@ -675,6 +684,16 @@ full resolution funded by pruning. Depth \emph{selection} rules ported from the 
 --- DoLa, SLED, confident-layer decoding, attention-JSD, rank-stability --- all fail, for one reason: in these models
 final-layer entropy rises on $54$--$88\%$ of items while per-layer accuracy still climbs monotonically to the last
 layer. There is no better layer to select.
+
+\textbf{Eight internal interventions, eight nulls.} A separate pattern is now complete: residual-stream steering,
+attention amplification, contrastive decoding on \vstar\ and on CV-Bench, self-confidence gating, wrongness
+prediction (AUROC $0.538$), unsupervised placement, and hidden-state probes. Each is indistinguishable from its
+matched random control at the end task --- in the most recent case a DWA-masked logit contrast trails a
+\emph{random}-masked one at every contrast strength ($-0.3$ to $-1.6$ points), so the economics of the contrast are
+not what limits it. The consistency is itself the result, and it is the strongest evidence for the paper's central
+methodological claim: \textbf{allocation must happen in pixel space}. Choosing what to \emph{encode} is what buys
+accuracy; re-weighting, amplifying or decoding what was already encoded does not. One experiment said this first;
+eight now do, on two benchmarks and four architectures.
 
 \section{Limitations}\label{sec:lim}
 

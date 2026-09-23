@@ -48,6 +48,21 @@ def realworldqa(limit=None):
         n+=1
         if limit and n>=limit: break
 
+def textvqa(limit=None):
+    """lmms-lab/textvqa validation (5000). Open-ended; gold is the 10 human answers and an item counts
+    as correct on a normalised match to ANY of them (the harness's approximation of VQA accuracy).
+    Single stratum: these are OCR/attribute questions about one text region."""
+    from datasets import load_dataset
+    ds=load_dataset("lmms-lab/textvqa")["validation"]; n=0  # test annotations are hidden; validation is the eval split
+    for e in ds:
+        ans=[str(a).strip() for a in e["answers"]]
+        ans=[a for a in ans if a]
+        if not ans: continue
+        q=str(e["question"]).strip()+"\nAnswer with a single word or short phrase."
+        yield (f"textvqa/{e['question_id']}", e["image"], q, ans, "ocr", "open")
+        n+=1
+        if limit and n>=limit: break
+
 _ART=re.compile(r"\b(a|an|the)\b")
 def norm(s):
     s=str(s).lower().strip()
@@ -107,7 +122,7 @@ def _hrbench(cfg,limit=None):
 def hr4k(limit=None): return _hrbench("hrbench_4k",limit)
 def hr8k(limit=None): return _hrbench("hrbench_8k",limit)
 
-LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,
+LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,"textvqa":textvqa,
         "vstar":vstar,"hr4k":hr4k,"hr8k":hr8k}
 if __name__=="__main__":
     import collections
@@ -150,6 +165,9 @@ def score_item(model, pr, tok, inp, kind, max_new=8):
 def item_correct(rec, arm):
     """rec carries kind+gold; arm is a key in rec['probs'] (mcq) or rec['preds'] (open)."""
     if rec["kind"]=="open":
-        return 1.0 if open_match(rec["preds"][arm], rec["gold"]) else 0.0
+        gold=rec["gold"]; pred=rec["preds"][arm]
+        if isinstance(gold,(list,tuple)):
+            return 1.0 if any(open_match(pred,g) for g in gold) else 0.0
+        return 1.0 if open_match(pred, gold) else 0.0
     import numpy as np
     return 1.0 if int(np.argmax(rec["probs"][arm]))==int(rec["gold"]) else 0.0
