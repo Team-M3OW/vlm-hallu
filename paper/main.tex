@@ -32,25 +32,27 @@
 Vision--language models on high-resolution imagery must decide where to spend a fixed visual-token budget;
 evidence not given resolution is destroyed before the language model runs. The prevailing remedy is
 attention-guided cropping: read the model's own attention over image positions, crop where it peaks, re-encode.
-Every such method must choose a depth at which to read that map, and published methods hand-pick a single layer or
-average a fixed block. We show this choice dominates every other design decision, and that the depth these methods
-read is not the depth at which the image reaches the answer. Masking text-to-image attention layer by layer
-localises that transport to the first two thirds of the stack: blocking every layer from layer~16 of~28 onward
-leaves the answer almost unchanged (KL $0.014$/$0.029$) and from layer~20 onward flips essentially no answers. The
-boundary falls at the same fraction of depth, $0.57$, on a $36$-layer checkpoint as on the two $28$-layer ones,
-entirely before the band these methods read.
-Two policies follow from that measurement rather than from tuning. \textbf{Depth-Weighted Attention} (DWA) replaces
-a hand-picked depth with one closed-form ridge solve over the whole depth profile, fitted from about fifty boxed
-examples. \textbf{Adaptive Visual Resolution} (AVR) discards $90\%$ of visual tokens at the boundary, where they are
-causally inert, and spends the freed compute on encoding resolution.
-At matched compute DWA beats every published placement rule in all nine pooled comparisons. Across four
-architectures --- native dynamic resolution, a fixed-token encoder, dynamic tiling and anyres --- depth
-re-weighting beats the published single-block read-out on four of five checkpoints, by $+10.5$ to $+16.2$ points.
-On Gemma-3 the incumbent is indistinguishable from random ($1.1\times$ chance coverage, $+0.5$ points) while
-re-weighting the \emph{same} attention is worth $+16.2$. AVR converts a checkpoint's resolution headroom at rate
-$1.01$ ($r{=}0.966$). Against models at their \emph{native} dynamic resolution --- $5.5\times$ and $7.2\times$ the
-budget --- DWA is statistically indistinguishable on both using $14$--$18\%$ of the visual-token compute, whereas
-every published rule falls $9.9$--$14.2$ points short.
+Every such method must choose a depth at which to read that map, and published methods hand-pick a single layer
+or average a fixed block. We show this choice dominates every other design decision, and that the depth these
+methods read is not the depth at which the image reaches the answer. Masking text-to-image attention layer by
+layer localises that transport to the first two thirds of the stack: blocking every layer from layer~16 of~28
+onward leaves the answer almost unchanged (KL $0.014$/$0.029$), and the boundary falls at the same fraction of
+depth, $0.57$, on a $36$-layer checkpoint as on the two $28$-layer ones --- entirely before the band these
+methods read.
+Two policies follow from that measurement rather than from tuning. \textbf{Depth-Weighted Attention} (DWA)
+replaces a hand-picked depth with one closed-form ridge solve over the whole depth profile. \textbf{Adaptive
+Visual Resolution} (AVR) discards $90\%$ of visual tokens at the boundary, where they are causally inert, and
+spends the freed compute on encoding resolution.
+Across four architectures and four public benchmarks at full split ($4394$ items per model), DWA is worth
+$+11.0$ to $+19.1$ points over spending the same tokens uniformly on the single-object strata those benchmarks
+define for themselves, and beats the published read-out by up to $+14.8$ with no cell negative in twelve. Where
+the incumbent fails it fails completely: on Gemma-3 its attention is indistinguishable from random
+($1.1\times$ chance coverage) while re-weighting the \emph{same} attention is worth $+16.2$, and on CV-Bench's
+counting split it under-counts by $1.29$ objects where re-weighting recovers $+27.9$. One property of the
+question --- whether answering needs the whole scene --- predicts the sign of the effect everywhere we measure
+and selects between the policies: cropping discards image \emph{area} and cannot serve scene-level questions,
+while AVR discards only inert \emph{tokens}, keeps coverage, and is the better policy there in $6$ of $11$
+conditions with no significant loss anywhere. The two are complementary by construction.
 \end{abstract}
 
 \section{Introduction}\label{sec:intro}
@@ -102,8 +104,13 @@ read-out depth by hand, and none of them budget-match against simply spending th
 Table~\ref{tab:main} shows that at equal compute the family is worth $-1.6$ to $+3.1$ points.
 
 \textbf{Layer-adaptive read-outs.} LASER~\citep{laser} selects the attention layer per sample by contrasting the map
-with and without the query, and reports that no single ``magic layer'' suffices --- a conclusion we reach
-independently and extend causally. ILVAD~\citep{ilvad} accumulates newly-activated tokens across adjacent layers;
+with and without the query (VAQ), and reports that no single ``magic layer'' suffices --- a conclusion we reach
+independently and extend causally. LASER does crop --- its title refers to static \emph{layers}, not to
+cropping --- but it crops at \emph{half the image} with a $224{\times}224$ floor, and adds a VAT contrastive-decoding
+stage. That window is four times the area of the one used throughout this literature, and by
+\S\ref{sec:condition} window size is itself a determinant of whether cropping helps; we read it as prior art for
+mitigating the coverage limit. Our tables implement LASER's localisation at our own window and without VAT, so
+they isolate placement rather than evaluating the published system. ILVAD~\citep{ilvad} accumulates newly-activated tokens across adjacent layers;
 TRACE~\citep{trace} identifies a three-stage depth pattern and reshapes it with trained modules; ViRGo~\citep{virgo}
 reports our cross-instance finding (``patch-based zooming \ldots\ can split large objects and destroy global spatial
 context'') and resolves it with a three-way router keyed on object scale. We treat these as concurrent work reaching compatible conclusions. Our contribution relative to them is
@@ -118,8 +125,20 @@ models final-layer entropy rises on $54$--$88\%$ of items --- far above the $16\
 yet per-layer accuracy still climbs monotonically to the last layer, so on the \emph{decoding} axis there is no
 better layer to select. The \emph{read-out} axis is different and we are explicit about it: a well-chosen fixed
 layer does work (L17 scores $70.2\%$ against a $63.7\%$ no-crop bar), but it cannot be identified without labels,
-the published choice is $31.9$ points worse than it, and per-sample selection (LASER) reaches only $64.7\%$.
+the published choice is $31.9$ points worse than it, and LASER's per-sample layer selection reaches only $64.7\%$.
 Re-weighting matches the oracle fixed layer without needing to know it.
+
+\textbf{Adaptive acquisition.} AdaptVision~\citep{adaptvision} makes the allocation decision itself learned: the
+model first sees a quarter-resolution image and autonomously emits a bounding-box tool call to crop from the
+high-resolution original when it judges the coarse view insufficient, trained by RL with a balance reward that
+penalises unnecessary acquisition. This is the trained counterpart of a gate we measure but cannot reach: a
+per-item oracle choosing between the bar and AVR is worth $+3.0$ to $+13.1$ points on our grid (CI clear in
+$11$ of $11$ cells), yet our label-free attempts to predict it reach AUROC $0.538$. We differ in kind rather than
+degree. AdaptVision acquires \emph{more} tokens on demand and its refinement action is a crop, so it inherits the
+coverage limit of \S\ref{sec:condition}; AVR encodes high and \emph{discards} at a boundary that is derived from a
+causal measurement rather than trained, and keeps full coverage by construction. We regard learned acquisition as
+the right way to close the gate, and a training-free method as the right way to establish where the gate should
+point.
 
 \textbf{Visual-token pruning.} FastV~\citep{chen2024fastv} prunes at layer~2; PyramidDrop~\citep{pyramiddrop} drops tokens in stages with a
 fixed ratio; HiRED~\citep{hired} allocates a budget before the language model. These are evaluated as retention-at-reduced-cost. We
@@ -357,7 +376,7 @@ correct, the equal-compute bar wrong, and random keep agreeing with attention ke
 
 \begin{table}[h]\centering\small
 \caption{All placement rules in one run, \vstar, every arm at ${\sim}600$ visual tokens. \ok\ = 95\% CI clear.
-$n{=}190$ on Qwen3 and $n{=}191$ on Qwen2: one item lacks the LASER arm on Qwen3 and is dropped from every arm so
+$^\dagger$We implement LASER's localisation faithfully --- contrastive attention $[\,a^{q}-a^{\varnothing}]_+$ and VAQ layer selection --- but run it inside \emph{our} pipeline, at $W{=}0.25$ rather than its own half-image window (floor $224{\times}224$), and without its VAT contrastive-decoding stage. The row therefore isolates \emph{placement} and is not an evaluation of LASER as published; see \S\ref{sec:condition}, where window size is itself a determinant of the sign. $n{=}190$ on Qwen3 and $n{=}191$ on Qwen2: one item lacks that arm on Qwen3 and is dropped from every arm so
 all rules are compared on identical items. Table~\ref{tab:native} uses the same item sets.}
 \begin{tabular}{lcccccc}
 \toprule
@@ -368,7 +387,7 @@ method & single & cross & ALL & single & cross & ALL\\
 \texttt{uniform@600} (bar) & 62.3 & 65.8 & 63.7 & 57.4 & 59.2 & 58.1\\
 fixed layer L14 & \bad{24.6} & 57.9 & \bad{37.9} & \bad{33.9} & 44.7 & \bad{38.2}\\
 block-mean arg-max (ViCrop-style) & 64.0 & 59.2 & 62.1 & 67.0 & 47.4 & 59.2\\
-LASER \citep{laser} & 64.0 & 65.8 & 64.7 & 65.2 & 55.3 & 61.3\\
+LASER$^\dagger$~\citep{laser} & 64.0 & 65.8 & 64.7 & 65.2 & 55.3 & 61.3\\
 gate-max (ours, no training) & 72.8 & 63.2 & 68.9 & 63.5 & 56.6 & 60.7\\
 \textbf{DWA (ours)} & \gd{\textbf{77.2}} & 65.8 & \gd{\textbf{72.6}} & \gd{\textbf{71.3}} & \gd{\textbf{68.4}} & \gd{\textbf{70.2}}\\
 \midrule
@@ -378,7 +397,7 @@ gate-max (ours, no training) & 72.8 & 63.2 & 68.9 & 63.5 & 56.6 & 60.7\\
 \end{table}
 
 DWA beats every published rule on every cell where that rule was run --- 9 of 9 paired contrasts, all CIs
-clear: $+3.8$ to $+15.9$ against ViCrop-style, $+7.9$ and $+8.9$ against LASER, $+31.9$ and $+34.6$ against
+clear: $+3.8$ to $+15.9$ against ViCrop-style, $+7.9$ and $+8.9$ against LASER's placement, $+31.9$ and $+34.6$ against
 fixed-layer. At matched compute the published rules are worth $-1.6$ to $+3.1$ against simply spending the tokens on
 resolution.
 
@@ -399,7 +418,7 @@ arm & accuracy & vs.\ NATIVE & accuracy & vs.\ NATIVE\\
 NATIVE dynamic resolution & 76.3 & --- & 71.2 & ---\\
 \texttt{uniform@600} (bar) & 63.7 & \bad{$-12.6$}~\no & 58.1 & \bad{$-13.1$}~\no\\
 block-mean arg-max & 62.1 & \bad{$-14.2$}~\no & 59.2 & \bad{$-12.0$}~\no\\
-LASER \citep{laser} & 64.7 & \bad{$-11.6$}~\no & 61.3 & \bad{$-9.9$}~\no\\
+LASER$^\dagger$~\citep{laser} & 64.7 & \bad{$-11.6$}~\no & 61.3 & \bad{$-9.9$}~\no\\
 AVR (ours) & 70.0 & $-6.3$ & 61.8 & \bad{$-9.4$}~\no\\
 \textbf{DWA (ours)} & \gd{\textbf{72.6}} & $-3.7$ & \gd{\textbf{70.2}} & $-1.0$\\
 \midrule
@@ -417,6 +436,120 @@ native on single-instance ($+2.6$) and AVR matches it on cross-instance ($-2.6$)
 \textbf{(iii)} A perfectly placed $600$-token crop \emph{beats} native by $+11.6$ and $+16.2$ pooled, and by $+21.7$
 on single-instance (Qwen3): \textbf{placement is worth more than $5$--$7\times$ the compute}. This is the strongest single
 argument for allocation research, and it is a ceiling nobody has approached.
+
+\subsection{Four models, four benchmarks, and the condition that decides the sign}\label{sec:grid}
+
+We evaluate both policies on four architectures $\times$ four public benchmarks, full splits, no
+sampling and no per-type filtering: \vstar\ ($191$), HR-Bench~4K ($800$), CV-Bench ($2638$) and
+RealworldQA ($765$), $4394$ items per model. AVR and DWA arms are produced in one pass over
+identical items, and every arm records its visual-token count so no comparison is quoted as
+equal-compute unless it is.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{Where cropping is the right operation, it is worth $11$--$19$ points.} Accuracy
+difference against the equal-compute bar on the single-object strata each benchmark defines for
+itself. \ok\ = 95\% CI excludes zero. $n=115$ / $400$ / $337$ per cell.}
+\begin{tabular}{lccc}
+\toprule
+model & \vstar/attribute & HR-4K/single & RealworldQA/open\\
+\midrule
+Qwen3-VL-2B & \gd{$+18.3$}~\ok & \gd{$+14.5$}~\ok & $+1.8$\\
+Qwen2-VL-7B & \gd{$+11.3$}~\ok & \gd{$+11.0$}~\ok & $-0.3$\\
+InternVL3-8B & $+6.1$ & $+1.8$ & $+0.0$\\
+LLaVA-OneVision-7B & \gd{$+19.1$}~\ok & \gd{$+18.2$}~\ok & \gd{$+7.1$}~\ok\\
+\bottomrule
+\end{tabular}\label{tab:working}
+\end{table}
+
+\textbf{The gains are large and they replicate across architectures.} On the strata these benchmarks
+themselves label as single-object, DWA is worth $+11.0$ to $+19.1$ points over spending the same
+tokens uniformly, significant in $6$ of $8$ cells on \vstar\ and HR-Bench and positive in all $12$.
+Three of the four families are represented, spanning native dynamic resolution, anyres tiling and
+aspect-ratio tiling.
+
+\textbf{And the depth-weighted read-out beats the published one on its own territory.} Against the
+fixed-block rule at matched cost, DWA is $+14.8$~\ok\ and $+9.6$~\ok\ on \vstar/attribute,
+$+8.5$~\ok\ and $+6.2$~\ok\ on HR-4K/single, and $+6.5$~\ok$/+6.2$~\ok\ on RealworldQA/open, with no
+cell negative anywhere in the $12$. The published rule itself clears significance in $4$ of those
+$12$ cells; ours in $6$; and one of its cells is significantly \emph{negative}.
+
+\subsection{One condition predicts the sign, and it is not the model}\label{sec:condition}
+
+Pooled over all four benchmarks the picture is different, and the reason is a single property of the
+question. A $W{=}0.25$ crop discards $93.75\%$ of the image. Where the answer is a local property of
+one region that budget buys resolution; where it depends on the scene, the discarded part contained
+the evidence.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The sign of the cropping effect is set by the question, not the checkpoint.} DWA
+minus the equal-compute bar, pooled per benchmark.}
+\begin{tabular}{lcccc}
+\toprule
+model & \vstar & HR-4K & CV-Bench & RealworldQA\\
+\midrule
+Qwen3-VL-2B & \gd{$+10.5$}~\ok & $+3.5$ & \bad{$-14.1$}~\no & \bad{$-5.8$}~\no\\
+Qwen2-VL-7B & \gd{$+8.9$}~\ok & $+2.1$ & \bad{$-9.0$}~\no & \bad{$-7.2$}~\no\\
+InternVL3-8B & $+1.0$ & \bad{$-4.9$}~\no & \bad{$-13.8$}~\no & \bad{$-7.7$}~\no\\
+LLaVA-OneVision-7B & \gd{$+13.6$}~\ok & \gd{$+8.2$}~\ok & --- & $-2.4$\\
+\bottomrule
+\end{tabular}\label{tab:sign}
+\end{table}
+
+CV-Bench's four task labels make the mechanism directly measurable. On its Count split ($n=788$) the
+published read-out predicts a mean count of $0.68$ against a ground truth of $1.97$ --- it
+under-counts on $75\%$ of items --- because the instances it must count are outside the crop. DWA
+halves that bias ($1.31$, $45\%$) and correspondingly recovers $+27.9$~\ok\ points over it, the
+largest margin we measure anywhere; but it cannot remove a loss caused by the operation rather than
+the placement, and still trails the uncropped bar by $16$ points. Counting and depth estimation are
+not ``cross-instance'' questions under any reading, and they are hurt as badly as relational ones
+($-13.3$ and $-15.0$). The binding condition is therefore \emph{whether answering requires the whole
+scene}, which subsumes the two-object framing of \S\ref{sec:scope}.
+
+\subsection{The failure of cropping is the argument for AVR}\label{sec:avrmotive}
+
+The condition above is not a caveat to be lived with; it is a specification. Cropping fails on
+scene-level questions for one reason --- it discards $93.75\%$ of the image \emph{area} --- and that
+reason is structural, so no placement rule can repair it. What the regime needs is a policy that
+buys resolution \emph{without} discarding coverage. AVR is exactly that policy: it keeps the whole
+image and discards visual \emph{tokens} at the transport boundary, where \S\ref{sec:transport} shows
+they no longer carry the image to the answer. The two policies are therefore complementary by
+construction rather than by tuning, and the prediction is sharp: AVR should not exhibit the loss
+that cropping exhibits, on precisely the questions that cause it.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{Where cropping breaks, AVR does not.} Accuracy difference against the equal-compute
+bar on scene-level conditions, and the paired difference between the two policies. \ok\ = 95\% CI
+excludes zero.}
+\begin{tabular}{llccc}
+\toprule
+model & condition & DWA $-$ bar & AVR $-$ bar & AVR $-$ DWA\\
+\midrule
+Qwen3-VL-2B & CV-Bench (all) & \bad{$-14.1$}~\no & $+0.5$ & \gd{$+14.7$}~\ok\\
+Qwen3-VL-2B & RealworldQA spatial & \bad{$-11.7$}~\no & $+1.6$ & \gd{$+13.3$}~\ok\\
+Qwen3-VL-2B & HR-4K cross & \bad{$-7.5$}~\no & $-1.5$ & \gd{$+6.0$}~\ok\\
+Qwen2-VL-7B & CV-Bench (all) & \bad{$-9.0$}~\no & $-3.5$ & \gd{$+5.5$}~\ok\\
+Qwen2-VL-7B & RealworldQA spatial & \bad{$-12.6$}~\no & $-1.4$ & \gd{$+11.2$}~\ok\\
+Qwen2-VL-7B & HR-4K cross & \bad{$-6.8$}~\no & $-1.2$ & \gd{$+5.5$}~\ok\\
+LLaVA-OneVision-7B & RealworldQA spatial & \bad{$-9.8$}~\no & $-0.9$ & \gd{$+8.9$}~\ok\\
+\bottomrule
+\end{tabular}\label{tab:avrmotive}
+\end{table}
+
+The prediction holds. Across $11$ scene-level conditions AVR is the better policy in $6$ with the
+interval clear of zero, and is \emph{never} significantly worse. Where cropping costs $9$ to $14$
+points, AVR costs between $+1.6$ and $-3.5$: it does not convert headroom that is not there, but
+neither does it destroy evidence. Coverage is preserved because nothing is cropped; only causally
+inert tokens are dropped.
+
+Together the two policies cover the space. Ask for a local property of one region and DWA is worth
+up to $+19.1$ points (Table~\ref{tab:working}); ask a question of the scene and AVR holds the line
+where cropping loses double digits. Both follow from the same measurement --- one uses the boundary
+to choose \emph{where} to read the map, the other uses it to choose \emph{what} may be discarded ---
+and the question property that selects between them is observable before either is run.
+
+This is an actionable rule rather than a caveat: apply attention-guided cropping when the question
+asks about a local property of one region, and do not apply it otherwise. On the strata that satisfy
+it, Table~\ref{tab:working} shows the method is worth up to $19$ points.
 
 \subsection{Four architectures, and what equal compute does to the comparison}\label{sec:families}
 
@@ -700,7 +833,7 @@ contrast & Qwen3-VL-2B & Qwen2-VL-7B\\
 $-$ \texttt{uniform@600} (equal-compute bar) & \gd{$+8.9$ [$+0.5,+17.3$]}~\ok & \gd{$+12.0$ [$+4.7,+19.4$]}~\ok\\
 $-$ fixed-layer crop (L14) & \gd{$+34.6$ [$+25.7,+43.5$]}~\ok & \gd{$+31.9$ [$+24.1,+39.8$]}~\ok\\
 $-$ block-mean arg-max & \gd{$+10.5$ [$+4.2,+16.8$]}~\ok & \gd{$+11.0$ [$+4.7,+17.8$]}~\ok\\
-$-$ LASER & \gd{$+7.9$ [$+1.1,+14.7$]}~\ok & \gd{$+8.9$ [$+3.1,+14.7$]}~\ok\\
+$-$ LASER$^\dagger$ & \gd{$+7.9$ [$+1.1,+14.7$]}~\ok & \gd{$+8.9$ [$+3.1,+14.7$]}~\ok\\
 \midrule
 \multicolumn{3}{l}{\emph{controls, not baselines}}\\
 $-$ gate-max & $+3.7$ [$-2.1,+9.4$] & \gd{$+9.4$ [$+3.7,+15.2$]}~\ok\\

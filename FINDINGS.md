@@ -8884,3 +8884,262 @@ the incumbent by +10.5 ✔. What fails to carry is the cold weight transfer, not
 Also note `block − bar` on InternVL HR-4k single is +13.0 ✔ — as on LLaVA-OV, the incumbent read-out
 works well on this architecture, leaving little for re-weighting to add. The two families where
 transfer fails are the two where block already works.
+
+## §78 ⚠ THE V* COLUMN OF THE 4x4 GRID IS IN-SAMPLE FOR DWA — use the OOF runs there
+
+phase225 applies the stored V*-fitted ridge weights (`fig_ridge_w_*.npy`) to whatever benchmark it
+is given. On hr4k / cvbench / realworldqa that is genuine cross-benchmark transfer. **On V* it is
+in-sample**: the weights were fitted on those very items, so `dwa_t` there is not out-of-fold.
+
+Caught by validation: phase225 qwen3/V* returns dwa_t = 72.8, matching the OOF phase223 number
+(72.8) exactly. An exact match across two supposedly independent estimators is a leak signature,
+not a success — the §93b reflex applied to a number that looked good rather than bad.
+
+The V* DWA column must be quoted from the OOF runs (phase223 for Qwen, phase215b for the others).
+phase225's V* dwa_t is retained only as harness validation, and `table_grid.py` now prints this
+warning under every run so the number cannot be lifted out of context later.
+
+Unaffected: `uniform@lo`, `uniform@hi`, `avr` and `block` involve no fitted weights and are valid
+on every column, V* included.
+
+## §79 ⚠⚠ SELF-INFLICTED: an id()-KEYED CACHE MADE DWA COLLAPSE ONTO THE INCUMBENT
+
+While optimising phase225 I memoised `fit_budget` on `(id(img), target)`. CPython reuses the
+addresses of garbage-collected objects, so the `block` crop and the `dwa_t` crop -- constructed and
+released in sequence within one item -- collided in the cache, and the second arm silently received
+the FIRST arm's resized image.
+
+**Symptom:** on qwen2_7b/V*, `block` and `dwa_t` returned bitwise-identical probability vectors on
+**184/191 items (96%)**, against 33% on qwen3_2b/V* which ran before the patch. Accuracy read
+dwa_t = block = 62.3 while the known OOF DWA for that checkpoint is 70.2.
+
+**How it was caught:** validating the new harness against known numbers. qwen3 reproduced its OOF
+72.8 exactly; qwen2 did not, and `dwa_t == block` to the decimal is the §93b exact-equality
+signature. Ruled out in order: BLK band mismatch (fitted (15,27) vs applied (16,27) -- both give
+~30% agreement on stored maps, so not the cause), localise resolution (weights fitted on ~295-cell
+grids, applied at 300 tokens -- matched), and a broken attention capture (live vs stored maps
+correlate at **1.000** on every layer, so capture is exact). That left phase225's own code.
+
+**Fix:** cache removed entirely. The one safe reuse -- `uniform@hi` and `avr` share a single E_HI
+encode -- is now done by computing that image once and passing it explicitly, not by a cache.
+
+**Data quarantined** to data/tainted/: phase225_qwen2_7b_vstar, phase225_internvl3_8b_vstar (the
+only cells run after the patch). phase225_qwen3_2b_vstar and the qwen3 cvbench partial predate it
+and are unaffected.
+
+**Lesson for the paper's fault appendix:** an optimisation that cannot change results is exactly
+the kind of change that gets merged unvalidated. This one silently converted the method into its
+own baseline, in the direction of a NULL result -- it would have shown up as "DWA does not beat the
+incumbent", a believable finding, not an obvious crash.
+
+## §80 ⚠⚠ A FIXED 600/900 BUDGET IS MEANINGLESS ON A QUANTISED LADDER — it starved the crops and
+## made cropping look harmful on InternVL
+
+phase225 originally targeted a 600-token bar, a 900-token headroom arm and 300-token crops on every
+architecture. On InternVL3-8B the achievable counts are [256, 1792, 2304, 3328]: targeting 600
+lands on **256**, and targeting 900 overshoots to **3328**.
+
+Consequences, all measured on the (now quarantined) cell:
+
+| arm | tokens | acc |
+|---|---|---|
+| uniform@lo | 256 | 64.9 |
+| uniform@hi | 3328 | 71.2 |
+| block | 256 | 55.0 |
+| dwa_t | 256 | 55.0 |
+
+- the "headroom diagnostic" was a **13x** gap, not a resolution step;
+- both placement arms encoded their crop at **256 tokens**, which cannot resolve the detail the
+  question asks about, so both landed ~10 points BELOW the bar.
+
+Compare the native-resolution phase215b run on the same model and benchmark: block 66.0, DWA 76.4.
+The difference is entirely crop resolution. **Placement only pays when the crop is encoded densely
+enough to resolve the target** — a result in its own right, and one to state rather than bury.
+
+**Fix:** per-architecture budget discovery. Probe the achievable counts; if `fit_budget` can hit the
+intended pair within 15% the axis is CONTINUOUS (Qwen) and 600/900/300 stands. Otherwise pick an
+ADJACENT rung pair with hi/lo <= 2.5, preferring lo nearest the intended budget:
+
+| family | achievable | chosen | ratio |
+|---|---|---|---|
+| Qwen* | continuous | 600 / 900, crop 300 | 1.50 |
+| InternVL3-8B | 256, 1792, 2304, 3328 | **1792 / 2304** | 1.29 |
+| LLaVA-OV-7B | 1317, 1728, 2929, 4725 | **1317 / 1728** | 1.31 |
+
+The LLaVA-OV choice independently reproduces what phase213's own budget logic derived, which is a
+useful cross-check on the rule.
+
+**Shared shape with §79.** Both of tonight's faults produced a *believable negative* rather than a
+crash: §79 read as "DWA does not beat its baseline", §80 as "cropping hurts on InternVL". Neither
+would look wrong in a results table. This is the argument for validating every new harness against
+previously-established numbers before trusting any new cell it produces.
+
+## §81 ⚠ CORRECTION TO §76 — InternVL's bar was a straw bar; cost is 1.08x, not 8.37x
+
+phase225 with native-resolution encoding (n=191, V*). §76's InternVL row came from phase215b, whose
+`bar` was a 448x448 SQUARE resize. InternVL's tile grid is chosen by aspect ratio, so a square input
+yields 256 tokens while the native-aspect image yields 3328 -- the bar was running at 1/13 of the
+tokens the crops got.
+
+| quantity | §76 (448px bar) | corrected (native bar) |
+|---|---|---|
+| bar | 60.2 | **74.9** |
+| dwa_t − block | +10.5 ✔ | **+9.4 [+3.1,+15.7] ✔** |
+| dwa_t − bar | +16.2 ✔ | **+1.0 [−6.8,+8.9] n.s.** |
+| block − bar | — | **−8.4 [−16.8,+0.0]** |
+| DWA cost | 8.37x | **1.08x** |
+
+Both errors share one cause. The cost ratio was inflated because the denominator was the starved
+bar; the +16.2 was inflated because the baseline was starved. Corrected, DWA is nearly free on this
+architecture (the localise pass runs on a 448px square = 256 tokens, the crop costs the same as the
+bar) and beats the incumbent by +9.4, but does NOT beat simply not cropping.
+
+**§76's conclusions stand; its InternVL numbers do not.**
+- "beats the published read-out": 4 of 5 (Qwen3 +10.5, Qwen2 +11.0, Gemma +16.2, InternVL +9.4;
+  LLaVA-OV n.s.)
+- "beats an equal-compute bar": 3 of 5 -- InternVL now in the NO column with a proper bar rather
+  than a straw one, joining LLaVA-OV. Both are families where the incumbent already works.
+
+**Lesson:** a resize chosen for one purpose (matching the layout probe's 448px grid) silently became
+the evaluation's baseline. Any arm whose token count is not recorded and compared is a straw-man
+risk; phase225 now records tokens for every arm on every item.
+
+## §82 ⚠ LASER IS NOT A CROPPING METHOD — our baseline arm was a port, and the paper said otherwise
+
+`arXiv:2602.04304`, "Beyond Static Cropping: Layer-Adaptive Visual Localization and Decoding
+Enhancement" (Zhu et al.). Checked against the source after the question was raised.
+
+**What LASER actually does.** Two components: (i) VAQ, a per-sample criterion that picks which
+layer's attention map is most query-relevant, and (ii) a decoding enhancement that selects
+task-appropriate layers at answer time. It is a training-free inference procedure that **produces no
+bounding box and never re-encodes a crop** — the title's "Beyond Static Cropping" is the point.
+
+**What we implemented.** `phase179`/`phase184` take VAQ's per-sample layer choice, read that layer's
+arg-max as a crop cell, and run our crop-and-re-encode pipeline. The decoding half was never
+implemented. So the arm is *our port of one of LASER's two components into the cropping setting*.
+
+**What the paper claimed.** `tab:main` listed it as a row under "All placement rules in one run",
+and the results prose and appendix claimed "+7.9 and +8.9 points **against LASER**". That is a
+misdescription of a cited baseline, and the LASER authors or any reviewer reading the title would
+catch it.
+
+**Fixed.** The arm is relabelled `VAQ layer-select†` in all three tables, with a caption footnote
+stating that LASER is not a cropping method, that only VAQ is ported, that its decoding component is
+unevaluated, and that the row must not be read as a result about LASER. Prose claims reworded. The
+Related Work entry (already correctly filed under "Layer-adaptive read-outs", not cropping) now says
+explicitly that LASER is not subject to the coverage limit of the scope section.
+
+**The numbers are unchanged and still valid** — the ported arm is a legitimate layer-adaptive
+placement baseline, and beating it by +7.9/+8.9 is a real result about *placement rules*. Only the
+label was wrong.
+
+**Pattern worth noting:** this is the second citation fault in the same neighbourhood, after
+ViCrop's ICLR'25 paper being in refs.bib but cited nowhere (§ earlier) and the localise-vs-answer
+observation being credited to the wrong paper. Baseline arms named after papers should carry a
+one-line statement of exactly which component was implemented.
+
+## §82B ⚠⚠ REVERSING §82 — LASER *IS* A CROPPING METHOD. I over-corrected on a bad summary.
+
+§82 claimed LASER "produces no bounding box and never re-encodes a crop" and relabelled our baseline
+accordingly. **That was wrong.** It came from an automated summary of the abstract, not the paper.
+Reading the source (arXiv:2602.04304 §4.2, "Constrained visual cropping (Con-ViCrop)"):
+
+> "we identify the visual grounding region based on the contrastive attention map ... and generate a
+> crop box B_crop centered on it. We set the crop dimensions to **half of the original image size**,
+> with a strict lower bound of 224x224 ... we crop the image to obtain I+ and feed (I+, q) to the
+> LVLM for the second-stage prediction."
+
+"Beyond Static Cropping" means beyond static-**layer** cropping. LASER crops.
+
+**What our arm actually implements** (phase179_placements.py:35):
+`C = ReLU(A_q - A_noq); cell = argmax(C[argmax_l ||C_l||])`
+i.e. contrastive attention AND VAQ layer selection, both faithful. Missing: top-K_head selection,
+VAT contrastive decoding, and -- the material one -- **the crop size**.
+
+**The crop-size discrepancy matters and is not a detail.** LASER crops at HALF the image (25% of
+area, floor 224x224); we ran every placement arm at W=0.25 (6.25% of area). By our own scope law
+(§sec:condition) coverage is exactly what decides the sign of the cropping effect, so LASER's window
+discards 75% of the image where ours discards 93.75%. **LASER's larger window is a hedge against the
+coverage limit we identified**, whether or not they framed it that way, and our comparison silently
+removed it.
+
+**Status of the numbers.** The +7.9/+8.9 contrast remains valid as a *placement* comparison -- all
+arms share one pipeline and differ only in which cell is chosen, which is what it was designed to
+isolate. It is NOT an evaluation of LASER as published, because crop size and VAT are ours/absent.
+
+**Actions.** Revert the §82 relabelling; restore LASER's name with an accurate footnote stating that
+we implement its localisation (contrastive attention + VAQ) at our crop size, without VAT. Add
+LASER's half-image window to the window-size discussion as prior art for the coverage mitigation.
+
+**Process lesson, the second tonight.** §82 was logged with the same confidence as a measured
+result, on the strength of a one-paragraph summary. Prior-art claims about what a cited method DOES
+must come from the paper body, not an abstract summariser -- the abstract said "beyond static
+cropping" and the summariser rendered that as "without cropping".
+
+## §83 PRIOR ART — AdaptVision (CVPR 2026) TRAINS the gate we found unreachable training-free
+
+`AdaptVision: Efficient Vision-Language Models via Adaptive Visual Acquisition`, Lin, Liu, Yang,
+Tao, Ye (Tencent Hunyuan), CVPR 2026. PDF read in full; code at github.com/adaptvision/adaptvision.
+
+**What it does.** Coarse-to-fine *active vision*. The model first sees a 1/4-resolution image (25% of
+the tokens) and then **autonomously decides** whether to answer directly or emit
+`<tool_call>[x1,y1,x2,y2]</tool_call>` to crop a region from the high-resolution original. Total cost
+`n_img = n_low + 1_tool * n_crop`. Trained by RL (DTPO, a decoupled-advantage variant of GRPO) with
+an accuracy reward, a format reward, and a **balance reward** that applies a 0.1 penalty to correct
+answers that invoked the tool -- explicitly discouraging unnecessary acquisition.
+
+**Why it matters to us, in both directions.**
+
+*It validates our oracle-gate result.* We measured a per-item oracle gate over {bar, DWA} worth
++14.1/+9.4 and could not reach it: wrongness prediction came out at AUROC 0.538. The oracle gate
+over {bar, AVR}, computed here from the phase225 grid, is worth **+3.0 to +13.1 over always-bar and
++1.9 to +7.8 over always-AVR, CI-clear on 11 of 11 cells**. So the complementarity is real and large.
+
+*It forecloses the obvious next step.* AdaptVision reaches that gate by TRAINING it. Our standing
+constraint is training-free, and a training-free gate has now failed twice in this project. Proposing
+"adaptive AVR" as future work without acknowledging AdaptVision would be a novelty failure.
+
+**Caveat on our own oracle number, stated before anyone else says it.** `max(bar, avr)` captures
+genuine complementarity AND stochastic disagreement: two arms near 60% that disagree on ~30% of
+items show a large oracle gain from noise alone. The +3..+13 is an upper bound that is not
+achievable even in principle by a deterministic policy, and should be reported as a ceiling, never
+as headroom a method could capture.
+
+**Difference in kind, worth keeping.** AdaptVision goes low->high (acquire more when the model asks);
+AVR goes high->low (encode high, discard at the transport boundary). AdaptVision's refinement action
+is a crop, so it inherits the coverage limit of §sec:condition; AVR keeps full coverage by
+construction. And AdaptVision's gate is learned, while AVR's prune depth is *derived* from the
+causal transport measurement rather than trained or tuned.
+
+## §84 ✗ REJECTED — DWA-guided contrastive decoding fails in the NO-HEADROOM regime too (Phase 226)
+
+`phase226_cd_dwa.py qwen3_2b cvbench`, n=2638, full CV-Bench. z+ pass doubles as the localise pass,
+so the method costs exactly 2 forward passes; `hi2x` is a single pass at 2x the budget (1176 tokens
+vs cd_total 1200, matched to 2%).
+
+| alpha | cd_dwa | cd_rand | − hi2x | − cd_rand | − bar |
+|---|---|---|---|---|---|
+| 0.5 | 79.8 | 80.1 | **−1.6 [−2.6,−0.6] ✔** | −0.3 | −0.1 |
+| 1.0 | 79.4 | 79.9 | **−2.0 [−3.1,−0.9] ✔** | −0.6 | −0.5 |
+| 2.0 | 78.2 | 79.8 | **−3.2 [−4.4,−2.0] ✔** | **−1.6 ✔** | **−1.7 ✔** |
+
+bar 79.9, hi2x 81.4.
+
+**PRE-REGISTERED RULE** (fixed before any number): adopt only if `(cd_dwa − hi2x)` AND
+`(cd_dwa − cd_rand)` both exclude zero at the SAME alpha. **Satisfied at 0 of 3 → REJECT.**
+
+**My hypothesis was wrong, and precisely wrong.** I argued §14H's verdict was V*-specific because
+there two passes on resolution buy +7.4, whereas on CV-Bench headroom is ~0 so the hurdle would drop
+to ~+1. The premise checked out — `hi2x − bar` is only +1.5. But cd_dwa failed to clear even that
+lowered hurdle and went backwards. **The economics were never the binding constraint.** The binding
+constraint is that a DWA-masked logit contrast carries no more information than a random-masked one:
+cd_dwa trails cd_rand at every alpha. Larger alpha is monotonically worse, as expected when
+amplifying a contrast that is mostly noise.
+
+**Eight internal interventions, eight failures**, every one indistinguishable from its random
+control at the end task: activation steering (§4E), attention amplification (§10B), contrastive
+decoding on V* (§14H) and now on CV-Bench (§84), self-confidence gating, wrongness prediction
+(AUROC 0.538), unsupervised placement (§63), hidden-state probes. The consistency is itself the
+result and belongs in the paper as such: it is the strongest evidence for the central claim that
+**allocation must happen in pixel space** — choose what to ENCODE, rather than reweighting what was
+already encoded. §10B stated this from one experiment; there are now eight.
