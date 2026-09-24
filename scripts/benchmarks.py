@@ -55,7 +55,8 @@ def docvqa(limit=None):
     +1.6 to +3.9 here against a fixed-resolution baseline)."""
     from datasets import load_dataset
     ds=load_dataset("lmms-lab/DocVQA","DocVQA",split="validation"); n=0
-    for e in ds:
+    for i in _pick(len(ds),limit):
+        e=ds[i]
         ans=[str(a).strip() for a in e["answers"]]; ans=[a for a in ans if a]
         if not ans: continue
         q=str(e["question"]).strip()+"\nAnswer with a single word or short phrase."
@@ -64,7 +65,6 @@ def docvqa(limit=None):
         img=e["image"]
         yield (f"docvqa/{e['questionId']}", img.convert("RGB"), q, ans, stratum, "open")
         n+=1
-        if limit and n>=limit: break
 
 def gqa(limit=None):
     """lmms-lab/GQA testdev_balanced (12578 instructions over 398 images). Open-ended; the standard
@@ -73,13 +73,13 @@ def gqa(limit=None):
     from datasets import load_dataset
     imgs={r["id"]: r["image"] for r in load_dataset("lmms-lab/GQA","testdev_balanced_images",split="testdev")}
     ds=load_dataset("lmms-lab/GQA","testdev_balanced_instructions",split="testdev"); n=0
-    for e in ds:
+    for i in _pick(len(ds),limit):
+        e=ds[i]
         img=imgs.get(e["imageId"])
         if img is None: continue
         q=str(e["question"]).strip()+"\nAnswer with a single word or short phrase."
         yield (f"gqa/{e['id']}", img, q, str(e["answer"]).strip(), "gqa", "open")
         n+=1
-        if limit and n>=limit: break
 
 def textvqa(limit=None):
     """lmms-lab/textvqa validation (5000). Open-ended; gold is the 10 human answers and an item counts
@@ -87,14 +87,14 @@ def textvqa(limit=None):
     Single stratum: these are OCR/attribute questions about one text region."""
     from datasets import load_dataset
     ds=load_dataset("lmms-lab/textvqa")["validation"]; n=0  # test annotations are hidden; validation is the eval split
-    for e in ds:
+    for i in _pick(len(ds),limit):
+        e=ds[i]
         ans=[str(a).strip() for a in e["answers"]]
         ans=[a for a in ans if a]
         if not ans: continue
         q=str(e["question"]).strip()+"\nAnswer with a single word or short phrase."
         yield (f"textvqa/{e['question_id']}", e["image"], q, ans, "ocr", "open")
         n+=1
-        if limit and n>=limit: break
 
 _ART=re.compile(r"\b(a|an|the)\b")
 def norm(s):
@@ -103,6 +103,16 @@ def norm(s):
     s=_ART.sub(" ",s)
     return " ".join(s.split())
 def open_match(pred,gold): return norm(pred)==norm(gold)
+
+def _pick(n, limit, seed=225):
+    """Deterministic index sample identical to _sample(list,limit): shuffle-then-take, sorted.
+    Applied to indices so images are decoded ONLY for sampled rows (DocVQA pages are ~4 MB each;
+    materialising the full 5349-item split cost ~21 GB per job and had two jobs OOM-killed)."""
+    import random
+    r=random.Random(seed); idx=list(range(n))
+    if limit and limit<len(idx):
+        r.shuffle(idx); idx=sorted(idx[:limit])
+    return idx
 
 def _sample(items,limit,seed=225):
     """Deterministic shuffle-then-take. A PREFIX would be biased: CV-Bench is ordered by task, so
@@ -114,8 +124,10 @@ def _sample(items,limit,seed=225):
     return [items[i] for i in sorted(idx[:limit])]
 
 def load(name,limit=None):
-    items=list(LOADERS[name]())
-    return _sample(items,limit)
+    fn=LOADERS[name]
+    if getattr(fn,"lazy_sample",False):
+        return list(fn(limit))
+    return _sample(list(fn()),limit)
 
 
 def vstar(limit=None):
@@ -155,6 +167,7 @@ def _hrbench(cfg,limit=None):
 def hr4k(limit=None): return _hrbench("hrbench_4k",limit)
 def hr8k(limit=None): return _hrbench("hrbench_8k",limit)
 
+for _f in (textvqa,gqa,docvqa): _f.lazy_sample=True
 LOADERS={"cvbench":cvbench,"realworldqa":realworldqa,"textvqa":textvqa,"gqa":gqa,"docvqa":docvqa,
         "vstar":vstar,"hr4k":hr4k,"hr8k":hr8k}
 if __name__=="__main__":
