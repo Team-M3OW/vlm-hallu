@@ -5,7 +5,12 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import benchmarks as B
 D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 rng = np.random.default_rng(0)
-CELLS = [("qwen3_2b", "vstar"), ("qwen3_2b", "docvqa"), ("qwen2_7b", "vstar"), ("qwen2_7b", "docvqa")]
+import glob, re as _re
+CELLS = []
+for f in sorted(glob.glob(f"{D}/data/phase229_*.jsonl")) + sorted(glob.glob(f"{D}/data/phase228_*.jsonl")):
+    mm = _re.match(r"phase22[89]_(.+?)_([a-z0-9]+)\.jsonl", os.path.basename(f))
+    if mm and (mm.group(1), mm.group(2)) not in CELLS:
+        CELLS.append((mm.group(1), mm.group(2)))
 ARMS = ["uniform@300", "crop25@300", "crop50@300", "dynW@300", "rand25@300"]
 
 
