@@ -91,7 +91,7 @@ def fit_frames(img, target=VTOK_TARGET):
     return best
 
 
-state = {"layers": set(), "span": None, "cols": None}
+state = {"layers": set(), "span": None, "cols": None, "rows": None}
 
 
 def make_hook(l):
@@ -101,8 +101,12 @@ def make_hook(l):
         if am is None: am = args[1] if len(args) > 1 else None
         if am is None or am.dtype == torch.bool:
             raise RuntimeError(f"unexpected attention_mask {None if am is None else am.dtype}")
-        am = am.clone(); a, b = state["span"]; cols = state["cols"]
-        am[:, :, b:, cols] = torch.finfo(am.dtype).min   # EXACT video columns, not the span
+        am = am.clone(); cols = state["cols"]; rows = state["rows"]
+        # LEAK FIX: masking only rows AFTER the last frame (b:) leaves the interleaved TIMESTAMP
+        # text rows, which sit INSIDE the video span, free to read earlier frames at every layer
+        # and relay that content onward through unmasked columns. Mask every NON-VIDEO row from
+        # the first video token onward. A weak kl_all/flip_all is the signature of this leak.
+        am[:, :, rows.unsqueeze(1), cols.unsqueeze(0)] = torch.finfo(am.dtype).min
         kwargs["attention_mask"] = am; return (args, kwargs)
     return pre
 hooks = [layers[l].self_attn.register_forward_pre_hook(make_hook(l), with_kwargs=True) for l in range(NL)]
@@ -129,6 +133,9 @@ for qid, img, q, gold, stratum, kind in items:
     sp = vspan(inp)
     if sp is None: continue
     state["span"] = (sp[0], sp[1]); state["cols"] = sp[3].to(model.device)
+    _vset = set(int(x) for x in sp[3])
+    state["rows"] = torch.tensor([i for i in range(sp[0], inp["input_ids"].shape[1]) if i not in _vset],
+                                 device=model.device)
     state["layers"] = set(); base = logits(inp); bl = base[letters]
     state["layers"] = set(range(NL)); allab = logits(inp)
     rec = {"qid": qid, "stratum": stratum, "vtokens": sp[2], "kl_all": kl(base, allab),
