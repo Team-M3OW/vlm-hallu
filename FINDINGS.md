@@ -9285,26 +9285,38 @@ outcomes in advance:
 
 Oracle-first, per the pre-registered rule — measure the ceiling before writing a placer.
 
-**PROVISIONAL — the video ceiling is measured against a biased reference.** `crop_oracle` is the
-best of K=4 windows chosen WITH THE LABEL, while the bar gets a single draw; best-of-K beats one
-draw even when no window is better on average. Our own numbers are consistent with that: the
-AVERAGE window (crop_rand 55.0) loses to the bar by 7, and only the label-chosen window wins. In
-audio the bias ran AGAINST the conclusion (oracle underwater even at best-of-8, so STOP holds); in
-video it runs FOR it. A `bar_oracle` control (best of K whole-clip samplings at the same budget,
-also label-chosen) is running; the honest ceiling is `crop_oracle − bar_oracle`. No DWA-video
-placer will be built until it reports.
+**The ceiling must be BIAS-MATCHED.** `crop_oracle` is the best of K=4 windows chosen WITH THE
+LABEL while the bar gets a single draw, so best-of-K wins even when no window is better on average.
+The `bar_oracle` control (best of K whole-clip samplings at the SAME token budget, different phase
+offsets, also label-chosen) measures that bias directly, and it is large:
+**bar_oracle − bar = +3.7 [+1.9,+5.7]\*** — 3.7 points bought by selection alone, no placement.
+The uncontrolled ceiling (+9.1) is therefore inflated by ~40%. The honest ceiling is
+**crop_oracle − bar_oracle = +5.5 [+2.7,+8.5]\***, which still PASSES.
+(In audio the bias ran AGAINST the conclusion — oracle underwater even at best-of-8 — so STOP
+holds there a fortiori and no matched control was needed.)
 
 | | audio (MMAU) | video (TempCompass) |
 |---|---|---|
-| ceiling: oracle − bar | **−3.3 [−8.3,+2.2]** → STOP | +9.1 [+5.9,+12.7]* **(uncontrolled)** |
+| ceiling, bias-matched | **−3.3 [−8.3,+2.2]** → STOP | **+5.5 [+2.7,+8.5]*** → placer worth building |
 | incumbent: block − rand | **+5.0*** (signal) | **−0.7 [−5.3,+3.8]** (no signal) |
 | oracle − block | +10.0* | **+19.0 [+14.5,+23.6]*** |
 | block − bar | — | −9.8 [−14.6,−5.3]* |
 
-The two modalities fail in **opposite** places. Audio: the label-free statistic works but there is
-nothing above the bar to reach. Video: there is +9.1 of room, but block-mean attention finds it no
-better than chance. So what fails in video is not placement — it is our read-out. The +19.0 gap is
-the case for fitting DWA proper (ridge over per-layer features) rather than a single statistic.
+The two modalities fail in **opposite** places. Audio: the label-free statistic works (+5.0 over
+random) but there is nothing above the bar to reach, so a better placer is pointless. Video: there
+is +5.5 of genuine room, but block-mean attention finds it no better than chance (−0.7) and loses
+to the bar outright (−9.8). What fails in video is not placement — it is the read-out.
+
+**TERMINOLOGY, stated because it was blurred earlier:** `crop_block` is the INCUMBENT BASELINE
+statistic (single block-mean attention), i.e. the thing DWA is measured against in vision. It is
+NOT DWA. DWA proper is the ridge over per-layer features, and **it has not been fitted on video**.
+So the claim is "the block-mean baseline has no signal on video", not "DWA fails on video".
+Nothing vision-fitted is used anywhere in the video pipeline: `crop_block` is computed fresh from
+the video model's own attention at its own measured read-out depth (L12 peak, phase248); the
+vision ridge artefacts in data/ are untouched. A video DWA must be fitted ON VIDEO — the vision
+weights are not even dimensionally transferable (per-layer features, different depth) — with folds
+held out BY BASE VIDEO, since _reverse/_concat variants share source content and would leak across
+question-level folds exactly as HR-Bench's 4-item cycles did (§78).
 
 ### §88.4 RETRACTED: "DWA requires ≥2 addressable axes"
 

@@ -393,6 +393,91 @@ A fourth, independent technique places the read-out band in the same spot: a rid
 answer-position state to the target's location rises across the transport window and peaks at L18--19 (Qwen3,
 $r=+0.635$) and L18 (Qwen2, $+0.603$).
 
+\paragraph{The channel and the values.} Masking blocks the text$\to$image attention \emph{channel}; it does not
+show that the image information is absent from the residual stream. Replacing the image tokens' hidden states
+with a donor image's (same question, same token budget) closes that gap. The effect falls three orders of
+magnitude across the boundary, and both pre-registered controls behave as required: patching the image at L4 is
+large, patching text at L20 is large.
+
+\begin{table}[t]
+\caption{Representation patching: replace the image tokens' hidden states at one layer's output with a donor
+image's; KL at the output and answer flips. Text controls patch text-token states at the same depth.}
+\label{tab:patch}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf patch site} &\multicolumn{1}{c}{\bf Qwen3-VL-2B KL (flips)} &\multicolumn{1}{c}{\bf Qwen2-VL-7B KL (flips)}
+\\ \hline \\
+image L0 & 1.758 (61.7\%) & 0.800 (60.0\%)\\
+image L4 (control C1) & 1.766 (63.3\%) & 0.798 (58.3\%)\\
+image L8 & 1.622 (60.0\%) & 0.657 (60.0\%)\\
+image L12 & 0.134 (16.7\%) & 0.517 (51.7\%)\\
+image L16 & 0.009 (3.3\%) & 0.005 (5.0\%)\\
+image L20 & 0.0005 (0\%) & 0.0008 (1.7\%)\\
+image L24 & 0.0003 (0\%) & 0.0006 (1.7\%)\\
+text L4 & 0.009 (5.0\%) & 0.006 (3.3\%)\\
+text L20 (control C2) & 1.834 (63.3\%) & 0.802 (60.0\%)\\
+\end{tabular}
+\end{center}
+\end{table}
+
+The late-image arm lands exactly on the text-L4 noise floor ($0.009$ vs $0.009$ on Qwen3; $0.005$ vs $0.006$ on
+Qwen2), and the two controls invert cleanly across depth: at L4 the image matters $151\times$/$131\times$ more
+than the text, at L20 the text matters $2492\times$/$965\times$ more than the image. Two different
+interventions, two checkpoints, one boundary.
+
+\paragraph{The boundary at the AVR operating point.} AVR encodes at $900$ tokens and prunes at the boundary, so
+inertness must hold on the unpruned $900$-token pass. Injecting donor values at the layer's output:
+
+\begin{table}[t]
+\caption{Value inertness at $900$ tokens (Qwen3-VL-2B, $n=191$): donor hidden states at the layer's output.}
+\label{tab:inert900}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf patch at 900 tokens} &\multicolumn{1}{c}{\bf mean KL} &\multicolumn{1}{c}{\bf answer flips}
+\\ \hline \\
+dropped positions @L16 (810 of 900) & 0.0022 & 1.0\%\\
+kept positions @L16 (90 of 900) & 0.0065 & 3.1\%\\
+dropped positions @L8 (transport window) & 0.3407 & 20.9\%\\
+\end{tabular}
+\end{center}
+\end{table}
+
+At the boundary the values are inert whether or not they are the ones AVR keeps; inside the transport window
+the same intervention moves one answer in five.
+
+\paragraph{The cost of misplacing the boundary.} Pruning is free at the boundary and expensive before it. With
+the same number of tokens dropped and a large negative attention bias on the dropped columns from layer $K$
+onward (functionally FastV's rule):
+
+\begin{table}[t]
+\caption{Pruning depth and selection. V*Bench, $n=191$; every arm prunes the same count.}
+\label{tab:prunedepth}
+\begin{center}
+\small
+\begin{tabular}{lccc}
+\multicolumn{1}{c}{\bf keep} &\multicolumn{1}{c}{\bf random} &\multicolumn{1}{c}{\bf layer-2 (FastV default)} &\multicolumn{1}{c}{\bf late read-out (L16--26)}
+\\ \hline \\
+10\% & 38.2\% & 34.6\% & 56.0\%\\
+25\% & 41.4\% & 40.3\% & 58.1\%\\
+50\% & 47.1\% & 52.9\% & 55.5\%\\
+\end{tabular}
+\end{center}
+\end{table}
+
+No pruning is $56.5\%$. Ranking at layer 2 costs $22.0$ points against no pruning and is $3.7$ points
+\emph{worse than random}; the late read-out deletes $90\%$ of visual tokens at $-0.5$ points [$-5.8,+4.7$] and
+the learned criterion at $+2.1$ [$-2.6,+6.8$]. The collapse replicates on Qwen2-VL-7B (late over layer-2
+$+11.5$ [$+4.2,+18.8$] at $10\%$ keep; layer-2 is $4.7$ points below random) and is larger on general VQA:
+layer-2 against random is $-15.0$ [$-22.0,-7.5$] on POPE and $-25.5$ [$-33.0,-18.0$] on MMBench.
+
+\paragraph{Selection stops mattering at the boundary.} Before the boundary, which tokens survive matters: a
+layer-4 probe beats random keep by $+8.4$ [$+2.1,+15.2$] and $+8.9$ [$+2.6,+15.2$] at $25\%$ keep. At and after
+it, the choice is irrelevant: random keep matches attention keep on both models at every keep ratio tested,
+and pruning is free ($0.0$--$0.5$ points in $9$ of $10$ cells). The boundary is not merely where pruning
+becomes cheap; it is where selection ceases to matter.
+
 \section{Propositions, and what validates them}\label{app:theory}
 
 We state four theorems, three propositions and two lemmas. They are not deep results --- two are tail-dominance and
