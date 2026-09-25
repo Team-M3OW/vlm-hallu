@@ -45,7 +45,11 @@ def load_split():
 
 def main(n=0):
     from transformers import AutoProcessor, Qwen2_5OmniThinkerForConditionalGeneration as M
-    zp=hf_hub_download("gamma-lab-umd/MMAU-Pro","data.zip",repo_type="dataset")
+    # hf_hub_download hung repeatedly on this 47.5GB blob (26 open sockets, zero growth) and
+    # hf_transfer stalled outright, so the zip is fetched by scripts/dl_mmaupro_curl.sh instead.
+    zp=os.environ.get("MMAUPRO_ZIP","/media/kavinder/hdd2/mmau_pro/data.zip")
+    if not os.path.exists(zp):
+        zp=hf_hub_download("gamma-lab-umd/MMAU-Pro","data.zip",repo_type="dataset")
     zf=zipfile.ZipFile(zp); names=set(zf.namelist())
     print(f"zip members: {len(names)}  sample: {list(sorted(names))[:3]}",flush=True)
     pr=AutoProcessor.from_pretrained(MID)
