@@ -38,11 +38,17 @@ Qwen2-VL-7B & 0.25 tok & 36.6\% & 63.6\% & 95.8\% & 100.0\%\\
 \end{tabular}\label{tab:cliff2}
 \end{table}
 
-\textbf{Localisation is intact; the answer is not decodable.} On items where the window covers the
-target and the model still answers wrong ($n{=}36$), the correct option is the argmax at some layer
-on $72.2\%$ of items, against $68.1\%$ where the window missed entirely; the apparent signal at L20
-($41.7\%$) collapses to $0\%$ from L22 and matches what uninformative layers produce by chance. The
-oracle crop fixes $94.4\%$ of these items at the same budget, with a median of $0.14$ merged tokens
+\textbf{The logit lens: localisation is intact, the answer is not decodable.} Decoding every layer
+with the logit lens (the final layer is read from the model's own logits; protocol and the
+double-normalisation caveat in Appendix~\ref{app:mech}), no layer's decoded answer exceeds $52.9\%$
+under the uniform encoding, against $92.6\%$ under the oracle crop. On items where the window covers
+the target and the model still answers wrong ($n{=}36$), the correct option is the argmax at some
+layer on $72.2\%$ of items, against $68.1\%$ where the window missed entirely; the apparent signal
+at L20 ($41.7\%$) collapses to $0\%$ from L22 and matches what uninformative layers produce by
+chance. Under the oracle crop the answer instead appears abruptly at L22, taking $90\%$ of the gain
+in a single transition; the step replicates one layer later on Qwen2-VL-7B (L22--23) and appears
+only where the crop covers the target ($+23.8$ points covered, $0.0$ missed). The oracle crop fixes
+$94.4\%$ of the localised-but-wrong items at the same budget, with a median of $0.14$ merged tokens
 on target. Representation patching (Appendix~\ref{app:mech}) agrees: past the transport boundary,
 replacing every image token's hidden state changes the answer no more than replacing irrelevant
 early text (KL $0.009$ vs $0.009$ on Qwen3 and $0.005$ vs $0.006$ on Qwen2 at L16).
