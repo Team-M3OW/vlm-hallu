@@ -175,18 +175,22 @@ def report(out,skips=None):
                     ("bar_latent_spatial","bar_latent_temporal","spatial-latent vs temporal-latent")):
         m_,lo,hi_=ci(a,b); print(f"  {lab:42s} = {m_:+.1f} [{lo:+.1f},{hi_:+.1f}]")
     print("\n  by dim (the scope law, video reading; clustered CIs):")
+    # NB: build the per-dim cluster map from `out` directly. An earlier version did
+    # groups.update(g2) inside this loop, MUTATING the shared cluster dict, so each dim was
+    # computed against a dict already filtered by the previous one. It surfaced as
+    # speed = +0.0 [+0.0,+0.0] on 10 "videos" -- the SS93b exact-zero signature.
     for dd in sorted({r['dim'] for r in out}):
-        sub=[k for k in gk if any(r['dim']==dd for r in groups[k])]
         g2=collections.defaultdict(list)
-        for k in sub:
-            for r in groups[k]:
-                if r['dim']==dd: g2[k].append(r)
-        sv=groups; groups.update(g2)
-        per=np.array([np.mean([cor(r,'hi')-cor(r,st) for r in g2[k]]) for k in sub])
-        mm=per[rng.integers(0,len(per),(4000,len(per)))].mean(1)*100
+        for r in out:
+            if r['dim']==dd: g2[base(r)].append(r)
+        kk=list(g2)
+        per=np.array([np.mean([cor(r,'hi')-cor(r,st) for r in g2[k]]) for k in kk])
+        mm=per[rng.integers(0,len(per),(10000,len(per)))].mean(1)*100
         items=[r for r in out if r['dim']==dd]
-        print(f"    {dd:18s} n={len(items):4d}/{len(sub):3d}vid  hi {100*np.mean([cor(r,'hi') for r in items]):5.1f}  bar {100*np.mean([cor(r,st) for r in items]):5.1f}"
-              f"  headroom {per.mean()*100:+5.1f} [{np.percentile(mm,2.5):+5.1f},{np.percentile(mm,97.5):+5.1f}]")
+        lo,hi2=float(np.percentile(mm,2.5)),float(np.percentile(mm,97.5))
+        print(f"    {dd:18s} n={len(items):4d}/{len(kk):3d}vid  hi {100*np.mean([cor(r,'hi') for r in items]):5.1f}"
+              f"  {st[:12]} {100*np.mean([cor(r,st) for r in items]):5.1f}"
+              f"  headroom {per.mean()*100:+5.1f} [{lo:+5.1f},{hi2:+5.1f}]{'*' if (lo>0 or hi2<0) else ' '}")
 
 if __name__=="__main__":
     if len(sys.argv)>1 and sys.argv[1]=="report": report(json.load(open("data/phase247_video_g1.json")))
