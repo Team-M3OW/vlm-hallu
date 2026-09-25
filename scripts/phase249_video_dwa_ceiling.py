@@ -30,13 +30,16 @@ NFR=int(os.environ.get("NFR","8")); FRAC=float(os.environ.get("FRAC","0.25")); K
 ROOT=glob.glob("/media/kavinder/hdd2/hf_cache/datasets--lmms-lab--TempCompass/snapshots/*")[0]
 VIDEODIR=os.environ.get("TEMPCOMPASS_VIDEOS","/media/kavinder/hdd2/tempcompass")
 
-def frames_from(path, k, lo=0.0, hi=1.0, px=PX):
-    """k frames uniformly spaced inside the [lo,hi] FRACTION of the video."""
+def frames_from(path, k, lo=0.0, hi=1.0, px=PX, phase=0.0):
+    """k frames uniformly spaced inside the [lo,hi] FRACTION of the video.
+    `phase` shifts the sampling grid by that fraction of one inter-frame step -- used to build
+    ALTERNATIVE whole-clip samplings at the SAME token budget for the bar_oracle control."""
     import decord
     vr=decord.VideoReader(path,num_threads=2); n=len(vr)
     a,b=int(lo*(n-1)), int(hi*(n-1))
-    idx=np.linspace(a,max(a,b),k).round().astype(int)
-    return [Image.fromarray(f).convert("RGB").resize((px,px),Image.BICUBIC) for f in vr.get_batch(idx).asnumpy()]
+    idx=np.linspace(a,max(a,b),k)
+    if phase: idx=np.clip(idx + phase*((max(a,b)-a)/max(k-1,1)), a, max(a,b))
+    return [Image.fromarray(f).convert("RGB").resize((px,px),Image.BICUBIC) for f in vr.get_batch(idx.round().astype(int)).asnumpy()]
 
 def main(nmax=200):
     from transformers import AutoProcessor, AutoModelForImageTextToText
@@ -83,6 +86,11 @@ def main(nmax=200):
         try:
             fb=frames_from(vids[vid],NFR,0.0,1.0)
             fw=[frames_from(vids[vid],NFR,a,b) for a,b in windows]
+            # BIAS CONTROL: crop_oracle is the best of K windows chosen WITH THE LABEL, while the
+            # bar gets a single draw -- best-of-K beats one draw even when no window is better on
+            # average. bar_oracle is the best of K whole-clip samplings at the SAME budget, also
+            # label-chosen. The honest ceiling is crop_oracle - bar_oracle.
+            fbo=[frames_from(vids[vid],NFR,0.0,1.0,phase=j/float(K)) for j in range(K)]
         except Exception: skips["decode"]+=1; continue
         rec={"id":vid,"dim":str(r['dim']),"nch":len(L),"gold":gold,"probs":{},"ntok":{}}
         p,nt,att=probs(fb,text,L,want_attn=True); rec["probs"]["bar"]=p; rec["ntok"]["bar"]=nt
@@ -96,6 +104,8 @@ def main(nmax=200):
         rec["probs"]["crop_rand"]=pw[int(rng.integers(0,K))]
         best=max(range(K),key=lambda j: pw[j][gold])          # ORACLE: uses the label
         rec["probs"]["crop_oracle"]=pw[best]
+        pb=[probs(f,text,L)[0] for f in fbo]
+        rec["probs"]["bar_oracle"]=pb[max(range(K),key=lambda j: pb[j][gold])]
         rec["blk"]=blk; rec["best"]=best
         if not shown:
             print(f"  [selfcheck] bar {nt} video tokens over the whole clip; window {rec['ntok']['w0']} "
@@ -123,11 +133,15 @@ def report(out,skips=None):
         return per.mean()*100,lo,hi,("*" if (lo>0 or hi<0) else " ")
     print(f"\n=== PHASE 249 DWA-VIDEO CEILING  n={len(out)} / {len(gk)} base videos ===")
     if skips: print("  skips:",dict(skips))
-    for a in ("bar","crop_rand","crop_block","crop_oracle"):
+    for a in ("bar","bar_oracle","crop_rand","crop_block","crop_oracle"):
         print(f"  {a:12s} acc {100*np.mean([cor(r,a) for r in out]):5.1f}")
-    m,lo,hi,s=ci("crop_oracle","bar")
-    print(f"\n  CEILING     crop_oracle - bar   = {m:+.1f} [{lo:+.1f},{hi:+.1f}]{s}"
+    m,lo,hi,s=ci("crop_oracle","bar_oracle")
+    print(f"\n  CEILING (bias-matched)  crop_oracle - bar_oracle = {m:+.1f} [{lo:+.1f},{hi:+.1f}]{s}"
           f"  {'PASS -> a placer is worth building' if lo>0 else 'UNDERWATER -> STOP, no placer (the audio outcome)'}")
+    m2,lo2,hi2,s2=ci("crop_oracle","bar")
+    print(f"  (uncontrolled  crop_oracle - bar        = {m2:+.1f} [{lo2:+.1f},{hi2:+.1f}]{s2}  inflated by best-of-{K})")
+    m3,lo3,hi3,s3=ci("bar_oracle","bar")
+    print(f"  selection bias itself  bar_oracle - bar = {m3:+.1f} [{lo3:+.1f},{hi3:+.1f}]{s3}")
     for a,b,lab in (("crop_block","crop_rand","incumbent signal (block - rand)"),
                     ("crop_oracle","crop_block","headroom for a better placer (oracle - block)"),
                     ("crop_block","bar","incumbent vs bar")):

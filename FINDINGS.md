@@ -9253,6 +9253,10 @@ and answer flips at the output.
 | audio  | Qwen2-Audio-7B (MMAU)  | 0.75 (L24/32) | 0.38 |
 | video  | Qwen3-VL-2B (TempCompass) | 0.57 (L16/28, video-used) / 0.50 all | 0.43 |
 
+Subset convention differs across rows: vision/audio are reported on their modality-used subsets, so
+the video row's comparable figure is 0.57. All-items video is 0.50 — ONE STEP of the 2-layer probe
+grid away. "Video matches vision" should be read as "within one grid step", not as an exact match.
+
 The **completion depth varies** — audio's 0.75 falsified its own pre-registered L18 (φ241) — but the
 depth at which transport is most active barely moves: **0.39 / 0.38 / 0.43**.
 Video sanity kl_all=0.865, flip_all=0.38. 8/40 video items have kl_all<0.10: masking ALL video
@@ -9272,15 +9276,27 @@ outcomes in advance:
   hi(32f) 65.6 vs bar_latent_spatial 60.3 = **+4.9 [+3.0,+6.9]**.
   Sanity hi vs chance = +39.1 [+35.2,+43.1] — not measured on a floor.
   By dim: attribute_change +10.4*, direction +7.2*, order +6.7*, action +1.9 n.s. (94.1 = ceiling),
-  speed +2.1 n.s. Gains fall on dims needing detail BETWEEN frames.
+  speed +2.1 n.s.
+  No mechanistic gloss is offered: `speed` is the most between-frame dimension of the five and is
+  null, so "gains fall where between-frame detail is needed" does not survive its own table.
+  `action` is null at 94.4 (ceiling).
 
 ### §88.3 DWA: ceiling first. Audio has no room; video has room but no read-out
 
 Oracle-first, per the pre-registered rule — measure the ceiling before writing a placer.
 
+**PROVISIONAL — the video ceiling is measured against a biased reference.** `crop_oracle` is the
+best of K=4 windows chosen WITH THE LABEL, while the bar gets a single draw; best-of-K beats one
+draw even when no window is better on average. Our own numbers are consistent with that: the
+AVERAGE window (crop_rand 55.0) loses to the bar by 7, and only the label-chosen window wins. In
+audio the bias ran AGAINST the conclusion (oracle underwater even at best-of-8, so STOP holds); in
+video it runs FOR it. A `bar_oracle` control (best of K whole-clip samplings at the same budget,
+also label-chosen) is running; the honest ceiling is `crop_oracle − bar_oracle`. No DWA-video
+placer will be built until it reports.
+
 | | audio (MMAU) | video (TempCompass) |
 |---|---|---|
-| ceiling: oracle − bar | **−3.3 [−8.3,+2.2]** → STOP | **+9.1 [+5.9,+12.7]*** → placer worth building |
+| ceiling: oracle − bar | **−3.3 [−8.3,+2.2]** → STOP | +9.1 [+5.9,+12.7]* **(uncontrolled)** |
 | incumbent: block − rand | **+5.0*** (signal) | **−0.7 [−5.3,+3.8]** (no signal) |
 | oracle − block | +10.0* | **+19.0 [+14.5,+23.6]*** |
 | block − bar | — | −9.8 [−14.6,−5.3]* |
@@ -9293,8 +9309,9 @@ the case for fitting DWA proper (ridge over per-layer features) rather than a si
 ### §88.4 RETRACTED: "DWA requires ≥2 addressable axes"
 
 Stated earlier as a precondition derived from vision. It was not — vision never had fewer than two
-axes, so no experiment tests it; it was inferred from the audio null post hoc. Video's ceiling
-clears on a purely TEMPORAL (1-D) reallocation, which is evidence against it.
+axes, so no experiment tests it; it was inferred from the audio null post hoc. It remains retracted
+as UNTESTED, not as disproved: video has THREE tokenised axes regardless of which one we reallocate
+on, so a temporal-only video result cannot test it either. Only a 1-D modality can, i.e. long audio.
 
 ### §88.5 Architectural note: no deployed ALM tokenises frequency
 

@@ -41,7 +41,9 @@ def load_split():
     df=pd.read_parquet(hf_hub_download("gamma-lab-umd/MMAU-Pro","test.parquet",repo_type="dataset"))
     df=df[df['length_type'].isin(['long','ultra-long','ultra_long'])]      # the experimental CONDITION
     df=df[df['audio_path'].map(lambda a: a is not None and len(a)==1)]
-    return df
+    # MMAU-Pro is ORDERED BY CATEGORY: a prefix would be one task. This is the CV-Bench/MMAU trap
+    # (ported the measurement but not the lesson, twice). Shuffle, as the prereg states.
+    return df.sample(frac=1.0, random_state=246)
 
 def main(n=0):
     from transformers import AutoProcessor, Qwen2_5OmniThinkerForConditionalGeneration as M
@@ -102,10 +104,11 @@ def main(n=0):
         ltr=[tok.encode(x,add_special_tokens=False)[0] for x in L]
         return torch.softmax(lg[ltr],-1).tolist(), nt
 
-    df=load_split(); items=df.head(n) if n else df
+    df=load_split(); items=df
     skips=collections.Counter(); out=[]; t0=time.time(); checked=False
     fo=open("data/phase246_longaudio_g1.jsonl","w")
     for _,r in items.iterrows():
+        if n and len(out)>=n: break          # n = items PROCESSED, not rows scanned
         ch=list(r['choices']) if r['choices'] is not None else []
         if len(ch)<2: skips["open_ended"]+=1; continue
         if r['answer'] not in ch: skips["answer_not_in_choices"]+=1; continue
