@@ -277,11 +277,15 @@ per-layer coefficients (\S\ref{app:theory}).}
 
 Localise at $300$ tokens with the full prompt (the read-out must be taken at the answer-emission position; without the
 answer instruction the map loses $36$--$42$ points). Read the final prompt token's attention over image cells at all
-$28$ layers. Score each cell by a single closed-form ridge solve,
+$28$ layers and normalise each layer's map over the cells, $A_\ell(c)$ (Appendix~\ref{app:feat}). Score each cell by
+a single closed-form ridge solve over its depth profile,
 \[
-s(\text{cell})=\textstyle\sum_\ell w_\ell\log A_\ell+\sum_\ell v_\ell\,\mathrm{rank}_\ell+a\log\mathrm{nb}+\text{geometry},
+s(c)=w_0+\textstyle\sum_{\ell=0}^{L-1} w_\ell\log A_\ell(c),
 \]
-fit on as few as $50$ boxed examples. Crop $W{=}0.25$ at the arg-max, re-encode at $300$ tokens, answer.
+fit on as few as $50$ boxed examples. The deployed read-out additionally carries rank, neighbourhood and geometry
+features --- $\mathbf{x}_i\in\mathbb{R}^{2L+7}$, specified in Appendix~\ref{app:feat} --- and a leave-one-group-in
+ablation shows the signed log-attention block alone carries the advantage. Crop $W{=}0.25$ at the arg-max, re-encode
+at $300$ tokens, answer.
 
 The fitted $w_\ell$ \emph{is} the depth filter (Figure~\ref{fig:filter}). It takes both signs: it assigns
 \emph{negative} weight to 7 of the 11 layers the conventional block-mean read-out adds at $+1$, and its largest
@@ -585,6 +589,51 @@ This is an actionable rule rather than a caveat: apply attention-guided cropping
 asks about a local property of one region, and do not apply it otherwise. On the strata that satisfy
 it, Table~\ref{tab:working} shows the method is worth up to $19$ points.
 
+\subsection{A per-item policy with no question classifier}\label{sec:policy}
+
+The rule above needs to know whether the question is local, and a deployed system must decide per
+item, before either pass. Our standing constraint forbids a question classifier; the decision is
+instead available from the same localisation pass, label-free. We compute three statistics that each
+track whether a crop has something to find: $\mathrm{disp}$, the ring-masked top-1 mass share of the
+block-mean map; $\mathrm{band\_disp}$, the same on the read-out-band mean map; and $\mathrm{VRH}$, the
+block-mean mass inside the proposed crop's $W{=}0.25$ window. Each is thresholded at its median over
+the incoming item set --- label-free and parameter-free --- and the policy crops (DWA at $300$) only
+when \emph{all three} agree; otherwise it keeps the whole image and buys resolution (AVR where the
+checkpoint has a ladder, the equal-compute bar otherwise).
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The map-only policy.} Policy $-$ equal-compute bar, with paired bootstrap CI; the gate
+routes $28$--$38\%$ of items to the crop. Single/cross are per-stratum point estimates; \ok\ = CI
+excludes zero. Full per-stratum intervals in Appendix~\ref{app:policy}.}
+\begin{tabular}{llccccc}
+\toprule
+model & benchmark & route\% & policy $-$ bar & single & cross\\
+\midrule
+Qwen3-VL-2B & \vstar & $36$ & \gd{$+10.5$}~\ok & \gd{$+9.6$}~\ok & \gd{$+11.8$}~\ok\\
+Qwen3-VL-2B & HR-4K & $32$ & \gd{$+3.9$}~\ok & \gd{$+7.0$}~\ok & $+0.8$\\
+Qwen3-VL-2B & CV-Bench & $35$ & \bad{$-3.3$}~\no & --- & ---\\
+Qwen3-VL-2B & RealworldQA & $34$ & $+0.8$ & --- & ---\\
+Qwen2-VL-7B & \vstar & $38$ & \gd{$+7.9$}~\ok & \gd{$+10.4$}~\ok & $+3.9$\\
+Qwen2-VL-7B & HR-4K & $28$ & \gd{$+4.5$}~\ok & \gd{$+8.0$}~\ok & $+1.0$\\
+Qwen2-VL-7B & CV-Bench & $28$ & \bad{$-3.4$}~\no & --- & ---\\
+Qwen2-VL-7B & RealworldQA & $34$ & $+0.0$ & --- & ---\\
+\bottomrule
+\end{tabular}\label{tab:policy}
+\end{table}
+
+Two properties are worth stating plainly. First, the gate costs nothing extra: all three statistics
+come from the single localisation pass the method already runs, and the median is set by the incoming
+item set, not by labels or a tuned threshold. Second, the conservative AND is what buys safety on the
+cross strata --- any one statistic alone routes roughly half the items, including the cross items it
+should not; requiring three independent statistics to agree routes $28$--$38\%$ and turns the HR-4K
+cross stratum from a loss into no loss, at the cost of a slightly smaller single-stratum gain
+($+9.6$ vs $+13.9$ on Qwen3 \vstar\ under the permissive OR gate). CV-Bench remains negative: its
+questions are whole-scene, both arms are at or below the bar there, and a per-item gate cannot declare
+an entire benchmark out of the crop regime. The residual is the gate's $28$--$35\%$ misroutes, not a
+signal that can be improved at this AUROC --- the honest reading is that the policy removes the
+structural cross-stratum loss and halves the scene-benchmark damage, not that it makes cropping safe
+everywhere.
+
 \subsection{Four architectures, and what equal compute does to the comparison}\label{sec:families}
 
 The results so far use two Qwen checkpoints, whose resolution axis is continuous: a crop can be
@@ -792,6 +841,56 @@ within $\pm1$ point). Run-to-run floor on coverage is $1$--$2.5$ points.
 \textbf{Pipeline discipline.} An exactly $+0.0$ contrast with a $[+0.0,+0.0]$ interval is treated as a pipeline fault,
 never a result; this rule caught a monkey-patch that silently failed to reach one model family. Every pruning run
 asserts at runtime that the loaded model's attention module is the one that was patched.
+
+\section{The DWA read-out: features, estimator, and the feature-block ablation}\label{app:feat}
+
+Let $a_i^{(\ell)}$ denote the head-mean attention at image cell $i$ and layer $\ell$, where
+$i=1,\ldots,N$ and $\ell=0,\ldots,L-1$, read from the final prompt token over the image cells. We normalise
+each map over the image cells,
+\begin{equation}
+    A_i^{(\ell)} = \frac{a_i^{(\ell)}}{\max\!\left(\sum_{j=1}^{N}a_j^{(\ell)},\epsilon\right)},
+    \qquad \epsilon=10^{-12},
+\end{equation}
+where $j$ indexes image cells in the sum. Each cell is represented by its normalised depth profile,
+$\bigl(\log(A_i^{(\ell)}+\epsilon)\bigr)_{\ell=0}^{L-1}$, so with $L=28$ each cell has $28$ features. The read-out
+is a single closed-form ridge regression on these features,
+\begin{equation}
+    w = (X^\top X + \alpha I)^{-1} X^\top y, \qquad \alpha=1,
+\end{equation}
+with an unpenalised intercept, fitted out-of-fold (GroupKFold(5) $\times$ 3 group permutations, grouped by item)
+to the coverage label $y_i$, the fraction of the ground-truth box inside the $W{=}0.25$ window centred at cell
+$i$. Placement is the ring-masked arg-max of the score $s(c) = w_0 + \sum_{\ell=0}^{L-1} w_\ell \log A_\ell(c)$.
+
+\textbf{The deployed vector.} The deployed read-out carries two further blocks,
+$\mathbf{x}_i\in\mathbb{R}^{2L+7}$: (i) $L$ per-layer rank features,
+$R_i^{(\ell)}=\mathrm{rank}_\downarrow\!\bigl(a_i^{(\ell)}\bigr)/(N-1)$, the cell's descending rank in layer
+$\ell$'s map; and (ii) seven neighbourhood/geometry features --- the log $3\times3$ neighbourhood mean of the
+read-out-band map (the band where attention first becomes question-conditioned,
+$L_{\mathrm{lo}}=\mathrm{round}(0.57L)$ through $L-1$), the cell's horizontal and vertical coordinates, its
+distance from the image centre, its distance to the nearest border, and two indicators for the last row and
+column. Ranks are per-layer and item-relative; the geometry block is item-independent.
+
+\textbf{Feature-block ablation.} Refitting the same estimator on \vstar\ ($191$ items) with feature blocks
+removed, out-of-fold coverage of the $W{=}0.25$ window at the ring-masked arg-max:
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The log-attention block carries the advantage.} Out-of-fold coverage on \vstar, by feature
+block.}
+\begin{tabular}{lcccc}
+\toprule
+model & block-mean read-out & log only ($L$) & log$+$rank ($2L$) & full ($2L{+}7$)\\
+\midrule
+Qwen3-VL-2B & $0.475$ & $0.638$ & $0.640$ & $\mathbf{0.655}$\\
+Qwen2-VL-7B & $0.408$ & $0.574$ & $\mathbf{0.587}$ & $0.561$\\
+\bottomrule
+\end{tabular}\label{tab:featabl}
+\end{table}
+
+The log-attention block alone recovers $0.163$/$0.166$ of the block-mean gap --- $91\%$/$108\%$ of the full
+vector's lift: the advantage is carried by the depth profile, and the rank/geometry blocks add $+0.017$ on
+Qwen3 and $-0.013$ on Qwen2. They are kept in the deployed vector because they are free at fit time, but they
+are not the mechanism; the main-text read-out quotes the log-attention score. Script:
+\texttt{phase238\_feat\_ablation.py}.
 
 \section{Intermediate metrics systematically over-report}\label{app:proxy}
 
@@ -1420,6 +1519,32 @@ to $0.630$ on Qwen3 and $0.581$ to $0.609$ on Qwen2. End-task the gain is $+1.0$
 $+2.4$ [$-1.0,+5.8$] on TextVQA: positive in both cells, significant in neither. The coverage gain does not
 convert --- another instance of the intermediate-metric gap (Appendix~\ref{app:proxy}) --- so the head-augmented
 filter is kept as an option rather than as the deployed method.
+
+\section{The map-only policy in full}\label{app:policy}
+
+Policy $-$ equal-compute bar, paired item bootstrap ($8000$ resamples). The gate is the AND of
+$\mathrm{disp}$, $\mathrm{band\_disp}$ and $\mathrm{VRH}$ above their item-set medians; the arms are
+DWA@$300$ (crop) and AVR (whole image), as in Table~\ref{tab:policy}. Strata are only defined on
+\vstar\ and HR-4K. Script: \texttt{phase237\_policy\_final.py}.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{Full intervals for the map-only policy.}}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llcccc}
+\toprule
+model & benchmark & route\% & policy $-$ bar & single & cross\\
+\midrule
+Qwen3-VL-2B & \vstar & $36$ & $+10.5\,[+4.2,+17.3]$ & $+9.6\,[+0.9,+18.3]$ & $+11.8\,[+3.9,+19.7]$\\
+Qwen3-VL-2B & HR-4K & $32$ & $+3.9\,[+1.4,+6.4]$ & $+7.0\,[+3.0,+11.0]$ & $+0.8\,[-2.3,+4.0]$\\
+Qwen3-VL-2B & CV-Bench & $35$ & $-3.3\,[-4.6,-2.0]$ & --- & ---\\
+Qwen3-VL-2B & RealworldQA & $34$ & $+0.8\,[-1.8,+3.4]$ & --- & ---\\
+Qwen2-VL-7B & \vstar & $38$ & $+7.9\,[+1.6,+14.1]$ & $+10.4\,[+2.6,+18.3]$ & $+3.9\,[-5.3,+13.2]$\\
+Qwen2-VL-7B & HR-4K & $28$ & $+4.5\,[+1.8,+7.2]$ & $+8.0\,[+4.0,+12.2]$ & $+1.0\,[-2.8,+4.8]$\\
+Qwen2-VL-7B & CV-Bench & $28$ & $-3.4\,[-5.0,-1.9]$ & --- & ---\\
+Qwen2-VL-7B & RealworldQA & $34$ & $+0.0\,[-6.2,+6.2]$ & --- & ---\\
+\bottomrule
+\end{tabular}\label{tab:policyfull}
+\end{table}
 
 \section{Designs that did not work}\label{app:neg}
 
