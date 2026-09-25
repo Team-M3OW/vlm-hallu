@@ -65,7 +65,7 @@ arrow(45, 64, 50, 66, color=GREY)
 # ================= (b) DWA =================
 ax.text(1, 52, "(b)  DWA — depth-weighted read-out and crop", fontsize=12, fontweight="bold", color=GREEN)
 box(1, 33, 10, 13, "28 maps\n$A_\\ell(c)$", fc="#f8c9c9", ec=RED, fs=8.8)
-box(14, 34, 20, 11, "per-cell depth profile\n$x_c=\\log A_\\ell(c)\\in\\mathbb{R}^{L}$\n$+$ rank $+$ geometry: $2L{+}7$", fc="white", ec=BLUE, fs=8.6)
+box(14, 34, 20, 11, "per-cell depth profile\n$x_c=\\log A_\\ell(c)\\in\\mathbb{R}^{L}$\n(one log-attention feature\nper layer)", fc="white", ec=BLUE, fs=8.6)
 box(37, 34, 20, 11, "closed-form ridge\n$w=(X^\\top X+\\alpha I)^{-1}X^\\top y$\n$\\alpha{=}1$; $\\sim$50 boxed examples", fc="#dcfce7", ec=GREEN, fs=8.6)
 box(60, 34, 17, 11, "score map\n$s(c)=w_0+\\sum_\\ell w_\\ell\\log A_\\ell(c)$", fc=YEL, ec=BLUE, fs=8.6)
 box(80, 34, 12, 11, "ring-masked\nargmax $c^\\star$", fc="white", ec=BLUE, fs=8.6)
