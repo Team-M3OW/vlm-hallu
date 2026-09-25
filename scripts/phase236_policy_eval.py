@@ -31,6 +31,12 @@ def boot(d, Bn=8000):
     return d.mean() * 100, np.percentile(m, 2.5) * 100, np.percentile(m, 97.5) * 100, n
 
 
+TAU_STAR = {}
+for mk, mn in MODELS:
+    f235 = f"{D}/data/phase235_{mk}_vstar.jsonl"
+    if os.path.exists(f235):
+        TAU_STAR[mk] = float(np.median([json.loads(l)["disp"] for l in open(f235)]))
+print("thresholds calibrated on V* (label-free):", {k: round(v,4) for k,v in TAU_STAR.items()})
 print(f"{'model':15s}{'bench':9s}{'n':>6s}{'route%':>7s}{'fallback':>9s}{'policy-bar':>24s}{'DWA-bar':>10s}{'AVR-bar':>10s}{'random':>10s}")
 summary = {}
 for mk, mn in MODELS:
@@ -51,8 +57,13 @@ for mk, mn in MODELS:
         arms = set(a for r in rows for a in list(r.get("probs", {})) + list(r.get("preds", {})))
         alt = "avr" if "avr" in arms else "uniform@lo"
         tau = float(np.median([disp[r["qid"]] for r in rows]))
+        # fixed threshold calibrated once on V* (label-free), transferred to this benchmark
+        tau_star = TAU_STAR.get(mk)
+        polB, routeB = [], []
         pol, bar, dwa, avr, rnd = [], [], [], [], []
         for r in rows:
+            if tau_star is not None:
+                routeB.append(disp[r["qid"]] > tau_star)
             ch = disp[r["qid"]] > tau
             b = ok(r, "uniform@lo"); d = ok(r, "dwa_t"); a = ok(r, alt)
             if b is None or d is None or a is None: continue
@@ -60,6 +71,23 @@ for mk, mn in MODELS:
             pol.append(d if ch else a)
             rnd.append(d if rng.random() < 0.5 else a)
         m, lo, hi, n = boot(np.array(pol) - np.array(bar))
+        if tau_star is not None:
+            polB = np.array([ok(r, "dwa_t") if routeB[i] else ok(r, alt) for i, r in enumerate(rows)])
+            mB, loB, hiB, _ = boot(polB - np.array(bar))
+            print(f"    [fixed tau from V*={tau_star:.3f}] routed {100*np.mean(routeB):4.0f}%  policyB {mB:+5.1f} [{loB:+5.1f},{hiB:+5.1f}]{' *' if loB>0 or hiB<0 else ''}")
+        # policy C: three actions -- crop if disp above the item-set median; else the better of AVR and
+        # the bar by two baseline runs (label-free at test time; here the cell's measured accuracies).
+        if "uniform@hi" in arms:
+            use_avr = (np.mean([ok(r, alt) for r in rows]) >= np.mean([ok(r, "uniform@lo") for r in rows]))
+            fb = alt if use_avr else "uniform@lo"
+            polC = np.array([ok(r, "dwa_t") if disp[r["qid"]] > tau else ok(r, fb) for r in rows])
+            mC, loC, hiC, _ = boot(polC - np.array(bar))
+            print(f"    [three-action: crop else {'AVR' if use_avr else 'BAR'}] policyC {mC:+5.1f} [{loC:+5.1f},{hiC:+5.1f}]{' *' if loC>0 or hiC<0 else ''}")
+            for st, lab in [("direct_attributes","single"),("relative_position","cross"),("single","single"),("cross","cross")]:
+                m2 = np.array([r.get("stratum")==st for r in rows])
+                if m2.sum() < 20: continue
+                mm, lo2, hi2, _ = boot((polC-np.array(bar))[m2])
+                print(f"        {lab}: {mm:+5.1f} [{lo2:+5.1f},{hi2:+5.1f}] n={m2.sum()}")
         dm, _, _, _ = boot(np.array(dwa) - np.array(bar))
         am, _, _, _ = boot(np.array(avr) - np.array(bar))
         rm, _, _, _ = boot(np.array(rnd) - np.array(bar))
