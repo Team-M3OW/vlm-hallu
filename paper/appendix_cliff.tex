@@ -32,33 +32,37 @@ is flat.}
 \label{fig:cliffcurve}
 \end{figure}
 
-\begin{table}[h]\centering\small
+\begin{table}[t]
 \caption{\textbf{The encoding cliff.} Single-region localised items ($n{=}63$, Qwen3-VL-2B); the
 oracle crop is flat across the same split ($100.0\%$ below, $97.6\%$ above).}
+\label{tab:cliff}
+\begin{center}
+\small
 \begin{tabular}{cccccc}
-\toprule
-$t$ (merged tokens) & $n$ below & acc below & $n$ above & acc above & step\\
-\midrule
+\multicolumn{1}{c}{\bf $t$ (merged tokens)}  &\multicolumn{1}{c}{\bf $n$ below} &\multicolumn{1}{c}{\bf acc below} &\multicolumn{1}{c}{\bf $n$ above} &\multicolumn{1}{c}{\bf acc above} &\multicolumn{1}{c}{\bf step}
+\\ \hline \\
 0.10 & 16 & 18.8\% & 47 & 72.3\% & +53.6\\
 \textbf{0.15} & 21 & \textbf{19.0\%} & 42 & \textbf{78.6\%} & \textbf{+59.5}\\
 0.25 & 33 & 33.3\% & 30 & 86.7\% & +53.3\\
 0.50 & 46 & 47.8\% & 17 & 88.2\% & +40.4\\
 1.00 & 57 & 56.1\% & 6 & 83.3\% & +27.2\\
-\bottomrule
-\end{tabular}\label{tab:cliff}
+\end{tabular}
+\end{center}
 \end{table}
 
-\begin{table}[h]\centering\small
+\begin{table}[t]
 \caption{\textbf{The cliff is architecture-invariant.} All single-region items, $n{=}115$ each;
 intervals are disjoint on both models, and the oracle crop is flat and identical.}
+\label{tab:cliff2}
+\begin{center}
+\small
 \begin{tabular}{lccccc}
-\toprule
-model & cliff & uniform below & uniform above & oracle below & oracle above\\
-\midrule
+\multicolumn{1}{c}{\bf model}  &\multicolumn{1}{c}{\bf cliff} &\multicolumn{1}{c}{\bf uniform below} &\multicolumn{1}{c}{\bf uniform above} &\multicolumn{1}{c}{\bf oracle below} &\multicolumn{1}{c}{\bf oracle above}
+\\ \hline \\
 Qwen3-VL-2B & 0.25 tok & 32.4\% & 77.3\% & 95.8\% & 100.0\%\\
 Qwen2-VL-7B & 0.25 tok & 36.6\% & 63.6\% & 95.8\% & 100.0\%\\
-\bottomrule
-\end{tabular}\label{tab:cliff2}
+\end{tabular}
+\end{center}
 \end{table}
 
 \paragraph{It is not the budget.} The natural objection is that the cliff is simply a budget effect:
@@ -80,35 +84,39 @@ not the cliff.}
 \label{fig:cliffbudget}
 \end{figure}
 
-\begin{table}[h]\centering\small
+\begin{table}[t]
 \caption{\textbf{The cliff does not move with budget.} Single-region items; $t^*$ maximises the
 below/above step.}
+\label{tab:cliffbudget}
+\begin{center}
+\small
 \begin{tabular}{llccccc}
-\toprule
-model & budget & $t^*$ (tok) & acc below & acc above & $t^*/B$ (area) & side fraction\\
-\midrule
+\multicolumn{1}{c}{\bf model}  &\multicolumn{1}{c}{\bf budget} &\multicolumn{1}{c}{\bf $t^*$ (tok)} &\multicolumn{1}{c}{\bf acc below} &\multicolumn{1}{c}{\bf acc above} &\multicolumn{1}{c}{\bf $t^*/B$ (area)} &\multicolumn{1}{c}{\bf side fraction}
+\\ \hline \\
 Qwen3-VL-2B & 300 & 0.250 & 32.4\% & 75.0\% & 0.083\% & 2.89\%\\
 Qwen3-VL-2B & 588 & 0.550 & 50.0\% & 87.2\% & 0.094\% & 3.06\%\\
 Qwen2-VL-7B & 300 & 0.850 & 40.4\% & 75.0\% & 0.283\% & 5.32\%\\
 Qwen2-VL-7B & 588 & 0.750 & 50.0\% & 77.4\% & 0.128\% & 3.57\%\\
-\bottomrule
-\end{tabular}\label{tab:cliffbudget}
+\end{tabular}
+\end{center}
 \end{table}
 
-\begin{table}[h]\centering\small
+\begin{table}[t]
 \caption{\textbf{No collapse: accuracy at fixed tokens-on-target, by budget.} Qwen3-VL-2B /
 Qwen2-VL-7B.}
+\label{tab:collapse}
+\begin{center}
+\small
 \begin{tabular}{lcccc}
-\toprule
-tokens-on-target & acc @300 (Q3/Q2) & acc @588 (Q3/Q2)\\
-\midrule
+\multicolumn{1}{c}{\bf tokens-on-target}  &\multicolumn{1}{c}{\bf acc @300 (Q3/Q2)} &\multicolumn{1}{c}{\bf acc @588 (Q3/Q2)}
+\\ \hline \\
 $[0,0.15)$ & 31.9 / 31.9 & 48.5 / 39.4\\
 $[0.15,0.25)$ & 33.3 / 41.7 & 53.8 / 61.5\\
 $[0.25,0.50)$ & 73.7 / 63.2 & 52.0 / 60.0\\
 $[0.50,1.00)$ & 80.0 / 60.0 & 80.0 / 65.0\\
 $[1.00,2.00)$ & 66.7 / 50.0 & 78.6 / 78.6\\
-\bottomrule
-\end{tabular}\label{tab:collapse}
+\end{tabular}
+\end{center}
 \end{table}
 
 \paragraph{Magnification is not the bottleneck.} One control bounds the interpretation: the tightest
@@ -215,18 +223,20 @@ rate is a lower bound.}
 \label{fig:exchange}
 \end{figure}
 
-\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{table}[t]
 \caption{\textbf{Allocation vs budget.} Placement effect = oracle crop $-$ random crop.}
+\label{tab:exchange}
+\begin{center}
+\footnotesize\setlength{\tabcolsep}{2pt}
 \begin{tabular}{lccccc}
-\toprule
-model & oracle crop & random crop & placement effect & uniform ceiling & exchange rate\\
-\midrule
+\multicolumn{1}{c}{\bf model}  &\multicolumn{1}{c}{\bf oracle crop} &\multicolumn{1}{c}{\bf random crop} &\multicolumn{1}{c}{\bf placement effect} &\multicolumn{1}{c}{\bf uniform ceiling} &\multicolumn{1}{c}{\bf exchange rate}
+\\ \hline \\
 Qwen2-VL-7B & 93.2\% @300 & 34.0\% & +59.2 & 75.4\% @7{,}776 & $\ge$25.9$\times$\\
 LLaVA-OneVision-7B & 86.9\% @1{,}323 & 37.7\% & +49.2 & 69.6\% @5{,}157 & $\ge$3.9$\times$\\
 LLaVA-NeXT-7B & 80.6\% @1{,}176 & 38.2\% & +42.4 & 38.2\% @1{,}464 & no axis\\
 Qwen3-VL-2B & 97.4\% @300 & --- & +40.0 (attn$-$rand) & --- & $\ge$26$\times$\\
-\bottomrule
-\end{tabular}\label{tab:exchange}
+\end{tabular}
+\end{center}
 \end{table}
 
 \paragraph{What did not extend the crop.} Two attempts to buy the crop out of its cross-instance
@@ -237,19 +247,21 @@ than it restores the second object. Two full-resolution crops, funded by early-e
 boundary pruning at $101$--$104\%$ of the bar, help single further ($80.9$ vs $62.6$) but do not
 clear on cross ($68.4$ vs $65.8$, $0$ of $2$ pre-registered).
 
-\begin{table}[h]\centering\small
+\begin{table}[t]
 \caption{\textbf{Extensions of the crop, all charged in full.} Qwen3-VL-2B, \vstar, $n{=}191$; deltas
 against the equal-compute bar. The funded 2-crop's pre-registered criterion did not pass ($0$ of
 $2$).}
+\label{tab:cropx}
+\begin{center}
+\small
 \begin{tabular}{lcccc}
-\toprule
-arm & cost vs bar & pooled & single & cross\\
-\midrule
+\multicolumn{1}{c}{\bf arm}  &\multicolumn{1}{c}{\bf cost vs bar} &\multicolumn{1}{c}{\bf pooled} &\multicolumn{1}{c}{\bf single} &\multicolumn{1}{c}{\bf cross}
+\\ \hline \\
 DWA crop (reference) & $1.0\times$ & \gd{$+10.5$} & \gd{$+18.3$} & $-1.3$\\
 crop $+$ original & $1.5\times$ & $+4.2$ & $+13.9$ & \bad{$-10.5$}\\
 2 crops $+$ original & $1.5\times$ & $+7.3$ & $+13.9$ & $-2.6$\\
 4 crops $+$ original & $1.5\times$ & $+5.8$ & $+11.3$ & $-2.6$\\
 funded 2-crop & $1.01$--$1.04\times$ & --- & \gd{$+18.3$} & $+2.6$\\
-\bottomrule
-\end{tabular}\label{tab:cropx}
+\end{tabular}
+\end{center}
 \end{table}
