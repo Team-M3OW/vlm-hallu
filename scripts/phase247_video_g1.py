@@ -83,12 +83,27 @@ def main(nmax=0, FEW=4, MANY=32):
     def vcols(inp):
         m=inp.get("mm_token_type_ids")
         return (m[0]==2).nonzero().flatten()
-    def fwd(inp,L,keep_every=0):
+    def vruns(cols):
+        """Contiguous groups of video columns = ONE TEMPORAL PATCH each (Qwen3-VL puts a timestamp
+        text block between frame blocks). 32 frames -> 16 runs of 49 tokens."""
+        c=[int(x) for x in cols]; runs=[]; st=0
+        for i in range(1,len(c)+1):
+            if i==len(c) or c[i]!=c[i-1]+1: runs.append(c[st:i]); st=i
+        return runs
+    def fwd(inp,L,mode=None,keep_every=8):
+        """mode=None native; 'spatial' keeps every k-th TOKEN (full temporal coverage, 1/k spatial);
+        'temporal' keeps whole RUNS (= whole temporal patches), the true few-frame-equivalent bar."""
         cols=vcols(inp); nt=len(cols)
         inp={k:(v.to(model.device) if hasattr(v,"to") else v) for k,v in inp.items()}
-        if keep_every>1:
-            drop=torch.tensor([int(c) for i,c in enumerate(cols) if i%keep_every],device=model.device)
-            st["cols"]=drop; nt=nt-len(drop)
+        if mode=="spatial":
+            drop=[int(c) for i,c in enumerate(cols) if i%keep_every]
+        elif mode=="temporal":
+            runs=vruns(cols); nk=max(1,len(runs)//keep_every)
+            keep=set(np.linspace(0,len(runs)-1,nk).round().astype(int).tolist())
+            drop=[c for j,r in enumerate(runs) if j not in keep for c in r]
+        else: drop=None
+        if drop:
+            st["cols"]=torch.tensor(drop,device=model.device); nt=nt-len(drop)
         else: st["cols"]=None
         try:
             with torch.no_grad(): lg=model(**inp).logits[0,-1].float()
@@ -112,44 +127,66 @@ def main(nmax=0, FEW=4, MANY=32):
         rec={"id":vid,"dim":str(r['dim']),"nch":len(L),"gold":gold,"probs":{},"ntok":{}}
         i_hi=build(f_many,text)
         p,nt=fwd(i_hi,L); rec["probs"]["hi"]=p; rec["ntok"]["hi"]=nt
-        p,n2=fwd(i_hi,L,keep_every=MANY//FEW); rec["probs"]["bar_latent"]=p; rec["ntok"]["bar_latent"]=n2
+        p,n2=fwd(i_hi,L,mode="temporal",keep_every=MANY//FEW); rec["probs"]["bar_latent_temporal"]=p; rec["ntok"]["bar_latent_temporal"]=n2
+        p,n2b=fwd(i_hi,L,mode="spatial",keep_every=MANY//FEW); rec["probs"]["bar_latent_spatial"]=p; rec["ntok"]["bar_latent_spatial"]=n2b
         p,n3=fwd(build(f_few,text),L); rec["probs"]["bar"]=p; rec["ntok"]["bar"]=n3
         if not shown:
             print(f"  [selfcheck] {MANY}f -> {nt} video tokens ({nt/MANY:.0f}/frame); "
-                  f"{FEW}f -> {n3}; latent-masked -> {n2}  ratio hi/bar={nt/max(n3,1):.1f}x",flush=True)
+                  f"{FEW}f -> {n3}; latent_temporal -> {n2}; latent_spatial -> {n2b}  ratio hi/bar={nt/max(n3,1):.1f}x",flush=True)
             assert nt>n3, "more frames did not give more tokens -- no ladder"
             shown=True
         out.append(rec); fo.write(json.dumps(rec)+"\n"); fo.flush()
         if len(out)%25==0:
             a=lambda A:100*np.mean([int(np.argmax(x["probs"][A]))==x["gold"] for x in out])
-            print(f"  [{len(out)}] {(time.time()-t0)/len(out):.1f}s/it | hi={a('hi'):.1f} lat={a('bar_latent'):.1f} bar={a('bar'):.1f}",flush=True)
+            print(f"  [{len(out)}] {(time.time()-t0)/len(out):.1f}s/it | hi={a('hi'):.1f} latT={a('bar_latent_temporal'):.1f} latS={a('bar_latent_spatial'):.1f} bar={a('bar'):.1f}",flush=True)
     fo.close(); json.dump(out,open("data/phase247_video_g1.json","w")); report(out,skips)
 
 def report(out,skips=None):
     rng=np.random.default_rng(0)
     cor=lambda r,a: float(int(np.argmax(r["probs"][a]))==r["gold"])
-    def ci(a,b):
-        d=np.array([cor(r,a)-cor(r,b) for r in out]); m=d[rng.integers(0,len(d),(10000,len(d)))].mean(1)*100
-        return d.mean()*100, float(np.percentile(m,2.5)), float(np.percentile(m,97.5))
-    print(f"\n=== VIDEO G1  n={len(out)} ===")
+    # CLUSTER-BOOTSTRAP BY BASE VIDEO. 1580 questions come from 410 videos, and the _reverse /
+    # _concat_N variants share source content, so item-level CIs are too narrow (the HR-Bench
+    # 4-item-cycle lesson).
+    base=lambda r: re.sub(r'_(reverse|concat_\d+)$','',r["id"])
+    groups=collections.defaultdict(list)
+    for r in out: groups[base(r)].append(r)
+    gk=list(groups)
+    def ci(a,b,sub=None):
+        g=gk if sub is None else sub
+        per=np.array([np.mean([cor(r,a)-cor(r,b) for r in groups[k]]) for k in g])
+        m=per[rng.integers(0,len(per),(10000,len(per)))].mean(1)*100
+        return per.mean()*100, float(np.percentile(m,2.5)), float(np.percentile(m,97.5))
+    ARMS=("hi","bar_latent_temporal","bar_latent_spatial","bar")
+    print(f"\n=== VIDEO G1  n={len(out)} questions / {len(gk)} base videos ===")
     if skips: print("  skips:",dict(skips))
-    for a in ("hi","bar_latent","bar"):
-        print(f"  {a:11s} acc {100*np.mean([cor(r,a) for r in out]):5.1f}  video tokens {np.mean([r['ntok'][a] for r in out]):6.0f}")
-    d=np.array([cor(r,'hi')-1.0/r['nch'] for r in out]); m=d[rng.integers(0,len(d),(10000,len(d)))].mean(1)*100
+    for a in ARMS:
+        print(f"  {a:21s} acc {100*np.mean([cor(r,a) for r in out]):5.1f}  video tokens {np.mean([r['ntok'][a] for r in out]):6.0f}")
+    perg=np.array([np.mean([cor(r,'hi')-1.0/r['nch'] for r in groups[k]]) for k in gk])
+    m=perg[rng.integers(0,len(perg),(10000,len(perg)))].mean(1)*100
     ch=100*np.mean([1.0/r['nch'] for r in out])
-    print(f"\n  SANITY hi vs chance {100*np.mean([cor(r,'hi') for r in out]):.1f} vs {ch:.1f}: {d.mean()*100:+.1f} "
+    print(f"\n  SANITY hi vs chance {100*np.mean([cor(r,'hi') for r in out]):.1f} vs {ch:.1f}: {perg.mean()*100:+.1f} "
           f"[{np.percentile(m,2.5):+.1f},{np.percentile(m,97.5):+.1f}]  {'ok' if np.percentile(m,2.5)>0 else 'AT FLOOR -> uninterpretable'}")
-    accs={a:100*np.mean([cor(r,a) for r in out]) for a in ("bar","bar_latent")}
-    st=max(accs,key=accs.get); print(f"  strongest bar: {st} ({accs[st]:.1f})")
+    accs={a:100*np.mean([cor(r,a) for r in out]) for a in ARMS[1:]}
+    st=max(accs,key=accs.get)
+    print(f"  bars: "+"  ".join(f"{k} {v:.1f}" for k,v in accs.items())+f"   -> strongest = {st}")
     m_,lo,hi_=ci("hi",st)
-    print(f"\n  HEADROOM  hi - {st:10s} = {m_:+.1f} [{lo:+.1f},{hi_:+.1f}]  {'PASS -> AVR/DWA video' if lo>0 else 'FAIL -> stop'}")
-    m_,lo,hi_=ci("bar_latent","bar"); print(f"  latent vs resampled bar  = {m_:+.1f} [{lo:+.1f},{hi_:+.1f}]")
-    print("\n  by dim (the scope law, video reading):")
+    print(f"\n  HEADROOM  hi - {st:21s} = {m_:+.1f} [{lo:+.1f},{hi_:+.1f}]  {'PASS -> AVR/DWA video' if lo>0 else 'FAIL -> stop'}")
+    for a,b,lab in (("bar_latent_temporal","bar","temporal-latent vs re-encoded few frames"),
+                    ("bar_latent_spatial","bar_latent_temporal","spatial-latent vs temporal-latent")):
+        m_,lo,hi_=ci(a,b); print(f"  {lab:42s} = {m_:+.1f} [{lo:+.1f},{hi_:+.1f}]")
+    print("\n  by dim (the scope law, video reading; clustered CIs):")
     for dd in sorted({r['dim'] for r in out}):
-        s=[r for r in out if r['dim']==dd]
-        dl=np.array([cor(r,'hi')-cor(r,st) for r in s]); mm=dl[rng.integers(0,len(dl),(4000,len(dl)))].mean(1)*100
-        print(f"    {dd:18s} n={len(s):4d}  hi {100*np.mean([cor(r,'hi') for r in s]):5.1f}  bar {100*np.mean([cor(r,st) for r in s]):5.1f}"
-              f"  headroom {dl.mean()*100:+5.1f} [{np.percentile(mm,2.5):+5.1f},{np.percentile(mm,97.5):+5.1f}]")
+        sub=[k for k in gk if any(r['dim']==dd for r in groups[k])]
+        g2=collections.defaultdict(list)
+        for k in sub:
+            for r in groups[k]:
+                if r['dim']==dd: g2[k].append(r)
+        sv=groups; groups.update(g2)
+        per=np.array([np.mean([cor(r,'hi')-cor(r,st) for r in g2[k]]) for k in sub])
+        mm=per[rng.integers(0,len(per),(4000,len(per)))].mean(1)*100
+        items=[r for r in out if r['dim']==dd]
+        print(f"    {dd:18s} n={len(items):4d}/{len(sub):3d}vid  hi {100*np.mean([cor(r,'hi') for r in items]):5.1f}  bar {100*np.mean([cor(r,st) for r in items]):5.1f}"
+              f"  headroom {per.mean()*100:+5.1f} [{np.percentile(mm,2.5):+5.1f},{np.percentile(mm,97.5):+5.1f}]")
 
 if __name__=="__main__":
     if len(sys.argv)>1 and sys.argv[1]=="report": report(json.load(open("data/phase247_video_g1.json")))

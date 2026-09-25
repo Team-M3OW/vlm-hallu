@@ -49,8 +49,26 @@ def main(n=0):
     zf=zipfile.ZipFile(zp); names=set(zf.namelist())
     print(f"zip members: {len(names)}  sample: {list(sorted(names))[:3]}",flush=True)
     pr=AutoProcessor.from_pretrained(MID)
-    model=M.from_pretrained(MID, dtype=torch.bfloat16, device_map={"":0}, attn_implementation="sdpa").eval()
+    # EAGER + layer-hook masking for bar_latent. The obvious trick -- zeroing entries in the 2D
+    # attention_mask -- CORRUPTS mrope models: Qwen3-VL derives its 3D rope positions from
+    # attention_mask, so dropping entries changed the position count and the forward died
+    # ([3,955] vs [3,269]). Qwen2.5-Omni's thinker uses the same get_rope_index, so the audio run
+    # would have hit the same fault -- or, worse, silently compacted positions.
+    model=M.from_pretrained(MID, dtype=torch.bfloat16, device_map={"":0}, attn_implementation="eager").eval()
     tok=pr.tokenizer
+    layers=model.model.layers if hasattr(model,"model") else model.layers
+    st={"cols":None}
+    def mk():
+        def pre(mod,args,kwargs):
+            if st["cols"] is None: return None
+            am=kwargs.get("attention_mask")
+            if am is None: am=args[1] if len(args)>1 else None
+            if am is None or am.dtype==torch.bool:
+                raise RuntimeError(f"unexpected attention_mask {None if am is None else am.dtype}")
+            am=am.clone(); am[:,:,:,st["cols"]]=torch.finfo(am.dtype).min
+            kwargs["attention_mask"]=am; return (args,kwargs)
+        return pre
+    for _l in layers: _l.self_attn.register_forward_pre_hook(mk(),with_kwargs=True)
     aid=getattr(model.config,"audio_token_index",None) or tok.convert_tokens_to_ids("<|AUDIO|>")
 
     def build(wav,q,ch):
@@ -64,15 +82,19 @@ def main(n=0):
         raise RuntimeError("processor audio kwarg not found")
 
     def fwd(inp, L, keep_every=0):
+        """keep_every>1 hides all but every k-th AUDIO token at every layer. The stride is the right
+        construction here because audio is 1-D in time (unlike video, where a flat token stride
+        silently becomes a SPATIAL bar); only the masking mechanism had to change."""
         ids=inp["input_ids"][0]; pos=(ids==aid).nonzero().flatten()
         nt=len(pos)
-        inp=dict(inp)
-        if keep_every>1:
-            am=inp["attention_mask"].clone()
-            drop=[int(p) for i,p in enumerate(pos) if i%keep_every]      # keep every k-th
-            am[0,drop]=0; inp["attention_mask"]=am; nt=nt-len(drop)
         inp={k:(v.to(model.device) if hasattr(v,"to") else v) for k,v in inp.items()}
-        with torch.no_grad(): lg=model(**inp).logits[0,-1].float()
+        if keep_every>1:
+            drop=[int(p) for i,p in enumerate(pos) if i%keep_every]
+            st["cols"]=torch.tensor(drop,device=model.device); nt=nt-len(drop)
+        else: st["cols"]=None
+        try:
+            with torch.no_grad(): lg=model(**inp).logits[0,-1].float()
+        finally: st["cols"]=None
         ltr=[tok.encode(x,add_special_tokens=False)[0] for x in L]
         return torch.softmax(lg[ltr],-1).tolist(), nt
 
