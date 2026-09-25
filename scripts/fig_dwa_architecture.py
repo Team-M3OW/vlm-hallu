@@ -55,8 +55,8 @@ box(18, 24, 23, 12, "crop $W{=}0.25$ window\nat $c^\\star$ from the\nORIGINAL im
 box(2, 24, 13, 12, "PASS 2\nanswer\narg max over\noption letters", fc="#dcfce7", ec=GREEN, bold=True, fs=9.2)
 arrow(74, 30, 71, 30); arrow(44, 30, 41, 30); arrow(18, 30, 15, 30)
 
-ax.text(50, 14.5, "COST:  300 (localise) + 300 (answer) = 600 visual tokens  =  the equal-compute bar",
-        fontsize=11.5, fontweight="bold", color=GREY, ha="center")
+ax.text(2, 14.5, "COST:  300 (localise) + 300 (answer) = 600 visual tokens = the equal-compute bar",
+        fontsize=11, fontweight="bold", color=GREY, ha="left")
 
 # ---------------- depth-filter inset ----------------
 axi = fig.add_axes([0.665, 0.055, 0.30, 0.205])
