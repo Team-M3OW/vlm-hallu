@@ -754,6 +754,38 @@ difference $+0.2$ points over seven cells). We recommend AVR as the default and 
 supervision exists and single-instance perception dominates. We note that DWA's pooled margin over AVR
 is concentrated on the two cells on which it was developed.
 
+\section{Small visual details}\label{sec:small}
+
+Questions about a small detail --- a colour, a word on a label, a material --- isolate the three levers of this
+paper, and the error budget says which one binds. Replacing the model's evidence window with the ground-truth
+box at the same $300$-token budget certifies an \emph{encoding failure} on $37.7\%$/$41.4\%$ of all \vstar\ items
+(wrong on pass~1, right on the oracle crop) --- $86.7\%$/$84.0\%$ of every error, rising to $94.0\%$/$89.4\%$ at
+$W{=}0.15$. Nine in ten errors on small details are failures to \emph{read} the region, not failures to reason
+about it.
+
+Placement is the second lever. The conventional read-out lands its window on the evidence region on
+$46.6\%$/$39.3\%$ of items, DWA on $63.9\%$/$55.0\%$ (chance $13.6\%$), and that is what the single-object column
+of Table~\ref{tab:working} converts into $+11.0$ to $+19.1$ points. A perfectly placed $600$-token crop beats
+native dynamic resolution by $+11.6$/$+16.2$ pooled --- placement is worth more than $5$--$7\times$ the compute, a
+ceiling no learned allocator has approached.
+
+Resolution is the third lever, and the only one that fixes relational items. Where the bar cannot resolve the
+evidence at its budget, no placement rule substitutes for tokens: the crossover of Table~\ref{tab:crossover} and
+the headroom identity of Appendix~\ref{app:identity} (slope $1.01$, $r{=}0.966$) are the same statement, and on
+\vstar\ cross-instance a perfectly placed crop cannot exceed $75.0$ while AVR reaches that level by keeping
+coverage. Two attempts to buy the crop out of that ceiling failed. Adding the original image back --- the
+composite of \citet{vicrop} --- does not repair the cross stratum: with the localisation pass charged,
+crop@$300$ plus original@$300$ costs $1.5\times$ the bar and scores $+4.2$ pooled, $+13.9$ single, $-10.5$ cross,
+below the bar-matched crop alone ($+10.5$; $+18.3$; $-1.3$). Two full-resolution crops, funded by early-exit
+localisation and boundary pruning at $101$--$104\%$ of the bar, help single further ($80.9$ vs $62.6$) but do not
+clear on cross ($68.4$ vs $65.8$). More crops buy single resolution; only resolution buys cross.
+
+The boundary of the program is visible on the same questions. Cropping is invalid where the answer needs the
+whole scene: on a stratified POPE study it scores $12.1$--$35.5\%$ against $76.7$--$100\%$ for \texttt{uniform@300}.
+And no label-free signal we tested predicts \emph{which} items failed to encode (AUROC $0.630$/$0.579$ against
+$0.625$/$0.679$ for confidence baselines), while the coverage signal is at chance for correctness
+($0.484$--$0.506$).
+
 \section{What does not work}\label{sec:neg}
 
 Ten designs failed to make cropping serve cross-instance questions, and two more failed to combine the two
