@@ -54,16 +54,28 @@ print(f"  NL={NL} attn={modname} video_token_id={vid_id}", flush=True)
 def build(frames, text):
     content = [{"type": "video", "video": frames}, {"type": "text", "text": text}]
     chat = pr.apply_chat_template([{"role": "user", "content": content}], tokenize=False, add_generation_prompt=True)
-    return pr(text=[chat], videos=[frames], do_sample_frames=False, return_tensors="pt")
+    inp = pr(text=[chat], videos=[frames], do_sample_frames=False, return_tensors="pt")
+    # Qwen3-VL INTERLEAVES a frame-timestamp text block between every per-frame token block, so
+    # mm_token_type_ids has t separate video runs while the processor emits ONE grid row [[t,h,w]].
+    # get_rope_index iterates the runs and calls next() on that 1-item iterator -> StopIteration.
+    # Expand to one row per temporal patch. VALIDATED: video path vs image path on identical V*
+    # content agree on 82.5% of items (acc 30.0 vs 27.5), i.e. the patched path is not garbage.
+    g = inp["video_grid_thw"]; t, h, w = [int(x) for x in g[0]]
+    if len(g) == 1 and t > 1:
+        inp["video_grid_thw"] = torch.tensor([[1, h, w]] * t, dtype=g.dtype)
+    return inp
 
 
 def vspan(inp):
+    """Returns (first, last+1, count, EXACT_COLUMNS). The video tokens are NOT contiguous -- the
+    timestamp text sits between frame blocks -- so masking the span first..last would also blind
+    the text to those timestamps and the measurement would not be about video transport."""
     if "mm_token_type_ids" in inp:
         pos = (inp["mm_token_type_ids"][0] == 2).nonzero().flatten()
-        if len(pos): return int(pos[0]), int(pos[-1]) + 1, len(pos)
+        if len(pos): return int(pos[0]), int(pos[-1]) + 1, len(pos), pos
     if vid_id is not None:
         pos = (inp["input_ids"][0] == vid_id).nonzero().flatten()
-        if len(pos): return int(pos[0]), int(pos[-1]) + 1, len(pos)
+        if len(pos): return int(pos[0]), int(pos[-1]) + 1, len(pos), pos
     return None
 
 
@@ -79,7 +91,7 @@ def fit_frames(img, target=VTOK_TARGET):
     return best
 
 
-state = {"layers": set(), "span": None}
+state = {"layers": set(), "span": None, "cols": None}
 
 
 def make_hook(l):
@@ -89,7 +101,8 @@ def make_hook(l):
         if am is None: am = args[1] if len(args) > 1 else None
         if am is None or am.dtype == torch.bool:
             raise RuntimeError(f"unexpected attention_mask {None if am is None else am.dtype}")
-        am = am.clone(); a, b = state["span"]; am[:, :, b:, a:b] = torch.finfo(am.dtype).min
+        am = am.clone(); a, b = state["span"]; cols = state["cols"]
+        am[:, :, b:, cols] = torch.finfo(am.dtype).min   # EXACT video columns, not the span
         kwargs["attention_mask"] = am; return (args, kwargs)
     return pre
 hooks = [layers[l].self_attn.register_forward_pre_hook(make_hook(l), with_kwargs=True) for l in range(NL)]
@@ -115,7 +128,7 @@ for qid, img, q, gold, stratum, kind in items:
     inp = build(frames, q).to(model.device)
     sp = vspan(inp)
     if sp is None: continue
-    state["span"] = (sp[0], sp[1])
+    state["span"] = (sp[0], sp[1]); state["cols"] = sp[3].to(model.device)
     state["layers"] = set(); base = logits(inp); bl = base[letters]
     state["layers"] = set(range(NL)); allab = logits(inp)
     rec = {"qid": qid, "stratum": stratum, "vtokens": sp[2], "kl_all": kl(base, allab),
