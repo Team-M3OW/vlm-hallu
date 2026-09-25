@@ -1,7 +1,7 @@
-% Appendix fragment: the size cliff in detail.
+% Appendix fragment: experiment 1 -- the size cliff.
 % Included from main.tex via \input{appendix_cliff}; uses the macros defined there.
 
-\section{The size cliff in detail}\label{app:cliff}
+\section{The size cliff}\label{app:cliff}
 
 \paragraph{Protocol.} Every measurement in this appendix uses \vstar\ with its ground-truth boxes, on
 Qwen3-VL-2B and Qwen2-VL-7B unless stated. A \emph{merged visual token} is one post-merge patch
@@ -9,16 +9,12 @@ embedding; at a $300$-token pass it covers $1/300$ of the image area. A target's
 B$ merged tokens, where $S$ is the ground-truth box area as a fraction of the image and $B$ the
 realised token count; its side is $\sqrt{S\times N}$ tokens. The \emph{oracle crop} replaces the
 model's window with the ground-truth box at the same $300$-token budget and is a control, not a
-method. An item is a \emph{certified encoding failure} when it is wrong under the uniform bar and
-right under the oracle crop at the same budget. \emph{Coverage} is the fraction of the ground-truth
-box inside the $W{=}0.25$ window at the ring-masked arg-max of a read-out. The \emph{exchange rate}
-compares the oracle crop at the base budget with the best uniform rung each model can reach.
-Thresholds come from a sliding sweep: for each $t$, accuracy below and at-or-above $t$ is compared on
-single-region items, requiring at least ten items per side, and $t^*$ maximises the step. All
-intervals are paired item bootstraps ($8000$ resamples).
+method. Thresholds come from a sliding sweep: for each $t$, accuracy below and at-or-above $t$ is
+compared on single-region items, requiring at least ten items per side, and $t^*$ maximises the
+step. All intervals are paired item bootstraps ($8000$ resamples).
 
 \paragraph{The cliff.} Accuracy as a function of the target's extent, with the oracle crop as the
-difficulty control, is the central measurement of the section. The uniform curve is flat and near
+difficulty control, is the central measurement of this appendix. The uniform curve is flat and near
 chance for the smallest targets, dips \emph{below} the $25\%$ chance level, and rises steeply
 through the shaded $0.15$--$0.25$ merged-token band; the oracle curve is flat at
 $95.8\%$/$100.0\%$ across the same range. The two models' curves differ in level but not in shape or
@@ -115,128 +111,8 @@ $[1.00,2.00)$ & 66.7 / 50.0 & 78.6 / 78.6\\
 \end{tabular}\label{tab:collapse}
 \end{table}
 
-\paragraph{The information is never encoded.} If the answer were present but mis-routed, a layer-wise
-read-out would find it somewhere and lose it later. We decode the answer option from every layer
-with a logit lens: intermediate layers through $\mathrm{lm\_head}(\mathrm{final\_norm}(h_\ell))$,
-the final layer from the model's own logits, because applying the final norm to the last hidden
-state as well double-normalises that layer alone and corrupted an earlier result of ours
-(\S\ref{app:mech}); we assert per run that the last-layer read-out matches the true logits. Under
-the uniform encoding no layer's decoded answer exceeds $52.9\%$, and localisation quality does not
-change that: on items where the window covers the target and the model still answers wrong
-($n{=}36$), the correct option is the argmax at some layer on $72.2\%$ of items, against $68.1\%$
-where the window missed entirely. There is no layer at which the answer is present and subsequently
-lost: the apparent signal at L20 ($41.7\%$) collapses to $0\%$ from L22 and matches what near-chance
-layers produce by chance. Under the oracle crop the lens instead reaches $92.6\%$, and the answer
-appears abruptly at L22, taking $90\%$ of the gain in a single transition; the step replicates one
-layer later on Qwen2-VL-7B and appears only where the crop covers the target ($+23.8$ points
-covered, exactly $0.0$ where it misses). Cropping does not make the model reason better; it supplies
-information that a fixed depth converts into an answer. Representation patching agrees from the
-other side: replacing every image token's hidden state with a different image's, at a single layer,
-changes the answer no more than replacing irrelevant early text once past the transport boundary (KL
-$0.009$ vs $0.009$ on Qwen3 and $0.005$ vs $0.006$ on Qwen2 at L16). The oracle crop fixes $94.4\%$
-of the localised-but-wrong items at the same budget, with a median of $0.14$ merged tokens on
-target, and across the benchmark $37.7\%$/$41.4\%$ of all items are certified encoding failures:
-$86.7\%$/$84.0\%$ of every error, rising to $94.0\%$/$89.4\%$ at $W{=}0.15$.
-
-\begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{figs/fig_lens.pdf}
-\caption{\textbf{The answer is not in the stack.} Per-layer logit-lens accuracy under the uniform
-encoding (red) and the oracle crop (green), both models. Uniform: flat, no layer above $52.9\%$ and
-none holding an answer that is later lost. Oracle: the answer becomes decodable abruptly at L22,
-taking most of the gain in one transition; the Qwen2 step is one layer later.}
-\label{fig:lens}
-\end{figure}
-
-\paragraph{Allocation beats budget.} The exchange rate compares an oracle crop at the base budget
-with the best uniform rung each model can reach; a random crop of the same size bounds the placement
-effect from below. No uniform rung reaches the crop arm on any model, so every rate is a lower bound
-set by the model's token ceiling; LLaVA-NeXT has no resolution axis and is reported as such. The
-same statement holds at native resolution, where the uniform arm may spend $5.5\times$ our budget: a
-perfectly placed $600$-token crop beats native dynamic resolution ($3{,}290$ tokens) by
-$+11.6$/$+16.2$ pooled. The boundary is measured rather than assumed: allocation pays when the
-evidence is smaller than the budget can resolve --- $71\%$ of \vstar\ targets are sub-token and
-oracle allocation is worth $+37.2$ points --- and costs when it is not, as on HR-Bench 4K, where
-allocation loses $8.8$ points because discarded context dominates. The localizer is good in both
-regimes; what changes is whether acting on it helps.
-
-\begin{figure}[h]\centering
-\includegraphics[width=\textwidth]{figs/fig_exchange.pdf}
-\caption{\textbf{Allocation vs budget.} Oracle crop at the base budget (green) against the best
-uniform rung each model reaches (red; token counts annotated). The exchange rate is the ratio of the
-token counts at which the two arms score what they score; no uniform rung matches the crop, so each
-rate is a lower bound.}
-\label{fig:exchange}
-\end{figure}
-
-\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
-\caption{\textbf{Allocation vs budget.} Placement effect = oracle crop $-$ random crop.}
-\begin{tabular}{lccccc}
-\toprule
-model & oracle crop & random crop & placement effect & uniform ceiling & exchange rate\\
-\midrule
-Qwen2-VL-7B & 93.2\% @300 & 34.0\% & +59.2 & 75.4\% @7{,}776 & $\ge$25.9$\times$\\
-LLaVA-OneVision-7B & 86.9\% @1{,}323 & 37.7\% & +49.2 & 69.6\% @5{,}157 & $\ge$3.9$\times$\\
-LLaVA-NeXT-7B & 80.6\% @1{,}176 & 38.2\% & +42.4 & 38.2\% @1{,}464 & no axis\\
-Qwen3-VL-2B & 97.4\% @300 & --- & +40.0 (attn$-$rand) & --- & $\ge$26$\times$\\
-\bottomrule
-\end{tabular}\label{tab:exchange}
-\end{table}
-
-\paragraph{Why the target is invisible.} The arithmetic behind the threshold is simple. At the
-$300$-token pass the median single-region target's side is $0.210$ merged tokens; $100\%$ of targets
-are smaller than one merged token, the median target occupies $0.176$ tokens of area, and $62\%$ sit
-below the $0.25$-token cliff. The evidence is averaged into a single token's footprint together with
-its background before the language model ever sees it --- which is why magnification, not budget, is
-the operation that recovers it.
-
-\begin{figure}[h]\centering
-\includegraphics[width=0.62\textwidth]{figs/fig_footprint.pdf}
-\caption{\textbf{The target is smaller than a token.} Distribution of the single-region target's side
-in merged-token units at the $300$-token pass, both models. Every target lies left of the one-token
-line; most lie below the $0.25$-token cliff.}
-\label{fig:footprint}
-\end{figure}
-
-\paragraph{Controls.} Three controls bound the interpretation. \emph{Localisation degrades below the
-cliff, far less than accuracy}: ground-truth coverage falls from $0.637$ to $0.457$ (argmax window)
-and from $0.751$ to $0.580$ (head window) on Qwen3, and $0.594\to0.450$ / $0.620\to0.471$ on Qwen2,
-while accuracy falls by $42.6$ points --- encoding dominates, placement contributes a minority
-share. \emph{Magnification is not the bottleneck}: the tightest oracle window tested, $W{=}0.15$,
-resolves $100\%$ of items on both models in every size quartile (median $W^*=0.15$; rank correlation
-with $\sqrt{S}$ $\approx0$), so what limits the model is isolating the region and the target's
-relative size, not the amount of magnification. \emph{The below-chance failure is not the language
-prior}: a text-only control (question without the image) agrees with the image-conditioned answer on
-$49.4\%$ of below-cliff items vs $40.7\%$ above on Qwen3, but $49.4\%$ vs $56.5\%$ on Qwen2 ---
-opposite directions, neither interval clear. Below the cliff the model is systematically misled, but
-not by the text-only prior.
-
-\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
-\caption{\textbf{The three levers, measured.} Qwen3-VL-2B / Qwen2-VL-7B unless stated; the placement
-row spans four families (Table~\ref{tab:working}).}
-\begin{tabular}{@{}l p{0.20\textwidth} p{0.24\textwidth} p{0.42\textwidth}@{}}
-\toprule
-lever & experiment & measurement & result\\
-\midrule
-encoding & oracle-crop control @$300$ & certified encoding failures & $37.7\%$/$41.4\%$ of items; $86.7\%$/$84.0\%$ of errors\\
-placement & coverage; single-object end task & GT-box fraction; accuracy $-$ bar & block $46.6$/$39.3$ $\to$ DWA $63.9$/$55.0$; $+11.0$ to $+19.1$\\
-resolution & AVR vs bar; headroom identity & gain vs measured headroom & slope $1.01$, $r{=}0.966$; \vstar\ cross $+10.5$\\
-\bottomrule
-\end{tabular}\label{tab:levers}
-\end{table}
-
-\begin{table}[h]\centering\small
-\caption{\textbf{Extensions of the crop, all charged in full.} Qwen3-VL-2B, \vstar, $n{=}191$; deltas
-against the equal-compute bar. The funded 2-crop's pre-registered criterion did not pass ($0$ of
-$2$).}
-\begin{tabular}{lcccc}
-\toprule
-arm & cost vs bar & pooled & single & cross\\
-\midrule
-DWA crop (reference) & $1.0\times$ & \gd{$+10.5$} & \gd{$+18.3$} & $-1.3$\\
-crop $+$ original & $1.5\times$ & $+4.2$ & $+13.9$ & \bad{$-10.5$}\\
-2 crops $+$ original & $1.5\times$ & $+7.3$ & $+13.9$ & $-2.6$\\
-4 crops $+$ original & $1.5\times$ & $+5.8$ & $+11.3$ & $-2.6$\\
-funded 2-crop & $1.01$--$1.04\times$ & --- & \gd{$+18.3$} & $+2.6$\\
-\bottomrule
-\end{tabular}\label{tab:cropx}
-\end{table}
+\paragraph{Magnification is not the bottleneck.} One control bounds the interpretation: the tightest
+oracle window tested, $W{=}0.15$, resolves $100\%$ of items on both models in every size quartile
+(median $W^*=0.15$; rank correlation with $\sqrt{S}$ $\approx0$). Once the region is isolated, even a
+$6.7\times$ crop reads the smallest detail, so what limits the model is isolating the region and the
+target's relative size, not the amount of magnification.
