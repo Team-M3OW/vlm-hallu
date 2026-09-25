@@ -756,54 +756,83 @@ is concentrated on the two cells on which it was developed.
 
 \section{Small visual details}\label{sec:small}
 
-A small-detail question --- a colour, a word on a label, a material, a count of one object --- is the
-cleanest test of the whole pipeline, because its error budget can be decomposed. Three levers stand
-between the image and the answer: the region must be \emph{encoded} at a resolution that resolves it,
-the read-out must \emph{place} the evidence window on it, and the answer must remain \emph{decodable}
-after transport. Our experiments separate all three, and the decomposition says which one binds.
+\paragraph{Experimental setup.} Small-detail questions are the strata the benchmarks themselves label
+as single-object: \vstar\ attribute items ($n{=}115$), HR-4K single ($400$), RealworldQA open
+($337$), and the Count split of CV-Bench. Text and document details enter through the budget
+crossover (TextVQA and DocVQA, $n{=}300$), and whole-scene questions through a stratified POPE study
+($n{=}688$). The core pair is Qwen3-VL-2B and Qwen2-VL-7B; LLaVA-OneVision-7B and InternVL3-8B are
+added where a placement claim is checked across families. Every arm is charged in full against the
+equal-compute bar (\texttt{uniform@600}): DWA is localise@$300$ plus crop@$300$; AVR encodes at $900$
+with $90\%$ of visual tokens pruned at the transport boundary ($96$--$100\%$ of the bar in
+token-layers). The oracle crop is a control, not a method: it replaces the model's window with the
+ground-truth box at the same $300$-token budget, so an item wrong at the bar and right under the
+oracle crop is a \emph{certified encoding failure}. Coverage is the fraction of the ground-truth box
+inside the $W{=}0.25$ window at the ring-masked arg-max of a read-out. All contrasts are paired item
+bootstraps ($8000$ resamples).
 
-\paragraph{Encoding binds first.} The oracle-crop control replaces the model's window with the
-ground-truth box at the same $300$-token budget, so an item that is wrong on pass~1 and right on the
-oracle crop is a certified \emph{encoding failure}. On \vstar\ this is $37.7\%$/$41.4\%$ of all items
---- $86.7\%$/$84.0\%$ of every error, rising to $94.0\%$/$89.4\%$ at $W{=}0.15$ (Qwen3/Qwen2). Nine
-in ten errors on small details are failures to read the region, not failures to reason about it. Any
-method that only improves placement is therefore working on at most one error in ten.
+\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{\textbf{The three levers, measured.} Qwen3-VL-2B / Qwen2-VL-7B unless stated; the placement
+row spans four families (Table~\ref{tab:working}).}
+\begin{tabular}{@{}l p{0.20\textwidth} p{0.24\textwidth} p{0.42\textwidth}@{}}
+\toprule
+lever & experiment & measurement & result\\
+\midrule
+encoding & oracle-crop control @$300$ & certified encoding failures & $37.7\%$/$41.4\%$ of items; $86.7\%$/$84.0\%$ of errors\\
+placement & coverage; single-object end task & GT-box fraction; accuracy $-$ bar & block $46.6$/$39.3$ $\to$ DWA $63.9$/$55.0$; $+11.0$ to $+19.1$\\
+resolution & AVR vs bar; headroom identity & gain vs measured headroom & slope $1.01$, $r{=}0.966$; \vstar\ cross $+10.5$\\
+\bottomrule
+\end{tabular}\label{tab:levers}
+\end{table}
 
-\paragraph{Placement is the second lever, and it is worth more than compute.} The conventional
-read-out lands its $W{=}0.25$ window on the evidence region on $46.6\%$/$39.3\%$ of items; the
-depth-weighted read-out on $63.9\%$/$55.0\%$ (chance $13.6\%$). At the end task that converts into
-$+11.0$ to $+19.1$ points on the single-object strata the benchmarks define for themselves
-(Table~\ref{tab:working}). The ceiling is higher still: a perfectly placed $600$-token crop beats
-native dynamic resolution ($3{,}290$ tokens, $5.5\times$ the budget) by $+11.6$/$+16.2$ pooled and
-$+21.7$ on single-instance. Placement is worth more than $5$--$7\times$ the compute, and no learned
-allocator has approached that ceiling.
+\begin{table}[h]\centering\small
+\caption{\textbf{Extensions of the crop, all charged in full.} Qwen3-VL-2B, \vstar, $n{=}191$; deltas
+against the equal-compute bar. The funded 2-crop's pre-registered criterion did not pass ($0$ of
+$2$).}
+\begin{tabular}{lcccc}
+\toprule
+arm & cost vs bar & pooled & single & cross\\
+\midrule
+DWA crop (reference) & $1.0\times$ & \gd{$+10.5$} & \gd{$+18.3$} & $-1.3$\\
+crop $+$ original & $1.5\times$ & $+4.2$ & $+13.9$ & \bad{$-10.5$}\\
+2 crops $+$ original & $1.5\times$ & $+7.3$ & $+13.9$ & $-2.6$\\
+4 crops $+$ original & $1.5\times$ & $+5.8$ & $+11.3$ & $-2.6$\\
+funded 2-crop & $1.01$--$1.04\times$ & --- & \gd{$+18.3$} & $+2.6$\\
+\bottomrule
+\end{tabular}\label{tab:cropx}
+\end{table}
 
-\paragraph{Resolution is the third lever, and the only one that fixes relations.} Where the bar
-cannot resolve the evidence at its budget, no placement rule substitutes for tokens: the crossover of
-Table~\ref{tab:crossover} (uniform overtakes the best crop between $200$ and $300$ tokens on DocVQA
-and TextVQA; never on \vstar) and the headroom identity of Appendix~\ref{app:identity} (slope $1.01$,
-$r{=}0.966$ over four checkpoints and three benchmarks) are the same statement. On \vstar\
-cross-instance, a perfectly placed crop cannot exceed $75.0$, while AVR reaches that level by keeping
-coverage and spending the budget on resolution. The two policies are complementary by construction:
-cropping buys density for a local property, resolution buys it for the scene.
-
-\paragraph{More crops do not extend the ceiling.} Two attempts to buy the crop out of its
-cross-instance limit failed. Adding the original image back --- the composite of \citet{vicrop} ---
-does not repair the cross stratum: with the localisation pass charged, crop@$300$ plus original@$300$
-costs $1.5\times$ the bar and scores $+4.2$ pooled, $+13.9$ single, $-10.5$ cross, below the
-bar-matched crop alone ($+10.5$; $+18.3$; $-1.3$); the original dilutes the crop's attention more
-than it restores the second object, and a $300$-token original cannot resolve it. Two
-full-resolution crops, funded by early-exit localisation and boundary pruning at $101$--$104\%$ of the
-bar, help single further ($80.9$ vs $62.6$) but do not clear on cross ($68.4$ vs $65.8$). More crops
-buy single resolution; only resolution buys cross.
-
-\paragraph{Where the program stops.} Cropping is invalid where the answer needs the whole scene: on a
-stratified POPE study it scores $12.1$--$35.5\%$ against $76.7$--$100\%$ for \texttt{uniform@300}. And
-no label-free signal we tested predicts \emph{which} items failed to encode (AUROC $0.630$/$0.579$
-against $0.625$/$0.679$ for confidence baselines), while the coverage signal that predicts where a
-crop will land is at chance for correctness ($0.484$--$0.506$). Knowing where the evidence is, and
-knowing that the model cannot read it, are different problems --- the first is solved, the second is
-open.
+\paragraph{Findings.}
+\begin{enumerate}
+\item \textbf{Encoding binds first.} $86.7\%$/$84.0\%$ of every error on small details is a certified
+encoding failure ($94.0\%$/$89.4\%$ at $W{=}0.15$): the model fails to read the region, not to reason
+about it. Placement-only methods are therefore working on at most one error in ten.
+\item \textbf{Placement is worth more than compute.} The conventional read-out finds the evidence on
+$46.6\%$/$39.3\%$ of items, DWA on $63.9\%$/$55.0\%$ (chance $13.6\%$), converting into $+11.0$ to
+$+19.1$ points on single-object strata. A perfectly placed $600$-token crop beats native dynamic
+resolution ($3{,}290$ tokens, $5.5\times$ the budget) by $+11.6$/$+16.2$ pooled and $+21.7$ on
+single-instance --- a ceiling no learned allocator has approached.
+\item \textbf{Resolution is the only lever that fixes relational items.} Where the bar cannot resolve
+the evidence at its budget, no placement rule substitutes for tokens: uniform overtakes the best crop
+between $200$ and $300$ tokens on DocVQA and TextVQA, and never on \vstar. On cross-instance items a
+perfectly placed crop cannot exceed $75.0$, the level AVR reaches by keeping coverage; the gain
+equals measured resolution headroom (slope $1.01$, $r{=}0.966$, four checkpoints $\times$ three
+benchmarks).
+\item \textbf{Adding the original back does not repair the cross stratum.} crop$+$original costs
+$1.5\times$ the bar once the localisation pass is charged, and scores below the bar-matched crop
+alone on every stratum (pooled $+4.2$ vs $+10.5$; cross $-10.5$ vs $-1.3$); the original dilutes the
+crop's attention more than it restores the second object, and a $300$-token original cannot resolve
+it.
+\item \textbf{More crops buy single resolution, not cross.} Two full-resolution crops, funded by
+early-exit localisation and boundary pruning at $101$--$104\%$ of the bar, help single further
+($80.9$ vs $62.6$) but do not clear on cross ($68.4$ vs $65.8$, $0$ of $2$ pre-registered).
+\item \textbf{The program has a hard boundary.} Cropping is invalid where the answer needs the whole
+scene: on stratified POPE it scores $12.1$--$35.5\%$ against $76.7$--$100\%$ for \texttt{uniform@300}.
+\item \textbf{Knowing where the evidence is and knowing the model cannot read it are different
+problems.} No label-free signal we tested predicts which items failed to encode (AUROC
+$0.630$/$0.579$ against $0.625$/$0.679$ for confidence baselines), while the coverage signal that
+predicts where a crop will land is at chance for correctness ($0.484$--$0.506$). The first problem is
+solved; the second is open.
+\end{enumerate}
 
 \section{What does not work}\label{sec:neg}
 
