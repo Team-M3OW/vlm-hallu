@@ -9143,3 +9143,40 @@ decoding on V* (§14H) and now on CV-Bench (§84), self-confidence gating, wrong
 result and belongs in the paper as such: it is the strongest evidence for the central claim that
 **allocation must happen in pixel space** — choose what to ENCODE, rather than reweighting what was
 already encoded. §10B stated this from one experiment; there are now eight.
+## §85 ★★★ THE DEPLOYABLE POLICY: A MAP-ONLY PER-ITEM CHOICE BETWEEN CROP AND RESOLUTION — POSITIVE ON BOTH
+## STRATA, PROSPECTIVELY (phase 235, Qwen3-VL-2B V*, n=191, pick-then-run; Qwen2 running)
+
+**The policy, stated completely.** No question classifier, no question text, no labels, no tuned parameter —
+the only input is the attention map the localise pass already computes. Standing constraint 7 permits exactly this.
+
+1. **Pass 1** (as DWA): full image at 300 tokens, full prompt ending at the answer-emission position; final
+   prompt token's attention to image cells over all 28 layers, head-mean, block band (L16–26 / L15–26).
+2. **Statistic**: `disp` = ring-masked top-1 share of the block-mean map (max cell / total mass).
+3. **Threshold**: `tau` = the **median of `disp` over the items being served** (label-free, transductive, one
+   rule with no free parameter — the §18E operating point, not a fitted one).
+4. **Action**: `disp > tau` → **DWA** (ridge-placed W=0.25 crop, answer@300); else → **AVR** (encode@900, keep 10%
+   at L16, no crop). Cost is ≈equal-compute on either branch (600 tokens / 16,290 token-layers, 96–100% of bar).
+
+**Prospective result (phase 235 — each item runs only the chosen arm; no off-policy re-use):**
+
+| | policy | bar | always-DWA | always-AVR | random route | signal adds |
+|---|---|---|---|---|---|---|
+| pooled | **74.3** | 62.3 | 72.8 | 68.6 | — | — |
+| **pooled − bar** | **+12.0 [+5.2,+18.3]** | — | +10.5 | +6.3 | +10.5 | +1.5 |
+| single (n=115) | 72.2 | 60.0 | 78.3 | 63.5 | +8.7 | **+3.5** |
+| cross (n=76) | 77.6 | 65.8 | 64.5 | 76.3 | +2.6 [−9.2,+14.5] | **+9.2** |
+
+Per-stratum policy deltas are **+12.2 [+3.5,+21.7] single and +11.8 [+2.6,+21.1] cross** — the first arm in
+this project CI-clear positive on **both** strata. Routing: 61% of single-instance items to the crop, 68% of
+relational items away from it. The signal earns its keep where it matters: on the cross stratum random routing
+at the same rate gains only +2.6 [−9.2,+14.5] while the policy gains +11.8, i.e. **+9.2 from the map**; on the
+single stratum the margin is +3.5 (both arms are already good there).
+
+**What it is not.** It is not a fixed method — no fixed arm is positive on both strata — and it does not create
+headroom: it redistributes it. On a checkpoint with no cross-instance resolution headroom the fallback has
+nothing to add and the policy degrades to "don't lose" (Qwen2 leg running). This is the deployable, per-item
+form of M2's per-stratum selection and belongs in the paper as such: the choice requires no oracle over the
+question, only the concentration of the model's own attention.
+
+Scripts: `phase234_map_skip.py` (offline), `phase235_policy_run.py` (prospective). Data:
+`data/phase235_qwen3_2b_vstar.jsonl`.
