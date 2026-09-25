@@ -27,7 +27,7 @@ for l, col, lab in [(4, "#6e7781", "L4"), (12, "#bf8700", "L12"), (19, "#1a7f37"
 rb, cb_ = d["block_cell"]
 ax.plot([(cb_ + .5) / gw * iw], [(rb + .5) / gh * ih], marker="X", ms=14, color="#cf222e", zorder=7)
 ax.text((cb_ + .5) / gw * iw + 0.02 * iw, (rb + .5) / gh * ih - 0.03 * ih, "block mean", color="#cf222e", fontsize=10, zorder=7)
-ax.set_title(r'V*Bench direct\_attributes/109 — "What is the color of the tablecloth?"\n'
+ax.set_title('V*Bench direct\\_attributes/109 — "What is the color of the tablecloth?"\n'
              'bar: wrong (C)   block mean: wrong (C)   AVR: wrong (C)   DWA: CORRECT (A, p=0.999)', fontsize=10.5)
 
 ax = axes[1]
