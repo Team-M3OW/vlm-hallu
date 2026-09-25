@@ -100,6 +100,6 @@ with open(OUT, "a") as f:
         if qid in done: continue
         d = disp_of(img.convert("RGB"), q)
         if d is None: continue
-        f.write(json.dumps({"qid": qid, "stratum": stratum, "disp": d}) + "\n"); f.flush(); n += 1
+        f.write(json.dumps({"qid": qid, "stratum": stratum, "disp": float(d)}) + "\n"); f.flush(); n += 1
         if n % 50 == 0: print(f"  [{n}] {(time.time()-t0)/n:.1f}s/item", flush=True)
 print(f"Done -> {OUT}", flush=True)
