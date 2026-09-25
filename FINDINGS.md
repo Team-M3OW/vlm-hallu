@@ -9180,3 +9180,38 @@ question, only the concentration of the model's own attention.
 
 Scripts: `phase234_map_skip.py` (offline), `phase235_policy_run.py` (prospective). Data:
 `data/phase235_qwen3_2b_vstar.jsonl`.
+## §86 ★★★ A BETTER GATE: AND OF THREE LABEL-FREE MAP SIGNALS — THE POLICY IS NOW NON-NEGATIVE ON BOTH STRATA
+## ON BOTH CROP-VALID BENCHMARKS, AND THE SCENE-BENCHMARK DAMAGE HALVES (phase 237, both models)
+
+The `disp` gate (§85) is at chance at separating single from cross on HR-4K (AUROC 0.588 Qwen3, 0.751 Qwen2),
+which is why it crops 46% of HR cross items and loses there. A bake-off over ten label-free map statistics
+(`phase237_signal_dump.py`: block/band top-1 share, entropy, top-5, peak-over-median, band/block mass ratio,
+adjacent-layer cosine, per-cell head concentration, VRH) found no single best signal per cell — so the policy
+uses the **AND of the three that are individually strongest**: `disp` (block-mean top-1 share), `band_disp`
+(read-out-band top-1 share), `vrh` (mass inside the proposed crop's window). Each above its item-set median;
+all three must agree before spending the budget on a crop, otherwise the whole image at AVR resolution.
+
+| cell | route% | policy − bar | single | cross |
+|---|---|---|---|---|
+| Qwen3 V* | 36 | **+10.5 [+4.2,+17.3]** | **+9.6 [+0.9,+18.3]** | **+11.8 [+3.9,+19.7]** |
+| Qwen3 HR-4K | 32 | **+3.9 [+1.4,+6.4]** | **+7.0 [+3.0,+11.0]** | +0.8 [−2.3,+4.0] |
+| Qwen3 CV-Bench | 35 | −3.3 [−4.6,−2.0] | | |
+| Qwen3 RWQA | 34 | +0.8 [−1.8,+3.4] | | |
+| Qwen2 V* | 38 | **+7.9 [+1.6,+14.1]** | **+10.4 [+2.6,+18.3]** | +3.9 [−5.3,+13.2] |
+| Qwen2 HR-4K | 28 | **+4.5 [+1.8,+7.2]** | **+8.0 [+4.0,+12.2]** | +1.0 [−2.8,+4.8] |
+| Qwen2 CV-Bench | 28 | −3.4 [−5.0,−1.9] | | |
+| Qwen2 RWQA | 34 | +0.0 [−6.2,+6.2] | | |
+
+**Every cell improved over the `disp` gate.** V* holds (+10.5/+7.9; both strata positive on Qwen3 with clear
+CIs); **HR cross flips from −0.5/−1.2 to +0.8/+1.0** — no longer a loss; CV-Bench's damage halves (−6.7→−3.3,
+−8.7→−3.4); RWQA goes from −0.9 to +0.8 (Qwen3) and 0.0 (Qwen2). The gate routes only 28–38% of items to the
+crop, which is why the single-stratum gains are slightly below the aggressive variants (V* single +9.6 vs +13.9
+for the OR rule) — the conservative gate trades a little single-instance gain for no cross-instance loss.
+
+**What still cannot be fixed.** CV-Bench remains negative: its tasks (Count/Depth/Relation/Distance) are all
+whole-scene, both arms are at or below the bar there, and a per-item gate cannot declare a whole benchmark out
+of the crop regime. The remaining damage is the conservative gate's 28–35% misroutes, not a signal that can be
+improved item-by-item at this AUROC.
+
+Scripts: `phase237_signal_dump.py`, `phase237_bakeoff.py`, `phase237_policy_final.py`. Data:
+`data/phase237_sig_{model}_{bench}.jsonl`.
