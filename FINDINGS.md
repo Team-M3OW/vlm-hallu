@@ -9232,3 +9232,96 @@ The original dilutes the crop's attention more than it restores the second objec
 (native is ~3,290 on V*) cannot resolve it. Consistent with phase 54 (HR-4K composite: halves the damage,
 does not win). Best of the family (crop2+orig) still sits below the bar-matched crop alone. Script:
 phase239_crop_orig.py.
+
+---
+
+## §88 — Cross-modal extension: the boundary generalises, the policies have preconditions
+
+**Scope decision (user, 2026-09-26): ONE MODEL PER MODALITY.** Tracks A/V therefore do not meet the
+two-model rule and are written as demonstrations of transfer, not as multi-model claims. The vision
+results keep the headline.
+
+### §88.1 The transport boundary exists in all three modalities
+
+Measured independently in each; none ported from another. The vision protocol (φ176c) applied
+unchanged: mask every non-modality row from the first modality token, prefix/suffix schedules, KL
+and answer flips at the output.
+
+| modality | model | boundary (transport complete) | per-layer KL peak |
+|---|---|---|---|
+| vision | Qwen2-VL-7B / Qwen3-VL | 0.57 (L16/28) | 0.39 |
+| audio  | Qwen2-Audio-7B (MMAU)  | 0.75 (L24/32) | 0.38 |
+| video  | Qwen3-VL-2B (TempCompass) | 0.57 (L16/28, video-used) / 0.50 all | 0.43 |
+
+The **completion depth varies** — audio's 0.75 falsified its own pre-registered L18 (φ241) — but the
+depth at which transport is most active barely moves: **0.39 / 0.38 / 0.43**.
+Video sanity kl_all=0.865, flip_all=0.38. 8/40 video items have kl_all<0.10: masking ALL video
+changes nothing, i.e. answered from the language prior. Same modality-unused subset as audio.
+
+### §88.2 AVR's precondition is an information knob, not a token knob
+
+The headroom identity (AVR gain = acc@hi − acc@lo, vision r=0.966, slope 1.01) predicted both
+outcomes in advance:
+
+- **Audio FAILS.** Time-stretch mints tokens without adding acoustic detail. hi@2.0 − bar = **−3.8**,
+  and the identity held exactly (avr@1.29 − bar = −5.0 = hi@1.29 − bar), correctly predicting the
+  null. Cut depth still CONFIRMED (early@2 − avr@2 = −6.7 [−10.4,−3.3]): the mechanism transferred,
+  the gain had nowhere to come from.
+- **Video PASSES.** Frame count is a real resolution knob. n=1580 / 264 base videos, three
+  budget-matched bars at 98 tokens, headroom taken against the STRONGEST:
+  hi(32f) 65.6 vs bar_latent_spatial 60.3 = **+4.9 [+3.0,+6.9]**.
+  Sanity hi vs chance = +39.1 [+35.2,+43.1] — not measured on a floor.
+  By dim: attribute_change +10.4*, direction +7.2*, order +6.7*, action +1.9 n.s. (94.1 = ceiling),
+  speed +2.1 n.s. Gains fall on dims needing detail BETWEEN frames.
+
+### §88.3 DWA: ceiling first. Audio has no room; video has room but no read-out
+
+Oracle-first, per the pre-registered rule — measure the ceiling before writing a placer.
+
+| | audio (MMAU) | video (TempCompass) |
+|---|---|---|
+| ceiling: oracle − bar | **−3.3 [−8.3,+2.2]** → STOP | **+9.1 [+5.9,+12.7]*** → placer worth building |
+| incumbent: block − rand | **+5.0*** (signal) | **−0.7 [−5.3,+3.8]** (no signal) |
+| oracle − block | +10.0* | **+19.0 [+14.5,+23.6]*** |
+| block − bar | — | −9.8 [−14.6,−5.3]* |
+
+The two modalities fail in **opposite** places. Audio: the label-free statistic works but there is
+nothing above the bar to reach. Video: there is +9.1 of room, but block-mean attention finds it no
+better than chance. So what fails in video is not placement — it is our read-out. The +19.0 gap is
+the case for fitting DWA proper (ridge over per-layer features) rather than a single statistic.
+
+### §88.4 RETRACTED: "DWA requires ≥2 addressable axes"
+
+Stated earlier as a precondition derived from vision. It was not — vision never had fewer than two
+axes, so no experiment tests it; it was inferred from the audio null post hoc. Video's ceiling
+clears on a purely TEMPORAL (1-D) reallocation, which is evidence against it.
+
+### §88.5 Architectural note: no deployed ALM tokenises frequency
+
+Surveyed Qwen2-Audio (25 tok/s measured), Qwen2.5-Omni, Ultravox (stack_factor 8), MERaLiON,
+MiniCPM-o, Audio Flamingo 3, Phi-4-multimodal: all fold the mel axis into channels, so the token
+sequence is indexed by TIME ALONE. SALMONN/GAMA pool to unordered Q-Former queries (0-D). AST
+tokenises a real 12×101 grid but is a classifier with no LM. Frequency is to audio what colour
+channels are to images: present in the signal, absent from the token grid.
+Audio has 1 addressable axis, images 2, video 3.
+
+### §88.6 Bugs of the session — all four produced plausible numbers, not crashes
+
+1. **Video mask hit the wrong columns.** Qwen3-VL interleaves frame-timestamp text between per-frame
+   token blocks, so masking first..last also blinded the text to the timestamps.
+2. **φ240 timestamp-row leak.** Masking only rows AFTER the last frame left the timestamp rows —
+   inside the span — free to read earlier frames and relay onward. Boundary would have been an
+   underestimate. A weak kl_all is the signature; ours is 0.865.
+3. **bar_latent strode tokens, not frames.** The stride ran over the flat 784-token list, keeping
+   ~6 tokens from each of 16 temporal patches = full temporal coverage at 1/8 SPATIAL detail. The
+   claim "the two bars agree, so the gap is lost information" did not follow. Rebuilt as three
+   budget-matched bars; headroom fell +15.0 → +11.2 → +4.9 at full n.
+4. **Per-dim `groups.update()` mutated the shared cluster dict**, so each dim was computed against a
+   dict already filtered by the previous one. Surfaced as speed = **+0.0 [+0.0,+0.0]** on 10
+   "videos" — caught by the §93b exact-zero rule.
+
+Also: `get_rope_index` StopIteration (processor emits one grid row `[[t,h,w]]` while
+mm_token_type_ids has t runs; expand to `[[1,h,w]]*t`), and the 2-D attention-mask trick CORRUPTS
+mrope models — Qwen3-VL derives 3-D rope positions from attention_mask, so dropping entries changes
+the position count. Masked at the layer instead. The same trick was live in the unattended audio
+script and was ported before it could fire.
