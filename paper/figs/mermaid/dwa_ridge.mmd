@@ -1,0 +1,30 @@
+flowchart LR
+  subgraph TRAIN["TRAINING — once, ~50 boxed examples"]
+    BOX["boxed examples<br/>V*Bench GT boxes"] --> LAB["label per cell <i>c</i>:<br/><b>y(c)</b> = fraction of the GT box<br/>inside the W=0.25 window at c"]
+    LAB --> FIT["<b>one closed-form ridge</b><br/>standardise each training fold<br/><b>w = (XᵀX + αI)⁻¹Xᵀy</b>, α=1<br/>intercept unpenalised<br/>OOF GroupKFold(5) × 3 seeds,<br/>grouped by item"]
+    FIT --> W["<b>weights w</b> — 64 coefficients<br/>(logA 28 + rank 28 + geo 7 + intercept)<br/><i>w<sub>ℓ</sub> is signed: the fitted weights ARE the depth filter</i>"]
+  end
+
+  subgraph INF["INFERENCE — per question"]
+    IMG["image W₀×H₀"] --> P1["<b>PASS 1 — localise</b><br/>encode @300 visual tokens<br/>full prompt ending at the<br/>answer-emission position"]
+    P1 --> ATT["per-layer attention<br/>final prompt token → image cells<br/>head-mean, row-normalised per layer<br/><b>A<sub>ℓ</sub>(c)</b> — 28 layers × C cells"]
+    ATT --> PHI["<b>per-cell feature vector φ(c)</b><br/>log A<sub>ℓ</sub> (28) | within-layer rank (28)<br/>head stats log-max, std (56)* | geometry (7)<br/>log 3×3 nb · centre · edge · sink flags"]
+    PHI --> S["<b>score map</b><br/>s(c) = wᵀφ(c)"]
+    W --> S
+    S --> C["placement<br/><b>ring-masked arg max</b><br/>c* = arg max<sub>c</sub> s(c)"]
+    C --> CR["crop W=0.25 window at c*<br/>from the <u>original</u> image<br/>re-encode @300 tokens"]
+    CR --> ANS["<b>PASS 2 — answer</b><br/>arg max over option-letter<br/>log-probabilities"]
+  end
+
+  ANS --> COST["<b>cost: 300 + 300 = 600 visual tokens = the equal-compute bar</b>"]
+  W -. "at deployment the same ~50 boxes are reused;<br/>no refit per benchmark" .-> S
+  PHI -. "*head-augmented variant = 91 features (phase 231–233)" .-> S
+
+  classDef train fill:#dcfce7,stroke:#1a7f37,stroke-width:1.6px,color:#052e16
+  classDef infer fill:#dbeafe,stroke:#0969da,stroke-width:1.6px,color:#0b2545
+  classDef key fill:#fff8c5,stroke:#9a6700,stroke-width:2.2px,color:#3d2c00
+  classDef cost fill:#f6f8fa,stroke:#57606a,stroke-width:1.4px,color:#24292f
+  class BOX,LAB,FIT train
+  class IMG,P1,ATT,PHI,C,CR,ANS infer
+  class W,S key
+  class COST cost
