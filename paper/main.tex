@@ -756,35 +756,11 @@ is concentrated on the two cells on which it was developed.
 
 \subsection{Small visual details in VLMs}\label{sec:cliff}
 
-We examine the gap between localising a region and resolving the evidence needed to answer it. At
-limited resolution a small object or attribute occupies only a fraction of a token's spatial
-footprint, so approximate localisation does not establish that the required detail is resolvable. We
-test whether allocating more spatial detail to the relevant region improves answering.
+We study whether VLMs can resolve small visual details after correctly localising the relevant region, and whether allocating visual tokens to the relevant region is more effective than uniformly increasing resolution. We first sweep the target extent in merged visual tokens on single-region questions, using an oracle crop as a difficulty control (Appendix~\ref{app:cliff}). We find a sharp, architecture-invariant threshold at 0.15--0.25 merged tokens, corresponding to only 2--3\% of the image side: accuracy jumps from 19.0\% below to 78.6\% above the threshold, while oracle-crop accuracy remains flat (95.8\%/100.0\%). Since question difficulty is unchanged across the split, the cliff reflects a failure to encode the required visual evidence rather than a gradual loss of accuracy with decreasing resolution.
 
-Finer detail costs tokens, so the objective is to improve evidence perception within a reference
-visual-token budget by allocating processing where it is most useful.
+We next localise the source of this failure using layer-wise decoding and representation patching (Appendices~\ref{app:mech} and~\ref{app:cliff}). Localisation alone provides little additional decodability (72.2\% vs.\ 68.1\%), and no layer shows evidence of encoding the answer and subsequently losing it. In contrast, providing sufficient visual detail through an oracle crop corrects 94.4\% of localised-but-wrong cases, despite requiring a median of only 0.14 tokens on the target. Across models, 86.7\%/84.0\% of errors are therefore certified as encoding failures, indicating that the dominant bottleneck is extracting fine-grained visual evidence rather than reasoning over evidence that has already been encoded.
 
-We ask whether the failure is a gradient or a threshold. Sweeping target extent in merged visual
-tokens on single-region questions, with the oracle crop as the difficulty control
-(Appendix~\ref{app:cliff}), we find a sharp, architecture-invariant threshold at 0.15--0.25 merged
-tokens, i.e.\ 2--3\% of the image side: accuracy steps from 19.0\% below to 78.6\% above --- under
-the 25\% chance level beneath the cliff --- while the oracle crop is flat across the split
-(95.8\%/100.0\%). The questions are not harder below the threshold; the encoding fails.
-
-We ask whether the answer is mis-routed or never encoded. Layer-wise decoding and representation
-patching (Appendices~\ref{app:mech} and~\ref{app:cliff}) show that localising buys almost nothing in
-decodability (72.2\% vs 68.1\%), no layer holds the answer and then loses it, and the oracle crop
-fixes 94.4\% of localised-but-wrong items at a median of 0.14 tokens on target. Overall,
-86.7\%/84.0\% of all errors are certified encoding failures: nine in ten are failures to read, not
-to reason.
-
-We ask where compute should go. Measuring the exchange rate --- an oracle crop at the base budget
-against the best uniform rung each model can reach --- on three architectures, at native resolution,
-and at the HR-Bench boundary (Appendix~\ref{app:cliff}), allocation beats budget by more than an
-order of magnitude: an oracle crop at 300 tokens scores 97.4\%/93.2\% while no uniform rung up to
-7{,}776 tokens reaches it ($\ge$26$\times$/$\ge$25.9$\times$), and at native resolution a perfectly
-placed 600-token crop beats 3{,}290 tokens by +11.6/+16.2. It pays when the evidence is sub-token
-(V\*Bench, +37.2 points) and costs when it is resolvable (HR-Bench 4K, $-8.8$).
+This raises a practical question: should we increase the overall visual-token budget, or allocate the same budget more selectively? We compare oracle-targeted allocation against the best uniform resolution each model can reach, across three architectures at native resolution and the HR-Bench boundary (Appendix~\ref{app:cliff}). Targeted allocation is substantially more efficient: a 300-token oracle crop reaches 97.4\%/93.2\%, while no uniform setting up to 7{,}776 tokens matches it ($\geq$26$\times$/25.9$\times$ more tokens). At native resolution, a 600-token crop likewise outperforms 3,290 uniform tokens by +11.6/+16.2 points. Crucially, the benefit depends on whether the evidence is actually sub-token: targeted allocation improves V*Bench by +37.2 points, where fine details are difficult to resolve, but hurts HR-Bench 4K by $-8.8$ points when the evidence is already resolvable.
 
 \section{What does not work}\label{sec:neg}
 
@@ -1164,6 +1140,72 @@ funded 2-crop & $1.01$--$1.04\times$ & --- & \gd{$+18.3$} & $+2.6$\\
 \bottomrule
 \end{tabular}\label{tab:cropx}
 \end{table}
+
+\textbf{The threshold is a fixed relative size, not a token count.} Recomputing the sliding threshold
+at two budgets on single-region items, the threshold in merged tokens scales with the budget
+($0.25\to0.55$ on Qwen3) while its image-side fraction is unchanged ($2.89\%\to3.06\%$); Qwen2 is
+noisier but agrees in direction. Doubling the uniform budget does not move the cliff in relative
+terms.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The cliff does not move with budget.} Single-region items; $t^*$ maximises the
+below/above step.}
+\begin{tabular}{llccccc}
+\toprule
+model & budget & $t^*$ (tok) & acc below & acc above & $t^*/B$ (area) & side fraction\\
+\midrule
+Qwen3-VL-2B & 300 & 0.250 & 32.4\% & 75.0\% & 0.083\% & 2.89\%\\
+Qwen3-VL-2B & 588 & 0.550 & 50.0\% & 87.2\% & 0.094\% & 3.06\%\\
+Qwen2-VL-7B & 300 & 0.850 & 40.4\% & 75.0\% & 0.283\% & 5.32\%\\
+Qwen2-VL-7B & 588 & 0.750 & 50.0\% & 77.4\% & 0.128\% & 3.57\%\\
+\bottomrule
+\end{tabular}\label{tab:cliffbudget}
+\end{table}
+
+\textbf{The criterion is relative size, not tokens-on-target.} If accuracy depended on
+tokens-on-target alone, the two budgets would collapse onto one curve; they do not (bin
+$[0.15,0.25)$: $33.3\%$ vs $53.8\%$ on Qwen3; $41.7\%$ vs $61.5\%$ on Qwen2). Same tokens-on-target,
+different accuracy --- the target's \emph{fraction} of the image is what differs. This is why uniform
+budget cannot substitute for magnification.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{No collapse: accuracy at fixed tokens-on-target, by budget.} Qwen3-VL-2B /
+Qwen2-VL-7B.}
+\begin{tabular}{lcccc}
+\toprule
+tokens-on-target & acc @300 (Q3/Q2) & acc @588 (Q3/Q2)\\
+\midrule
+$[0,0.15)$ & 31.9 / 31.9 & 48.5 / 39.4\\
+$[0.15,0.25)$ & 33.3 / 41.7 & 53.8 / 61.5\\
+$[0.25,0.50)$ & 73.7 / 63.2 & 52.0 / 60.0\\
+$[0.50,1.00)$ & 80.0 / 60.0 & 80.0 / 65.0\\
+$[1.00,2.00)$ & 66.7 / 50.0 & 78.6 / 78.6\\
+\bottomrule
+\end{tabular}\label{tab:collapse}
+\end{table}
+
+\textbf{Magnification is not the bottleneck.} The tightest oracle window tested, $W{=}0.15$,
+resolves $100\%$ of items on both models in every size quartile (median $W^*=0.15$; rank correlation
+with $\sqrt{S}$ $\approx0$). Once the region is isolated, even a $6.7\times$ crop reads the smallest
+detail: what limits the model is isolating the region and the target's relative size, not the amount
+of magnification.
+
+\textbf{Localisation degrades below the cliff, far less than accuracy.} Ground-truth coverage falls
+from $0.637$ to $0.457$ (argmax window) and from $0.751$ to $0.580$ (head window) on Qwen3, and
+$0.594\to0.450$ / $0.620\to0.471$ on Qwen2 --- while accuracy falls by $42.6$ points. The cliff is
+dominated by encoding; placement contributes a minority share, which is why a perfect window
+($94.4\%$) and a good window ($63.1\%$) are far apart.
+
+\textbf{The target is smaller than one token.} At the 300-token pass the median target side is
+$0.210$ merged tokens; $100\%$ of single-region targets are smaller than one merged token, the
+median target occupies $0.176$ tokens of area, and $62\%$ sit below the $0.25$-token cliff. The
+evidence is averaged into a single token's footprint before the language model sees it --- the
+arithmetic behind the threshold.
+
+\textbf{The below-chance failure is not the language prior.} A text-only control (question without
+the image) agrees with the image-conditioned answer on $49.4\%$ of below-cliff items vs $40.7\%$
+above on Qwen3, but $49.4\%$ vs $56.5\%$ on Qwen2 --- opposite directions, neither interval clear.
+Below the cliff the model is systematically misled, but not by the text-only prior.
 
 \section{The literature protocol, reproduced}\label{app:lit}
 
