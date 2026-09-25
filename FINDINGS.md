@@ -9215,3 +9215,20 @@ improved item-by-item at this AUROC.
 
 Scripts: `phase237_signal_dump.py`, `phase237_bakeoff.py`, `phase237_policy_final.py`. Data:
 `data/phase237_sig_{model}_{bench}.jsonl`.
+## §87 ✗ NEGATIVE: DWA CROP + ORIGINAL IMAGE DOES NOT REPAIR CROSS — AND COSTS 1.5x THE BAR (phase 239, Qwen3-VL-2B, V*, n=191)
+
+Pre-registered family (PREREG_CROSSMODAL.md Track V/A ancestor): feed the crop AND the original back in
+one prompt — ViCrop's composite — at bar-matched arm budgets. Charged in full (localise@300 + arm),
+crop+orig = 900 token-passes = 1.5x the bar.
+
+| arm | arm tokens | +localise | pooled−bar | single | cross |
+|---|---|---|---|---|---|
+| dwa_t (crop alone) | 300 | 600 = bar | +10.5 [+2.6,+18.8] | +18.3 [+8.7,+27.8] | −1.3 [−15.8,+13.2] |
+| crop+orig | 590 | ~890 (1.5x) | +4.2 [−4.7,+12.6] | +13.9 [+3.5,+24.3] | −10.5 [−25.0,+3.9] |
+| crop2+orig | 592 | ~890 | +7.3 [−1.0,+15.7] | +13.9 [+4.3,+24.3] | −2.6 [−17.1,+11.8] |
+| crop4+orig | 579 | ~880 | +5.8 [−2.1,+14.1] | +11.3 [+1.7,+20.9] | −2.6 [−17.1,+11.8] |
+
+The original dilutes the crop's attention more than it restores the second object; a 300-token original
+(native is ~3,290 on V*) cannot resolve it. Consistent with phase 54 (HR-4K composite: halves the damage,
+does not win). Best of the family (crop2+orig) still sits below the bar-matched crop alone. Script:
+phase239_crop_orig.py.
