@@ -754,85 +754,37 @@ difference $+0.2$ points over seven cells). We recommend AVR as the default and 
 supervision exists and single-instance perception dominates. We note that DWA's pooled margin over AVR
 is concentrated on the two cells on which it was developed.
 
-\section{Small visual details}\label{sec:small}
+\subsection{Small visual details in VLMs}\label{sec:cliff}
 
-\paragraph{Experimental setup.} Small-detail questions are the strata the benchmarks themselves label
-as single-object: \vstar\ attribute items ($n{=}115$), HR-4K single ($400$), RealworldQA open
-($337$), and the Count split of CV-Bench. Text and document details enter through the budget
-crossover (TextVQA and DocVQA, $n{=}300$), and whole-scene questions through a stratified POPE study
-($n{=}688$). The core pair is Qwen3-VL-2B and Qwen2-VL-7B; LLaVA-OneVision-7B and InternVL3-8B are
-added where a placement claim is checked across families. Every arm is charged in full against the
-equal-compute bar (\texttt{uniform@600}): DWA is localise@$300$ plus crop@$300$; AVR encodes at $900$
-with $90\%$ of visual tokens pruned at the transport boundary ($96$--$100\%$ of the bar in
-token-layers). The oracle crop is a control, not a method: it replaces the model's window with the
-ground-truth box at the same $300$-token budget, so an item wrong at the bar and right under the
-oracle crop is a \emph{certified encoding failure}. Coverage is the fraction of the ground-truth box
-inside the $W{=}0.25$ window at the ring-masked arg-max of a read-out. All contrasts are paired item
-bootstraps ($8000$ resamples).
+We examine the gap between localising a region and resolving the evidence needed to answer it. At
+limited resolution a small object or attribute occupies only a fraction of a token's spatial
+footprint, so approximate localisation does not establish that the required detail is resolvable. We
+test whether allocating more spatial detail to the relevant region improves answering.
 
-\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
-\caption{\textbf{The three levers, measured.} Qwen3-VL-2B / Qwen2-VL-7B unless stated; the placement
-row spans four families (Table~\ref{tab:working}).}
-\begin{tabular}{@{}l p{0.20\textwidth} p{0.24\textwidth} p{0.42\textwidth}@{}}
-\toprule
-lever & experiment & measurement & result\\
-\midrule
-encoding & oracle-crop control @$300$ & certified encoding failures & $37.7\%$/$41.4\%$ of items; $86.7\%$/$84.0\%$ of errors\\
-placement & coverage; single-object end task & GT-box fraction; accuracy $-$ bar & block $46.6$/$39.3$ $\to$ DWA $63.9$/$55.0$; $+11.0$ to $+19.1$\\
-resolution & AVR vs bar; headroom identity & gain vs measured headroom & slope $1.01$, $r{=}0.966$; \vstar\ cross $+10.5$\\
-\bottomrule
-\end{tabular}\label{tab:levers}
-\end{table}
+Finer detail costs tokens, so the objective is to improve evidence perception within a reference
+visual-token budget by allocating processing where it is most useful.
 
-\begin{table}[h]\centering\small
-\caption{\textbf{Extensions of the crop, all charged in full.} Qwen3-VL-2B, \vstar, $n{=}191$; deltas
-against the equal-compute bar. The funded 2-crop's pre-registered criterion did not pass ($0$ of
-$2$).}
-\begin{tabular}{lcccc}
-\toprule
-arm & cost vs bar & pooled & single & cross\\
-\midrule
-DWA crop (reference) & $1.0\times$ & \gd{$+10.5$} & \gd{$+18.3$} & $-1.3$\\
-crop $+$ original & $1.5\times$ & $+4.2$ & $+13.9$ & \bad{$-10.5$}\\
-2 crops $+$ original & $1.5\times$ & $+7.3$ & $+13.9$ & $-2.6$\\
-4 crops $+$ original & $1.5\times$ & $+5.8$ & $+11.3$ & $-2.6$\\
-funded 2-crop & $1.01$--$1.04\times$ & --- & \gd{$+18.3$} & $+2.6$\\
-\bottomrule
-\end{tabular}\label{tab:cropx}
-\end{table}
+We ask whether the failure is a gradient or a threshold. Sweeping target extent in merged visual
+tokens on single-region questions, with the oracle crop as the difficulty control
+(Appendix~\ref{app:cliff}), we find a sharp, architecture-invariant threshold at 0.15--0.25 merged
+tokens, i.e.\ 2--3\% of the image side: accuracy steps from 19.0\% below to 78.6\% above --- under
+the 25\% chance level beneath the cliff --- while the oracle crop is flat across the split
+(95.8\%/100.0\%). The questions are not harder below the threshold; the encoding fails.
 
-\paragraph{Findings.}
-\begin{enumerate}
-\item \textbf{Encoding binds first.} $86.7\%$/$84.0\%$ of every error on small details is a certified
-encoding failure ($94.0\%$/$89.4\%$ at $W{=}0.15$): the model fails to read the region, not to reason
-about it. Placement-only methods are therefore working on at most one error in ten.
-\item \textbf{Placement is worth more than compute.} The conventional read-out finds the evidence on
-$46.6\%$/$39.3\%$ of items, DWA on $63.9\%$/$55.0\%$ (chance $13.6\%$), converting into $+11.0$ to
-$+19.1$ points on single-object strata. A perfectly placed $600$-token crop beats native dynamic
-resolution ($3{,}290$ tokens, $5.5\times$ the budget) by $+11.6$/$+16.2$ pooled and $+21.7$ on
-single-instance --- a ceiling no learned allocator has approached.
-\item \textbf{Resolution is the only lever that fixes relational items.} Where the bar cannot resolve
-the evidence at its budget, no placement rule substitutes for tokens: uniform overtakes the best crop
-between $200$ and $300$ tokens on DocVQA and TextVQA, and never on \vstar. On cross-instance items a
-perfectly placed crop cannot exceed $75.0$, the level AVR reaches by keeping coverage; the gain
-equals measured resolution headroom (slope $1.01$, $r{=}0.966$, four checkpoints $\times$ three
-benchmarks).
-\item \textbf{Adding the original back does not repair the cross stratum.} crop$+$original costs
-$1.5\times$ the bar once the localisation pass is charged, and scores below the bar-matched crop
-alone on every stratum (pooled $+4.2$ vs $+10.5$; cross $-10.5$ vs $-1.3$); the original dilutes the
-crop's attention more than it restores the second object, and a $300$-token original cannot resolve
-it.
-\item \textbf{More crops buy single resolution, not cross.} Two full-resolution crops, funded by
-early-exit localisation and boundary pruning at $101$--$104\%$ of the bar, help single further
-($80.9$ vs $62.6$) but do not clear on cross ($68.4$ vs $65.8$, $0$ of $2$ pre-registered).
-\item \textbf{The program has a hard boundary.} Cropping is invalid where the answer needs the whole
-scene: on stratified POPE it scores $12.1$--$35.5\%$ against $76.7$--$100\%$ for \texttt{uniform@300}.
-\item \textbf{Knowing where the evidence is and knowing the model cannot read it are different
-problems.} No label-free signal we tested predicts which items failed to encode (AUROC
-$0.630$/$0.579$ against $0.625$/$0.679$ for confidence baselines), while the coverage signal that
-predicts where a crop will land is at chance for correctness ($0.484$--$0.506$). The first problem is
-solved; the second is open.
-\end{enumerate}
+We ask whether the answer is mis-routed or never encoded. Layer-wise decoding and representation
+patching (Appendices~\ref{app:mech} and~\ref{app:cliff}) show that localising buys almost nothing in
+decodability (72.2\% vs 68.1\%), no layer holds the answer and then loses it, and the oracle crop
+fixes 94.4\% of localised-but-wrong items at a median of 0.14 tokens on target. Overall,
+86.7\%/84.0\% of all errors are certified encoding failures: nine in ten are failures to read, not
+to reason.
+
+We ask where compute should go. Measuring the exchange rate --- an oracle crop at the base budget
+against the best uniform rung each model can reach --- on three architectures, at native resolution,
+and at the HR-Bench boundary (Appendix~\ref{app:cliff}), allocation beats budget by more than an
+order of magnitude: an oracle crop at 300 tokens scores 97.4\%/93.2\% while no uniform rung up to
+7{,}776 tokens reaches it ($\ge$26$\times$/$\ge$25.9$\times$), and at native resolution a perfectly
+placed 600-token crop beats 3{,}290 tokens by +11.6/+16.2. It pays when the evidence is sub-token
+(V\*Bench, +37.2 points) and costs when it is resolvable (HR-Bench 4K, $-8.8$).
 
 \section{What does not work}\label{sec:neg}
 
@@ -1110,6 +1062,108 @@ The pooled rows against the bar are the scope law in its plainest form. Cropping
 question is about one instance, loses $6$--$9$ where it is about a relation between two, and the two cancel to
 nothing in aggregate. A paper that reported only the pooled column would conclude the method does not work; a paper
 that reported only the single-instance column would conclude it works everywhere. Neither is true.
+
+\section{The size cliff in detail}\label{app:cliff}
+
+\textbf{The threshold sweep.} Sliding threshold $t$ on target extent in merged tokens, single-region
+localised items ($n{=}63$, Qwen3-VL-2B); accuracy below vs at-or-above, and the step. The sharpest
+step is at $t=0.15$, where the intervals are disjoint ($[4.8,38.1]$ and $[66.7,90.5]$).
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The encoding cliff.} Single-region localised items; the oracle crop is flat across
+the same split ($100.0\%$ below, $97.6\%$ above).}
+\begin{tabular}{cccccc}
+\toprule
+$t$ (merged tokens) & $n$ below & acc below & $n$ above & acc above & step\\
+\midrule
+0.10 & 16 & 18.8\% & 47 & 72.3\% & +53.6\\
+\textbf{0.15} & 21 & \textbf{19.0\%} & 42 & \textbf{78.6\%} & \textbf{+59.5}\\
+0.25 & 33 & 33.3\% & 30 & 86.7\% & +53.3\\
+0.50 & 46 & 47.8\% & 17 & 88.2\% & +40.4\\
+1.00 & 57 & 56.1\% & 6 & 83.3\% & +27.2\\
+\bottomrule
+\end{tabular}\label{tab:cliff}
+\end{table}
+
+\textbf{Two models, the same threshold.} All single-region items, $n{=}115$ each; intervals are
+disjoint on both models, and the oracle crop is flat and identical.
+
+\begin{table}[h]\centering\small
+\caption{\textbf{The cliff is architecture-invariant.}}
+\begin{tabular}{lccccc}
+\toprule
+model & cliff & uniform below & uniform above & oracle below & oracle above\\
+\midrule
+Qwen3-VL-2B & 0.25 tok & 32.4\% & 77.3\% & 95.8\% & 100.0\%\\
+Qwen2-VL-7B & 0.25 tok & 36.6\% & 63.6\% & 95.8\% & 100.0\%\\
+\bottomrule
+\end{tabular}\label{tab:cliff2}
+\end{table}
+
+\textbf{Localisation is intact; the answer is not decodable.} On items where the window covers the
+target and the model still answers wrong ($n{=}36$), the correct option is the argmax at some layer
+on $72.2\%$ of items, against $68.1\%$ where the window missed entirely; the apparent signal at L20
+($41.7\%$) collapses to $0\%$ from L22 and matches what uninformative layers produce by chance. The
+oracle crop fixes $94.4\%$ of these items at the same budget, with a median of $0.14$ merged tokens
+on target. Representation patching (Appendix~\ref{app:mech}) agrees: past the transport boundary,
+replacing every image token's hidden state changes the answer no more than replacing irrelevant
+early text (KL $0.009$ vs $0.009$ on Qwen3 and $0.005$ vs $0.006$ on Qwen2 at L16).
+
+\textbf{The error budget.} $37.7\%$/$41.4\%$ of all \vstar\ items are certified encoding failures
+(wrong at the bar, right under the oracle crop at the same budget): $86.7\%$/$84.0\%$ of every error,
+rising to $94.0\%$/$89.4\%$ at $W{=}0.15$.
+
+\textbf{The exchange rate.} An oracle crop at the base budget against the best uniform rung each
+model can reach. No uniform rung reaches the crop arm on any model, so every rate is a lower bound
+set by the model's token ceiling; LLaVA-NeXT has no resolution axis and is reported as such.
+
+\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{\textbf{Allocation vs budget.} Placement effect = oracle crop $-$ random crop.}
+\begin{tabular}{lccccc}
+\toprule
+model & oracle crop & random crop & placement effect & uniform ceiling & exchange rate\\
+\midrule
+Qwen2-VL-7B & 93.2\% @300 & 34.0\% & +59.2 & 75.4\% @7{,}776 & $\ge$25.9$\times$\\
+LLaVA-OneVision-7B & 86.9\% @1{,}323 & 37.7\% & +49.2 & 69.6\% @5{,}157 & $\ge$3.9$\times$\\
+LLaVA-NeXT-7B & 80.6\% @1{,}176 & 38.2\% & +42.4 & 38.2\% @1{,}464 & no axis\\
+Qwen3-VL-2B & 97.4\% @300 & --- & +40.0 (attn$-$rand) & --- & $\ge$26$\times$\\
+\bottomrule
+\end{tabular}\label{tab:exchange}
+\end{table}
+
+\textbf{Supporting measurements.} The three levers of small-detail failure, and the crop extensions
+that did not move them.
+
+\begin{table}[h]\centering\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{\textbf{The three levers, measured.} Qwen3-VL-2B / Qwen2-VL-7B unless stated; the placement
+row spans four families (Table~\ref{tab:working}).}
+\begin{tabular}{@{}l p{0.20\textwidth} p{0.24\textwidth} p{0.42\textwidth}@{}}
+\toprule
+lever & experiment & measurement & result\\
+\midrule
+encoding & oracle-crop control @$300$ & certified encoding failures & $37.7\%$/$41.4\%$ of items; $86.7\%$/$84.0\%$ of errors\\
+placement & coverage; single-object end task & GT-box fraction; accuracy $-$ bar & block $46.6$/$39.3$ $\to$ DWA $63.9$/$55.0$; $+11.0$ to $+19.1$\\
+resolution & AVR vs bar; headroom identity & gain vs measured headroom & slope $1.01$, $r{=}0.966$; \vstar\ cross $+10.5$\\
+\bottomrule
+\end{tabular}\label{tab:levers}
+\end{table}
+
+\begin{table}[h]\centering\small
+\caption{\textbf{Extensions of the crop, all charged in full.} Qwen3-VL-2B, \vstar, $n{=}191$; deltas
+against the equal-compute bar. The funded 2-crop's pre-registered criterion did not pass ($0$ of
+$2$).}
+\begin{tabular}{lcccc}
+\toprule
+arm & cost vs bar & pooled & single & cross\\
+\midrule
+DWA crop (reference) & $1.0\times$ & \gd{$+10.5$} & \gd{$+18.3$} & $-1.3$\\
+crop $+$ original & $1.5\times$ & $+4.2$ & $+13.9$ & \bad{$-10.5$}\\
+2 crops $+$ original & $1.5\times$ & $+7.3$ & $+13.9$ & $-2.6$\\
+4 crops $+$ original & $1.5\times$ & $+5.8$ & $+11.3$ & $-2.6$\\
+funded 2-crop & $1.01$--$1.04\times$ & --- & \gd{$+18.3$} & $+2.6$\\
+\bottomrule
+\end{tabular}\label{tab:cropx}
+\end{table}
 
 \section{The literature protocol, reproduced}\label{app:lit}
 
