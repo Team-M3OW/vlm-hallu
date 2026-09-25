@@ -166,6 +166,17 @@ taking most of the gain in one transition; the Qwen2 step is one layer later.}
 \label{fig:lens}
 \end{figure}
 
+\begin{figure}[h]\centering
+\includegraphics[width=\textwidth]{figs/fig_lens_example.pdf}
+\caption{\textbf{The lens on a real item.} \vstar\ \texttt{direct\_attributes/96}: ``What is the color
+of the bottle cap?'' (A) blue (B) white (C) red (D) orange. The target is a $12\times11$ px region,
+$0.01$ merged tokens at the $300$-token pass. Top: the image as the uniform pass sees it (target
+circled) and the oracle crop. Middle: the decoded probability of the correct option per layer.
+Bottom: the decoded top-1 option letter at every layer, both arms. Under the uniform encoding the
+correct option is decoded at \emph{no} layer; after the crop it appears at L22 and stays.}
+\label{fig:lensexample}
+\end{figure}
+
 \paragraph{Why the target is invisible.} The arithmetic behind the threshold is simple. At the
 $300$-token pass the median single-region target's side is $0.210$ merged tokens; $100\%$ of targets
 are smaller than one merged token, the median target occupies $0.176$ tokens of area, and $62\%$ sit
