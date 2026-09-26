@@ -1,0 +1,178 @@
+\section{Does the Depth Boundary Generalise Beyond Vision?}
+\label{sec:crossmodal}
+
+The boundary in Section~\ref{sec:transport_results} is a claim about where a
+language model stops reading a non-text modality, not about images in
+particular. We therefore applied the same masking protocol, unchanged,
+to an audio--language model and a video--language model, and then asked
+whether the two policies follow. Each modality is represented by a
+single checkpoint, so this section reports transfer of a measurement,
+not a multi-model claim; the results in Section~\ref{sec:results} remain
+the basis for the paper's conclusions.
+
+\subsection{The Boundary Is Modality-General; Its Depth Is Not}
+
+Table~\ref{tab:crossmodal_boundary} reports the protocol applied to
+three modalities. In each case masking every text row's attention to
+the modality columns from layer $\ell$ onward leaves the output
+unchanged once $\ell$ passes a fixed depth, and the all-layer control
+moves the output substantially.
+
+\begin{table}[tb]
+\centering\small
+\caption{The masking protocol of Section~\ref{sec:depth_boundary} applied
+unchanged to three modalities. ``Completion'' is the shallowest suffix
+mask whose mean output KL falls below $0.03$; ``peak'' is the depth of
+the largest single-layer KL. Depths are fractions of the backbone's
+layer count. Audio and video use the modality-used subset, matching the
+convention used for vision. Each modality is one checkpoint.}
+\label{tab:crossmodal_boundary}
+\begin{tabular}{llrrr}
+\toprule
+Modality & Backbone & Layers & Completion & Peak \\
+\midrule
+Image & Qwen3-VL-2B   & 28 & $0.57$ & $0.39$ \\
+Audio & Qwen2-Audio-7B & 32 & $0.75$ & $0.38$ \\
+Video & Qwen3-VL-2B   & 28 & $0.57$ & $0.43$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Two observations follow. First, transport completes at a well-defined
+depth in every modality tested: the phenomenon is a property of how
+these backbones consume non-text tokens, not of images. Second, the
+completion depth is not constant. Audio completes at $0.75$ rather
+than $0.57$, which falsified the depth we had registered in advance for
+that modality. The depth of peak single-layer sensitivity, by contrast,
+is nearly invariant at $0.38$--$0.43$. The layer at which the model
+reads a modality most strongly is stable; the layer by which it has
+finished reading is not.
+
+\subsection{What AVR Requires: an Information Knob, Not a Token Knob}
+
+Section~\ref{sec:avr_results} established that AVR's gain equals the
+accuracy difference between its high- and low-budget endpoints. Read as
+a precondition rather than a diagnostic, this identity states when AVR
+can pay at all: only when raising the budget restores information that
+the low budget destroyed. Table~\ref{tab:crossmodal_headroom} applies
+that test.
+
+\begin{table}[tb]
+\centering\small
+\caption{Headroom, measured against the strongest equal-budget
+reference in each setting, and the AVR gain it predicts. An asterisk
+marks a 95\% interval excluding zero. Intervals are clustered by
+source item. Video CIs are clustered by base video; audio uses the
+first 180\,s of each clip.}
+\label{tab:crossmodal_headroom}
+\begin{tabular}{llrr}
+\toprule
+Setting & Budget knob & Headroom & AVR $-$ reference \\
+\midrule
+Audio, 10\,s clips  & time-stretch      & $-3.8$          & $-5.0$ \\
+Audio, 180\,s clips & native encoding   & $+2.3^*$        & --- \\
+Video, TempCompass  & frames $4\to32$   & $+4.9^*$        & $+3.4$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+On short audio clips the only available knob is time-stretching, which
+lengthens the token sequence without adding acoustic detail. Headroom is
+negative and AVR does not pay, exactly as the identity predicts. On long
+clips the encoder must compress, so encoding natively recovers
+information the compressed input lost, and headroom becomes positive.
+On video the frame count is a genuine resolution knob and headroom is
+again positive.
+
+Positive headroom is necessary but not sufficient. AVR spends its saving
+on a larger budget, and the size of that saving is set by the boundary
+itself. With $L$ layers, a cut at layer $P$, and a retained fraction
+$k$, the affordable multiplier over the reference budget is
+\begin{equation}
+\kappa = \frac{L}{P + k\,(L-P)} .
+\label{eq:kappa}
+\end{equation}
+A deeper boundary leaves fewer layers over which to save. For video,
+$P/L = 0.57$ and $k = 0.1$ give $\kappa = 1.63$; for audio, $P/L=0.75$
+gives $\kappa = 1.29$. The video headroom of $4.9$ points was measured
+across an eightfold span, and at the affordable $1.5\times$ the measured
+AVR gain is $+3.4$ points with an interval that includes zero --- which
+matches the $+3.2$ points of headroom available at that same budget,
+with pruning itself costing $+0.2$ points. The policy collects what is
+available to it; the boundary determines how much that is.
+Equation~\ref{eq:kappa} makes this quantitative rather than incidental:
+the same measurement that locates the read-out also bounds the budget a
+depth-aware policy can reinvest.
+
+\subsection{What Placement Requires: Room Above the Reference}
+
+For DWA the corresponding precondition is that some crop is better than
+no crop. We test this with an oracle that selects among candidate
+windows using the label, which upper-bounds any label-free placer. The
+oracle must be compared against a reference that is selected the same
+way: choosing the best of $K$ draws beats a single draw even when no
+draw is better on average. On video, this selection effect alone is
+worth $3.7$ points of the $9.1$ points an uncontrolled comparison
+reports.
+
+\begin{table}[tb]
+\centering\small
+\caption{Placement ceilings. The ceiling compares a label-selected crop
+against a label-selected reference at the same budget, so it isolates
+placement from selection. ``Incumbent'' is the block-mean read-out
+against a random window.}
+\label{tab:crossmodal_ceiling}
+\begin{tabular}{lrr}
+\toprule
+Setting & Ceiling (bias-matched) & Incumbent $-$ random \\
+\midrule
+Audio, MMAU        & $-3.3$   & $+5.0^*$ \\
+Video, TempCompass & $+5.5^*$ & $-0.7$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The two modalities fail the precondition in opposite ways
+(Table~\ref{tab:crossmodal_ceiling}). In audio the label-free statistic
+carries real signal, but the best window chosen with the label is still
+worse than not cropping: placement has nothing to reach, so no placer
+was fitted. In video there is genuine room, but the block-mean statistic
+is indistinguishable from choosing at random. Refitting the read-out of
+Section~\ref{sec:dwa_method} on video, with folds held out by source video,
+reproduces the in-sample fit but does not generalise, and remains below
+a budget-matched reference. What fails in video is not the value of
+placement but the availability of a label-free signal for it.
+
+\subsection{Where the Policies Are Not Expressible}
+
+Two architectural observations bound the scope further, and neither is
+an experimental outcome.
+
+No widely used audio--language model presents a frequency axis to the
+language model. Whisper-derived encoders, which cover most current
+systems, fold the mel axis into the channel dimension, so the token
+sequence is indexed by time alone; query-based adapters pool to an
+unordered set. Frequency is to audio what colour is to images: present
+in the signal, absent from the token grid. Selection over a
+frequency axis is therefore not expressible, independently of whether it
+would help.
+
+Vision--language--action models fix their input resolution. OpenVLA
+resizes every observation to $224\times224$ with patch-14 towers and
+emits exactly $256$ visual tokens regardless of input, and SmolVLA pads
+to a fixed size. Without a resolution ladder there is no budget to
+reallocate, so AVR has no free parameter in these systems. The same
+property makes cropping automatically budget-matched, which removes the
+equal-compute confound that otherwise dominates such comparisons.
+
+\subsection{Summary}
+
+The measurement transfers: a depth at which a modality stops being read
+exists in every modality we tested, and the depth of peak sensitivity is
+nearly constant across them. The policies transfer under stated
+conditions: AVR requires a knob that restores destroyed information, and
+the boundary depth bounds how much budget it can reinvest through
+Equation~\ref{eq:kappa}; placement requires both room above the
+reference and a label-free signal that finds it. These conditions were
+derived from the vision experiments and predicted each cross-modal
+outcome in advance, including the negative ones.
