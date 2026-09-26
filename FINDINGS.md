@@ -9359,6 +9359,42 @@ axes, so no experiment tests it; it was inferred from the audio null post hoc. I
 as UNTESTED, not as disproved: video has THREE tokenised axes regardless of which one we reallocate
 on, so a temporal-only video result cannot test it either. Only a 1-D modality can, i.e. long audio.
 
+### §88.4b Route B — LONG audio DOES have headroom (phase246, n=950, Qwen2.5-Omni)
+
+Track A's null was a property of 10-second clips, not of audio. G0 established that Qwen2-Audio
+PLATEAUS at 750 tokens (its 30 s window) while Qwen2.5-Omni encodes linearly — verified end-to-end
+at 180 s: 4500 tokens, 1.00x the predicted 25 tok/s.
+
+MMAU-Pro `long` + `ultra-long` strata, shuffled, first 950 items (run stopped early by request; the
+shuffle makes a prefix an unbiased random subset, not a biased slice).
+
+| arm | acc | audio tokens |
+|---|---|---|
+| hi (native 180 s) | 62.8 | 4500 |
+| **bar_latent** (every k-th token masked) | **60.5** | 750 |
+| bar_trunc (first 30 s — straw) | 58.3 | 750 |
+| bar_voc (phase-vocoder to budget) | 55.9 | 750 |
+
+  SANITY hi vs chance = **+37.9 [+34.8,+40.9]** (not on a floor)
+  **HEADROOM hi − bar_latent = +2.3 [+0.3,+4.3]\*  PASS**
+
+**The bar control is what makes this reportable.** `bar_voc` scored BELOW even the straw truncation
+bar, because phase-vocoding 180 s down to 30 s costs **9.8 [6.9,12.6]\*** points of pure distortion
+(hi − roundtrip, which holds token count fixed). Against `bar_voc` the headroom would read **+6.8**;
+against the strongest honest bar it is **+2.3**. Two-thirds of the apparent effect would have been
+damage the protocol inflicted on itself — §81 in a new costume, caught by a control added before
+the run rather than after.
+Note the straw bar was not very straw here: honest − truncation = +2.2 [−0.3,+4.7], n.s.
+
+**LIMITS, stated plainly.** Every item hit the 180 s eager-attention cap (MAXDUR-truncated 100%),
+so this is "the first 180 s of long clips", not whole clips. One model. Composition is
+music 512 / sound 334 / speech 84.
+
+**PREDICTION for AVR on long audio (not yet run).** The headroom identity has now held 3/3 times.
+Audio's boundary at 0.75 affords KAFF = 32/(24+0.1·8) = **1.29x**, and the +2.3 headroom was
+measured across a **6x** span (4500 vs 750). So AVR-long is predicted to be a null of roughly +0.4.
+The same arithmetic that explained AVR-video: a deeper boundary leaves fewer layers to save on.
+
 ### §88.5 Architectural note: no deployed ALM tokenises frequency
 
 Surveyed Qwen2-Audio (25 tok/s measured), Qwen2.5-Omni, Ultravox (stack_factor 8), MERaLiON,
