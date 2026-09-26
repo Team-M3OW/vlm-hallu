@@ -595,6 +595,8 @@ representations and explains why attention at the answer position
 alone need not identify where visual information influenced the
 prediction.
 
+Three further properties of the late stack follow from the same measurements and are detailed in Appendix~\ref{app:late}. First, the late layers are \emph{agnostic to the image}: a suffix mask at layer~16 costs $0.014$/$0.029$ KL with $12\%$/$5\%$ answer changes and nothing at all from layer~24, replacing the image tokens' values changes the output no more than irrelevant early text ($0.009$/$0.005$ at L16, $0.0005$/$0.0008$ at L20), and masking only the answer-emission token's image access changes $2.5\%$/$0\%$ of answers. Second, \emph{image and text tokens merge} in the late stack: the patching controls invert across depth (at L4 the image matters $151\times$/$131\times$ more than text; at L20 the text matters $2492\times$/$965\times$ more than the image), and the answer position reads the image only through the text representations that consolidated it. Third, the \emph{layers disagree} about where to look: mean arg-max agreement across layer pairs is $13.8\%$/$38.1\%$, the agreement matrix splits into two clusters at the boundary, and only the layers after it carry a usable placement signal (coverage of the evidence box is at most $20\%$/$5\%$ before the boundary, $41$--$56\%$/$33$--$53\%$ just after it, decaying toward the output). Reading attention at a depth that carries the image is therefore not the same as reading it where placement is decodable, and the two occupy disjoint ranges.
+
 \subsection{DWA Improves Crop Selection}
 \label{sec:placement_results}
 

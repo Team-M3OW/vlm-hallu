@@ -478,6 +478,98 @@ it, the choice is irrelevant: random keep matches attention keep on both models 
 and pruning is free ($0.0$--$0.5$ points in $9$ of $10$ cells). The boundary is not merely where pruning
 becomes cheap; it is where selection ceases to matter.
 
+\section{Late-depth behaviour: agnosticism, merging, and disagreement}\label{app:late}
+
+\paragraph{The late layers are agnostic to the image.} Three independent probes agree that direct image access stops
+mattering at the boundary: the suffix mask, the image-value patch, and the answer-row-only mask. The suffix mask is
+the same intervention as the boundary measurement; the value patch replaces the image tokens' hidden states with a
+donor image's; the answer-row mask blocks only the final prompt position's image access at every layer.
+
+\begin{table}[t]
+\caption{Late-depth agnosticism. KL divergence and answer flips for three probes, both core checkpoints. The
+all-post-image row is the full-text scope for reference.}
+\label{tab:agnostic}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf probe} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
+\\ \hline \\
+suffix mask @L16 (KL / flips) & 0.014 / 12\% & 0.029 / 5\%\\
+suffix mask @L20 (KL / flips) & 0.002 / 0\% & 0.004 / 2\%\\
+suffix mask @L24 (KL / flips) & 0.001 / 0\% & 0.002 / 0\%\\
+image-value patch @L16 (KL / flips) & 0.009 / 3.3\% & 0.005 / 5.0\%\\
+image-value patch @L20 (KL / flips) & 0.0005 / 0\% & 0.0008 / 1.7\%\\
+answer-row mask, all layers (KL / flips) & 0.025 / 2.5\% & 0.034 / 0\%\\
+all-post-image mask, all layers (KL / flips) & 1.266 / 42\% & 0.532 / 45\%\\
+\end{tabular}
+\end{center}
+\end{table}
+
+\paragraph{Image and text tokens merge in the late stack.} The patching controls invert across depth: early, the image
+values dominate and the text values are inert; late, exactly the reverse. Replacing image values past the boundary
+lands on the irrelevant-text noise floor, so the image tokens behave like ordinary, interchangeable context tokens
+whose information has already been absorbed into the text stream. The answer position confirms the direction of the
+hand-off: it cannot read the image directly, and the evidence arrives through the text representations that
+consolidated it.
+
+\begin{table}[t]
+\caption{The hand-off. Donor patching at L4 and L20, both checkpoints; ratios compare the two patch sites. Paired
+KL difference between the L16 and L4 image patches is $-1.757$ [$-2.308,-1.256$] and $-0.792$ [$-1.031,-0.577$].}
+\label{tab:handoff}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\multicolumn{1}{c}{\bf site} &\multicolumn{1}{c}{\bf image patch (Q3/Q2)} &\multicolumn{1}{c}{\bf text patch (Q3/Q2)} &\multicolumn{1}{c}{\bf ratio}
+\\ \hline \\
+L4 & 1.766 / 0.798 & 0.009 / 0.006 & image $151\times$ / $131\times$\\
+L20 & 0.0005 / 0.0008 & 1.834 / 0.802 & text $2492\times$ / $965\times$\\
+\end{tabular}
+\end{center}
+\end{table}
+
+\paragraph{The layers disagree about where to look.} The 28 layer maps are not variations on one map. Mean off-diagonal
+arg-max agreement across the $28\times28$ layer pairs is $13.8\%$/$38.1\%$, and the agreement matrix has block
+structure that splits at the transport boundary. The usable placement signal exists only after it.
+
+\begin{table}[t]
+\caption{Layer disagreement and the read-out band. Agreement over layer pairs; coverage of the evidence box by a
+single-layer crop ($\ge50\%$ of the box), by read-out depth.}
+\label{tab:disagree}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf quantity} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
+\\ \hline \\
+mean arg-max agreement ($28\times28$ pairs) & 13.8\% & 38.1\%\\
+coverage before the boundary (L0--L15) & $\le20\%$ & $\le5\%$\\
+coverage just after (L17--L22) & 41--56\% & 33--53\%\\
+coverage near the output (L25--L27) & 3--28\% & 5--9\%\\
+\end{tabular}
+\end{center}
+\end{table}
+
+Consequently, every label-free layer-disagreement rule from the language-model literature was ported to the
+read-out and compared with the fixed gate; none beats it, and most lose badly.
+
+\begin{table}[t]
+\caption{Label-free layer-selection rules, coverage@$0.25$ minus the fixed gate, four architectures.}
+\label{tab:rules}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\multicolumn{1}{c}{\bf rule} &\multicolumn{1}{c}{\bf Qwen3} &\multicolumn{1}{c}{\bf Qwen2} &\multicolumn{1}{c}{\bf LLaVA-NeXT} &\multicolumn{1}{c}{\bf OneVision}
+\\ \hline \\
+gate max (reference, coverage \%) & 56.0 & 51.8 & 25.7 & 23.6\\
+CLD entropy-valley layer & $-12.0$ & $-1.0$ & $+0.5$ & $+4.2$\\
+attention-entropy-min layer & $-2.6$ & $+2.1$ & $+0.0$ & $+1.0$\\
+attention-JSD vs final & $+1.0$ & $-1.0$ & $+1.6$ & $-10.5$\\
+ASL rank-stability layer & $-11.5$ & $-8.4$ & $+0.0$ & $-6.8$\\
+depth-EMA of ranks & $-13.6$ & $-6.8$ & $+0.5$ & $+2.1$\\
+SLED extrapolation & $+0.5$ & $-0.5$ & $+2.1$ & $+2.1$\\
+\end{tabular}
+\end{center}
+\end{table}
+
 \section{Propositions, and what validates them}\label{app:theory}
 
 We state four theorems, three propositions and two lemmas. They are not deep results --- two are tail-dominance and
