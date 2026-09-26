@@ -708,6 +708,13 @@ Oracle placement & 87.9 & 87.4 \\
 \end{tabular}
 \end{table}
 
+\subsection{AVR Converts the Boundary into Resolution}
+\label{sec:avr_results}
+
+AVR removes visual tokens after the boundary and spends the saving on higher-resolution encoding. Two controls separate the two components. Against the unmodified model at the same $900$-token input (\texttt{uniform@900}), the later restriction is within $0.5$ points in seven of the ten benchmark--checkpoint--stratum cells, two cells are positive by $1.3$ and $2.6$ points, and one (HR-Bench 8K cross-instance) shows a significant loss of $1.8$ points; at the boundary the choice of retained tokens is irrelevant, so random keep matches attention keep at every keep ratio and the pruning itself is free. What remains is the resolution: AVR's gain over the equal-compute bar tracks the accuracy the checkpoint already gains from $900$ over $600$ tokens, at slope $1.01$ with $r=0.966$ across ten cells and four checkpoints (Table~\ref{tab:identity}). The identity predicts where AVR fails: the one cell with a negative point estimate, HR-4K cross-instance, is the cell whose baseline is itself worse at $900$ tokens than at $600$.
+
+The risk profile follows from the identity. AVR is positive on both strata in $6$ of $7$ cells and never significantly worse; the gains concentrate where headroom exists. On HR-4K and HR-8K it improves single-instance accuracy by $+4.0$/$+2.8$ and $+6.5$ points, and on \vstar\ it is worth $+10.5$ on cross-instance for Qwen3-VL-2B --- the stratum where cropping loses. Because it never discards coverage, AVR is the policy of choice where the evidence is relational or scene-level; because it requires a resolution ladder, it is undefined for checkpoints that quantise resolution (InternVL3, Gemma-3), which we report rather than fake.
+
 \subsection{The Benefit of Cropping Depends on the Required Evidence}
 \label{sec:scope_results}
 
