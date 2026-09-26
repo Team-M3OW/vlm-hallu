@@ -1,0 +1,82 @@
+% VLM internals + DWA, TikZ. \input inside a figure environment.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  ibox/.style={rounded corners=1.5pt, draw=blue!55!black, fill=blue!8, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  gbox/.style={rounded corners=1.5pt, draw=green!45!black, fill=green!8, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  ybox/.style={rounded corners=1.5pt, draw=yellow!55!black, fill=yellow!18, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  wbox/.style={rounded corners=1.5pt, draw=black!45, fill=white, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  arr/.style={-{Stealth[length=1.6mm]}, draw=black!55, line width=0.6pt},
+  barr/.style={-{Stealth[length=1.6mm]}, draw=blue!55!black, line width=0.7pt},
+  garr/.style={-{Stealth[length=1.6mm]}, draw=green!45!black, line width=0.7pt},
+]
+
+% ---------------- pipeline row ----------------
+\node[ibox] (img) at (0,0.25) {image\\$I$};
+\node[ibox, right=4mm of img] (enc) {vision\\encoder $E$};
+\node[ibox, right=4mm of enc] (proj) {projection $P$\\$V{=}P(E(I))$\\${\in}\mathbb{R}^{N\times d}$};
+
+% decoder: horizontal layer bar, 28 cells coloured by band
+\coordinate (bar) at (6.6,0);
+\foreach \i in {0,...,27}{
+  \ifnum\i<16 \def\col{blue!15}\else
+    \ifnum\i=16 \def\col{red!35}\else
+      \ifnum\i<22 \def\col{yellow!55}\else \def\col{black!15}\fi\fi\fi
+  \filldraw[draw=black!40, line width=0.2pt, fill=\col]
+    ($(bar)+(\i*0.19,0)$) rectangle ++(0.19,0.5);
+}
+\draw[blue!55!black, line width=0.8pt] ($(bar)+(-0.02,-0.02)$) rectangle ++(5.36,0.54);
+\draw[red!65!black, dashed, line width=0.9pt] ($(bar)+(16*0.19,0.62)$) -- ++(0,-0.74);
+\node[anchor=south, blue!55!black] at ($(bar)+(2.68,0.6)$) {decoder $F_\theta$ ($L{=}28$)};
+
+\draw[arr] (img) -- (enc);
+\draw[arr] (enc) -- (proj);
+\draw[arr] (proj.east) -- ($(bar)+(-0.02,0.25)$);
+
+\node[gbox] (logits) at ($(bar)+(7.2,0.25)$) {logits $z$ at the\\final prompt position};
+\draw[garr] ($(bar)+(5.36,0.35)$) -- (logits.west);
+\node[gbox, right=4mm of logits] (ans) {answer};
+\draw[garr] (logits) -- (ans);
+
+% ---------------- prompt and attention read-out ----------------
+\node[wbox] (prompt) at (0,-1.9) {question + options\\prompt ends at the\\answer-emission token};
+\draw[arr] (prompt.north) |- ($(bar)+(-0.02,0.15)$);
+
+\node[wbox] (attn) at (7.0,-1.9)
+  {per-layer attention $A_\ell(c)$: final prompt token $\to$ image cells,\\head-mean, row-normalised per layer (28 maps, one per layer)};
+\draw[barr] ($(bar)+(0.4,0)$) -- (attn.north);
+
+% ---------------- ridge chain ----------------
+\node[ibox] (maps) at (3.0,-3.5) {28 maps\\$A_\ell(c)$};
+\node[wbox, right=4mm of maps] (prof) {per-cell depth profile\\$x_c=\log A_\ell(c)\in\mathbb{R}^{L}$\\(one log-attention feature per layer)};
+\node[gbox, right=4mm of prof] (ridge) {closed-form ridge\\$w=(X^\top X+\alpha I)^{-1}X^\top y$\\$\alpha{=}1$; ${\sim}50$ boxed examples};
+\node[ybox, right=4mm of ridge] (score) {score map\\$s(c)=w_0+\sum_\ell w_\ell\log A_\ell(c)$};
+\node[wbox, right=4mm of score] (arg) {ring-masked\\argmax $c^\star$};
+\draw[arr] (maps) -- (prof);
+\draw[arr] (prof) -- (ridge);
+\draw[arr] (ridge) -- (score);
+\draw[arr] (score) -- (arg);
+\draw[barr] (attn.south) -- (maps.north);
+
+\node[ibox, below=7mm of arg] (crop) {crop $W{=}0.25$ at $c^\star$\\from the original image};
+\node[ibox, left=4mm of crop] (reenc) {re-encode crop @300\\(PASS 2)};
+\draw[arr] (arg) -- (crop);
+\draw[arr] (crop) -- (reenc);
+\draw[garr] (reenc.east) -- ++(0.35,0) -- ++(0,3.9) -- ($(bar)+(5.36,0.1)$);
+\node[font=\scriptsize, green!45!black, anchor=west] at ($(reenc.east)+(0.45,2.1)$) {PASS 2};
+
+% ---------------- legend and cost ----------------
+\node[font=\scriptsize, text=black!70, anchor=north west] at (-1.5,-6.3)
+  {\textcolor{blue!55!black}{blue}: transport L0--15 \quad
+   \textcolor{red!65!black}{red}: boundary L16 ($0.57L$) \quad
+   \textcolor{yellow!45!black}{yellow}: read-out band L17--21 (block-mean reads here) \quad
+   \textcolor{black!60}{grey}: answer formation L22+ (DWA still reads)};
+\node[font=\scriptsize, text=black!70, anchor=north west] at (-1.5,-6.65)
+  {cost: 300 (localise) + 300 (answer) = 600 visual tokens = the equal-compute reference};
+\node[font=\scriptsize, text=green!45!black, anchor=north west] at (-1.5,-7.0)
+  {the ridge runs on the full depth: the causally inert late layers receive small or negative weight, the question-conditioned band is up-weighted};
+
+\end{tikzpicture}

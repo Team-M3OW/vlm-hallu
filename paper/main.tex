@@ -159,6 +159,13 @@ The decoder's logits define the next-token probability distribution
 through softmax. We use these logits to evaluate multiple-choice answers,
 with the scoring procedure described in Sec.~\ref{sec:method_evaluation}.
 
+\begin{figure}[t]
+\centering
+\resizebox{\linewidth}{!}{\input{figs/fig_vlm_dwa_tikz}}
+\caption{\textbf{VLM internals and DWA.} The image is encoded by $E$, projected to $N$ visual tokens, and decoded by $F_\theta$; the layer bar marks the transport window (L0--15), the boundary at L16 ($0.57L$), the read-out band (L17--21) that block-mean methods read, and the answer-formation layers (L22+) that DWA still reads. DWA reads the final prompt token's attention at every layer, forms each cell's log-attention depth profile, fits a closed-form ridge to box coverage, and crops at the ring-masked arg-max of the score.}
+\label{fig:vlm_dwa}
+\end{figure}
+
 \subsection{VLMs and Fine-Grained Perception: Visual Resolution as an Encoding Bottleneck}\label{sec:cliff}
 
 We study whether VLMs can resolve small visual details after correctly localising the relevant region, and whether allocating visual tokens to the relevant region is more effective than uniformly increasing resolution. We first sweep the target extent in merged visual tokens on single-region questions, using an oracle crop as a difficulty control (Appendix~\ref{app:cliff}). We find a sharp, architecture-invariant threshold at 0.15--0.25 merged tokens, corresponding to only 2--3\% of the image side: accuracy jumps from 19.0\% below to 78.6\% above the threshold, while oracle-crop accuracy remains flat (95.8\%/100.0\%). Since question difficulty is unchanged across the split, the cliff reflects a failure to encode the required visual evidence rather than a gradual loss of accuracy with decreasing resolution.
@@ -284,7 +291,7 @@ including the 36-layer checkpoint, are in Appendix~\ref{app:depth}.
 \subsection{DWA : DEPTH WEIGHTED ATTENTION}
 \label{sec:dwa_method}
 
-DWA selects a region using information from the full model layer depth.
+DWA selects a region using information from the full model layer depth (Fig.~\ref{fig:vlm_dwa}).
 We first encode the full image toward \(300\) visual tokens and run
 the model with the complete question prompt. At each layer, we extract
 the final prompt position's attention to image tokens and average it
