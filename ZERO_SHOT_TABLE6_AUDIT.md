@@ -47,6 +47,51 @@ V*, then fitted on HR" is incorrect and must not be used.
 Source: `data/phase225_{model}_{bench}.jsonl` (`avr` arm, paired vs `uniform@lo`); InternVL3-8B
 cannot express AVR (token count is size-invariant; E_lo = E_hi), reported as infeasible.
 
+## Zero-shot vs fitted (in-domain) DWA
+
+"Train DWA for the specific benchmark" is only possible where the benchmark ships boxes. Beyond V*,
+that is **CV-Bench Depth+Distance** (the only CV-Bench tasks with bounding boxes, n=1,200 of 2,638);
+HR-Bench and RealworldQA ship **no boxes at all**, so an in-domain fit is impossible there in
+principle. On V*, DWA is already V*-fitted, so its "zero-shot" and "fitted" columns coincide.
+
+**4x4 zero-shot DWA** (reference / DWA / delta) is Table 6 above. Where an in-domain fit exists:
+
+| CV-Bench Depth+Distance, n=400 | Reference | AVR | DWA zero-shot | DWA fitted (in-domain) | Fitted - zero-shot |
+|---|---|---|---|---|---|
+| Qwen3-VL-2B | 87.5 | 86.8 | 75.5 | 75.8 | +0.3 |
+| Qwen2-VL-7B | 78.5 | 77.8 | 76.5 | **78.0** | **+1.5** |
+| LLaVA-OV-7B | -- | -- | -- | not run | -- |
+| InternVL3-8B | -- | -- | -- | not run | -- |
+
+Finding: fitting on the benchmark's own boxes does **not** rescue the scene-level tasks. Qwen3 is
+unchanged (75.8 vs 75.5); Qwen2 recovers +1.5 (not CI-clear) and lands within 0.5 of its reference.
+The transfer loss is model-dependent; the scene-level failure is not. AVR is the only arm that matches
+the reference on both checkpoints. Logged as FINDINGS §88; scripts
+`scripts/phase250_indomain_dwa.py`, data `data/phase250_indomain_{qwen3_2b,qwen2_7b}.jsonl`.
+
+```latex
+\begin{table}[htb]
+    \centering
+    \caption{\textbf{Zero-shot vs fitted DWA.} DWA is fitted on V*Bench and either transferred to the target (zero-shot) or refitted out-of-fold on the target's own boxes (fitted), where the benchmark ships boxes. HR-Bench and RealworldQA ship none, so no in-domain fit exists there. On V* the two coincide by construction.}
+    \label{tab:dwa_fitted}
+    \begin{tabular}{llccccc}
+    \toprule
+    \textbf{Model} & \textbf{Benchmark} & \textbf{Reference (\%)} & \textbf{Zero-shot (\%)} & \textbf{Fitted (\%)} & $\mathbf{\Delta}$ \\
+    \midrule
+    \multirow{4}{*}{Qwen3-VL-2B} & V* & 62.3 & 72.8 & 72.8 & $0.0$ \\
+    & HR-4K & 59.0 & 62.5 & -- (no boxes) & -- \\
+    & CV-Bench (Depth+Distance, n=400) & 87.5 & 75.5 & 75.8 & $+0.3$ \\
+    & RealworldQA & 62.6 & 56.9 & -- (no boxes) & -- \\
+    \midrule
+    \multirow{4}{*}{Qwen2-VL-7B} & V* & 59.2 & 68.1 & 68.1 & $0.0$ \\
+    & HR-4K & 57.0 & 59.1 & -- (no boxes) & -- \\
+    & CV-Bench (Depth+Distance, n=400) & 78.5 & 76.5 & 78.0 & $+1.5$ \\
+    & RealworldQA & 64.7 & 57.5 & -- (no boxes) & -- \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+```
+
 ## Figures
 
 - `paper/figs/fig_vlm_dwa_tikz.pdf` (also `.png`, source `paper/figs/fig_vlm_dwa_tikz.tex`):

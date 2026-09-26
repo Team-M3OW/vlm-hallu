@@ -9424,3 +9424,21 @@ mm_token_type_ids has t runs; expand to `[[1,h,w]]*t`), and the 2-D attention-ma
 mrope models — Qwen3-VL derives 3-D rope positions from attention_mask, so dropping entries changes
 the position count. Masked at the layer instead. The same trick was live in the unattended audio
 script and was ported before it could fire.
+## §88 IN-DOMAIN DWA DOES NOT RESCUE CV-BENCH — AND THE FITTED/ ZERO-SHOT GAP IS MODEL-DEPENDENT (phase 250, both Qwen checkpoints, n=400)
+
+"Train DWA for the specific benchmark" was tested where boxes exist beyond V*: CV-Bench Depth+Distance
+(the only CV-Bench tasks with bounding boxes; Count and Relation ship none). Ridge fitted out-of-fold on
+the benchmark's own boxes (union-box coverage), same estimator and crop as the deployed DWA; zero-shot,
+AVR, block and reference reused from phase225 on the same qids. HR-Bench and RealworldQA ship no boxes,
+so an in-domain fit is impossible there in principle.
+
+| CV-Bench Depth+Distance, n=400 | reference | AVR | DWA zero-shot | DWA fitted (in-domain) | block |
+|---|---|---|---|---|---|
+| Qwen3-VL-2B | 87.5 | 86.8 (−0.8) | 75.5 (−12.0) | 75.8 (−11.8) | 79.8 (−7.8) |
+| Qwen2-VL-7B | 78.5 | 77.8 (−0.8) | 76.5 (−2.0) | **78.0 (−0.5)** | 75.8 (−2.8) |
+
+Qwen3: fitting on the benchmark's own boxes changes nothing (75.8 vs 75.5). Qwen2: the fitted ridge
+recovers +1.5 points over the transferred one and lands within 0.5 of the reference (not CI-clear), i.e.
+the transfer loss is model-dependent while the scene-level failure is not. AVR is the only arm that
+matches the reference on both. Script: `scripts/phase250_indomain_dwa.py`; data:
+`data/phase250_indomain_{qwen3_2b,qwen2_7b}.jsonl`.
