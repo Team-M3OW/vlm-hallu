@@ -586,7 +586,20 @@ compared with 1.266 and 0.532 when all layers are masked.
 Answer changes decrease to approximately 12\% and 5\% at that
 cutoff and to zero from a layer-24 suffix on both checkpoints.
 These profiles locate the transition from high to low sensitivity
-to continued direct visual access.
+to continued direct visual access. Fig.~\ref{fig:boundary_samples} shows the same structure on real
+items: the attention map changes character at the boundary, and masking one layer at a time moves the
+output only before it.
+
+\begin{figure}[tb]
+\centering
+\includegraphics[width=\linewidth]{figs/fig_boundary_samples.pdf}
+\caption{\textbf{The boundary on real items.} Top: one V*Bench item's attention map at selected
+read-out depths, pre-boundary above and post-boundary below the dashed line; the late maps collapse
+onto a row-boundary band. Bottom: single-layer masking KL for all 40 calibrated items (thin), the
+mean (bold), and the prefix/suffix schedules, both models, with the boundary at L16 ($0.57L$).
+Black: the sample shown above.}
+\label{fig:boundary_samples}
+\end{figure}
 
 The scope of masking also matters. Restricting only the final prompt
 position across all layers gives KL divergences of 0.025 and 0.034,
