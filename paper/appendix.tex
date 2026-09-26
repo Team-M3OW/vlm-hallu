@@ -246,7 +246,7 @@ against the published $+19.9$ (LLaVA-1.5) and $+6.8$ (InstructBLIP). (ii) The pu
 exactly where the baseline is resolution-starved: LLaVA-OneVision at its ladder minimum (no-crop $32.7$) gains
 $+9.4$ from cropping, in the same direction as the published $+1.6$ to $+3.9$ against a $336$px baseline, while
 Qwen3-VL-2B at the same $299$-vs-$299$ tokens (no-crop $63.9$) loses $11.2$. (iii) TextVQA is the controlled case
-discussed in \S\ref{sec:condition}: LLaVA-1.5 at fixed $336$px gains, LLaVA-OneVision anyres at $1{,}286$ tokens
+discussed in \S\ref{sec:scope_results}: LLaVA-1.5 at fixed $336$px gains, LLaVA-OneVision anyres at $1{,}286$ tokens
 loses. (iv) GQA is negative for an anyres model, where the published result is flat --- consistent with the scope
 law, since GQA is relation-heavy.
 
@@ -640,7 +640,7 @@ bits) but not its accuracy; the fitted read-out attains the same entropy with hi
 against $0.459$/$0.402$). The failure is in the decoder, not the representation. Two consequences. The information
 a decision can carry is raised only by making it \emph{varied} or \emph{accurate} --- the bounds never mention
 cancellation --- so a non-negative depth fit reaches the same terms by selecting the depths where the
-item-independent component is least dominant (\S\ref{sec:ridge}). And the depth \emph{ordering} changes both terms
+item-independent component is least dominant (\S\ref{sec:dwa_method}). And the depth \emph{ordering} changes both terms
 while the sign of the weights does not.
 
 \begin{theorem}[The information horizon]\label{thm:horizon}
@@ -793,7 +793,7 @@ filter is kept as an option rather than as the deployed method.
 
 Policy $-$ equal-compute bar, paired item bootstrap ($8000$ resamples). The gate is the AND of
 $\mathrm{disp}$, $\mathrm{band\_disp}$ and $\mathrm{VRH}$ above their item-set medians; the arms are
-DWA@$300$ (crop) and AVR (whole image), as in Table~\ref{tab:policy}. Strata are only defined on
+DWA@$300$ (crop) and AVR (whole image). Strata are only defined on
 \vstar\ and HR-4K. Script: \texttt{phase237\_policy\_final.py}.
 
 \begin{table}[h]\centering\small
