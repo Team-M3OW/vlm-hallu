@@ -149,3 +149,52 @@ damage from token count, because a ×2 stretch alone cost ~4 points in Track A.
 sampling; items shuffled because MMAU-Pro is ordered by category (the CV-Bench/MMAU prefix trap).
 Only genuinely open-ended items are dropped, counted and reported. Scope is stratified after the
 fact by category; no router.
+
+---
+
+## Track R (VLA) — pre-registration, 2026-09-26
+
+One model per modality (user's scope decision), so this is a demonstration, not a multi-model claim.
+
+**G0 RESULT (config-level, before any run): NO RESOLUTION LADDER.**
+- OpenVLA-7B: `image_sizes = [224,224]`, `image_resize_strategy = "resize-naive"`, towers
+  `vit_large_patch14_reg4_dinov2` + `vit_so400m_patch14_siglip_224`. Patch-14 at 224 -> 16x16 =
+  **256 visual tokens, fixed**.
+- SmolVLA: `resize_imgs_with_padding = [512,512]`, three fixed 256x256 cameras. Also fixed.
+Both are NO_LADDER in our own budget-path taxonomy — the class Gemma-3 and InternVL fall into.
+
+Two consequences:
+1. **AVR IS NOT EXPRESSIBLE on deployed VLAs.** There is no resolution knob to trade: every
+   observation is resized to a fixed size yielding a fixed token count. This is an architectural
+   statement of the same kind as "no deployed ALM tokenises frequency" (§88.5) — a missing degree
+   of freedom, not a failed experiment. It is NOT evidence about AVR's mechanism.
+2. **DWA becomes the cleanest test of the three modalities.** With a fixed-resolution tower a crop
+   is AUTOMATICALLY budget-matched: crop and full frame both emit exactly 256 tokens. The
+   equal-compute confounds that forced `bar_matched` in video and the §73/§75/§81 corrections in
+   vision cannot arise here. Assert the 256==256 equality anyway.
+
+**H6 (boundary).** Masking image->text attention, suffix schedule, KL measured on the FIRST ACTION
+TOKEN's logits (OpenVLA emits 7 discrete action tokens, 256 bins each — logit-friendly; the OFT
+checkpoints use continuous parallel decoding and are therefore NOT used).
+PRE-REGISTERED PREDICTION: transport completes at **0.57 of depth (L18/32 for Llama-2-7B)** — the
+value measured in vision AND video. Audio's 0.75 is the outlier. If it lands elsewhere, that is
+the result; audio already falsified one such prediction (§88.1).
+SANITY (§93b): mask-all must give large KL and change the predicted action; per-layer KL > 0.
+
+**H7 (DWA ceiling, oracle-first).** Same rule as audio/video: if `crop_oracle − bar` is not
+CI-clear positive, STOP and write no placer. Windows are spatial crops resized to 224.
+A `bar_oracle` control (best of K whole-frame jitters, also label-chosen) is MANDATORY — in video
+the uncontrolled ceiling read +9.1 and the bias-matched one +5.5, i.e. best-of-K alone was worth
++3.7 (§88.3).
+
+**H8 (scope law, third modality).** LIBERO **Object** suite is single-object; **Spatial** is
+relational. The scope law predicts cropping helps on Object and hurts on Spatial. This is the
+generalised statement ("the sign is set by whether the question needs the whole scene") tested
+where the "question" is a manipulation goal rather than a VQA prompt.
+
+**Metric and its limit, stated up front.** Evaluation is STATIC action prediction on public LIBERO
+demonstrations (`IPEC-COMMUNITY/libero_{spatial,object}_no_noops_1.0.0_lerobot`), scored as
+next-action-token accuracy / L1 against the demonstrated action. This is NOT task success: a
+rollout needs the simulator, and open-loop token accuracy can move without closed-loop success
+moving. Any claim is therefore about the action DISTRIBUTION, not about task performance, and will
+be worded that way. Public data only; no dataset is built.
