@@ -9,29 +9,6 @@ image-token columns, at chosen layers only. Masking \emph{all} text rows at \emp
 (KL $1.266$ / $0.532$, $42\%$ / $45\%$ of answers flip, $n{=}40$); masking only the answer token's row at all layers
 does not (KL $0.025$, $3\%$ flip). Table~\ref{tab:prefix} localises the window.
 
-\begin{table}[h]\centering\small
-\caption{Prefix and suffix masks, all text rows, $n=40$ per model, V$^*$Bench at 300 tokens. The prefix mask
-$L_0..\ell$ saturates at the full-mask value once $\ell$ passes the window; the suffix mask $L_\ell..\text{end}$
-falls to zero once $\ell$ is past it. Both read the boundary at the same place, and the $36$-layer checkpoint puts
-it at the same fraction of depth ($\ell{=}20$ of $36$).}
-\begin{tabular}{lcccccc}
-\toprule
-& $\ell{=}4$ & $\ell{=}8$ & $\ell{=}12$ & $\ell{=}16$ & $\ell{=}20$ & $\ell{=}24$\\
-\midrule
-Qwen3 prefix $L_0..\ell$ (KL) & 0.082 & 0.549 & \textbf{1.278} & 1.259 & 1.215 & 1.257\\
-Qwen3 suffix $L_\ell..$ (KL) & 0.967 & 0.880 & 0.320 & \textbf{0.014} & 0.002 & 0.001\\
-Qwen3 suffix (answers flipped) & 53\% & 50\% & 20\% & 12\% & \textbf{0\%} & \textbf{0\%}\\
-\midrule
-Qwen2 prefix $L_0..\ell$ (KL) & 0.037 & 0.105 & 0.364 & \textbf{0.547} & 0.534 & 0.538\\
-Qwen2 suffix $L_\ell..$ (KL) & 0.518 & 0.465 & 0.429 & \textbf{0.029} & 0.004 & 0.002\\
-Qwen2 suffix (answers flipped) & 53\% & 47\% & 40\% & 5\% & 3\% & \textbf{0\%}\\
-\midrule
-Qwen3-8B (36L) prefix $L_0..\ell$ (KL) & 0.100 & 0.309 & 1.190 & \textbf{1.740} & 1.559 & 1.565\\
-Qwen3-8B (36L) suffix $L_\ell..$ (KL) & 1.671 & 1.538 & 1.278 & 0.413 & \textbf{0.052} & 0.009\\
-Qwen3-8B (36L) suffix (answers flipped) & 35\% & 45\% & 40\% & 15\% & 5\% & \textbf{0\%}\\
-\bottomrule
-\end{tabular}\label{tab:prefix}
-\end{table}
 
 \begin{figure}[h]\centering
 \includegraphics[width=\textwidth]{figs/fig_transport.pdf}
@@ -199,25 +176,6 @@ mattering at the boundary: the suffix mask, the image-value patch, and the answe
 the same intervention as the boundary measurement; the value patch replaces the image tokens' hidden states with a
 donor image's; the answer-row mask blocks only the final prompt position's image access at every layer.
 
-\begin{table}[t]
-\caption{Late-depth agnosticism. KL divergence and answer flips for three probes, both core checkpoints. The
-all-post-image row is the full-text scope for reference.}
-\label{tab:agnostic}
-\begin{center}
-\small
-\begin{tabular}{lcc}
-\multicolumn{1}{c}{\bf probe} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
-\\ \hline \\
-suffix mask @L16 (KL / flips) & 0.014 / 12\% & 0.029 / 5\%\\
-suffix mask @L20 (KL / flips) & 0.002 / 0\% & 0.004 / 2\%\\
-suffix mask @L24 (KL / flips) & 0.001 / 0\% & 0.002 / 0\%\\
-image-value patch @L16 (KL / flips) & 0.009 / 3.3\% & 0.005 / 5.0\%\\
-image-value patch @L20 (KL / flips) & 0.0005 / 0\% & 0.0008 / 1.7\%\\
-answer-row mask, all layers (KL / flips) & 0.025 / 2.5\% & 0.034 / 0\%\\
-all-post-image mask, all layers (KL / flips) & 1.266 / 42\% & 0.532 / 45\%\\
-\end{tabular}
-\end{center}
-\end{table}
 
 \paragraph{Image and text tokens merge in the late stack.} The patching controls invert across depth: early, the image
 values dominate and the text values are inert; late, exactly the reverse. Replacing image values past the boundary

@@ -696,7 +696,7 @@ coverage near the output (L25--L27) & 3--28\% & 5--9\%\\
 \subsection{DWA Improves Crop Selection}
 \label{sec:placement_results}
 
-Table~\ref{tab:main_results} compares placement rules with the image
+Table~\ref{tab:main_results} (Appendix~\ref{app:paired}) compares placement rules with the image
 budget and crop size held fixed. DWA reaches 72.6\% and 70.2\% accuracy,
 compared with 64.7\% and 61.3\% for the strongest evaluated placement
 baseline, the LASER-based control~\citep{laser}. The paired gains are $+7.9$
@@ -705,34 +705,6 @@ questions, DWA reaches 77.2\% and 71.3\%, while its cross-instance
 accuracies are 65.8\% and 68.4\%. DWA therefore improves crop selection over both fixed and adaptive
 single-layer read-outs within the common placement protocol.
 
-\begin{table}[tb]
-\centering\small
-\caption{V*Bench accuracy (\%) under the common placement protocol.
-Qwen3-VL-2B uses 190 matched items and Qwen2-VL-7B uses 191.
-Single and cross denote single-instance and cross-instance questions.
-The full-image reference uses 600 tokens; DWA uses 300 for localisation
-and 300 for answering. All crop controls answer at 300 tokens. The fixed-layer,
-block-mean, and LASER-based rows are placement controls as specified in
-Sec.~\ref{sec:method_evaluation}; the LASER-based control also requires
-a no-query pass. The oracle row uses ground-truth localisation.}
-\label{tab:main_results}
-\setlength{\tabcolsep}{5pt}
-\begin{tabular}{lrrrrrr}
-\toprule
-& \multicolumn{3}{c}{Qwen3-VL-2B} & \multicolumn{3}{c}{Qwen2-VL-7B} \\
-\cmidrule(lr){2-4}\cmidrule(lr){5-7}
-Method & Single & Cross & All & Single & Cross & All \\
-\midrule
-Full image, 600 tokens & 62.3 & 65.8 & 63.7 & 57.4 & 59.2 & 58.1 \\
-Fixed layer 14 & 24.6 & 57.9 & 37.9 & 33.9 & 44.7 & 38.2 \\
-Block-mean crop & 64.0 & 59.2 & 62.1 & 67.0 & 47.4 & 59.2 \\
-LASER-based placement & 64.0 & 65.8 & 64.7 & 65.2 & 55.3 & 61.3 \\
-\textbf{DWA} & \textbf{77.2} & \textbf{65.8} & \textbf{72.6} & \textbf{71.3} & \textbf{68.4} & \textbf{70.2} \\
-\midrule
-Oracle placement & 96.5 & 75.0 & 87.9 & 93.9 & 77.6 & 87.4 \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 The localisation measurements show a corresponding improvement. With
 the outer grid ring excluded for both methods, DWA covers at least
@@ -756,7 +728,7 @@ successful corrections under this selection criterion.}
 \end{figure}
 
 \paragraph{Comparison with native resolution.}
-Table~\ref{tab:native_results} places these gains against the models'
+Table~\ref{tab:native_results} (Appendix~\ref{app:paired}) places these gains against the models'
 native dynamic-resolution inputs. DWA narrows the accuracy gap to
 3.7 and 1.0 points using approximately 18\% and 14\% of the native
 median visual-token counts. Both paired intervals include zero.
@@ -766,30 +738,6 @@ Oracle crops exceed native accuracy by 11.6 and 16.2 points,
 confirming the value of precise placement even against
 higher-resolution full-image input.
 
-\begin{table}[tb]
-\centering\small
-\caption{V*Bench accuracy (\%) against native dynamic resolution on the
-same matched items as Table~\ref{tab:main_results}. Native median
-visual-token counts are 3,290 and 4,320, respectively. DWA targets
-600 tokens over two passes, approximately 18\% and 14\% of those
-medians. AVR targets 900 input tokens with the later restriction in
-Sec.~\ref{sec:avr_method}; its nominal token-layer proxy is 16,290.
-Token accounting follows Sec.~\ref{sec:method_evaluation}.}
-\label{tab:native_results}
-\begin{tabular}{lrr}
-\toprule
-Method & Qwen3-VL-2B & Qwen2-VL-7B \\
-\midrule
-Native dynamic resolution & 76.3 & 71.2 \\
-Full image, 600 tokens & 63.7 & 58.1 \\
-Block-mean crop & 62.1 & 59.2 \\
-LASER-based placement & 64.7 & 61.3 \\
-AVR & 70.0 & 61.8 \\
-DWA & 72.6 & 70.2 \\
-Oracle placement & 87.9 & 87.4 \\
-\bottomrule
-\end{tabular}
-\end{table}
 
 \begin{table}[t]
 \centering\small
