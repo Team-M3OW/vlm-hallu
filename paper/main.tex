@@ -858,6 +858,43 @@ HR-8K Qwen3-VL-2B & \gd{$+6.5$}~\ok & $+1.8$ & \gd{$+8.8$}~\ok & \bad{$-8.8$}~\n
 \end{center}
 \end{table}
 
+\subsection{The Full Grid: Four Models, Four Benchmarks}
+\label{sec:grid_results}
+
+Table~\ref{tab:grid} reports absolute accuracy for the equal-compute bar, AVR, and DWA on all sixteen model--benchmark cells, with paired differences against the bar. The pattern is the same as the scope result: DWA is the stronger policy where the evidence is local (V*Bench, HR-4K) and the weaker one where answering requires the scene (CV-Bench, RealworldQA), while AVR's deviations from the bar are small in every cell where it exists --- and AVR is undefined for InternVL3-8B, which has no resolution ladder.
+
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{3pt}
+\caption{The full grid. Absolute accuracy (\%) and paired differences against the equal-compute bar (percentage points) for four models and four benchmarks. AVR is infeasible for InternVL3-8B (no resolution ladder). \ok\ = interval excludes zero.}
+\label{tab:grid}
+\begin{tabular}{llrcccccc}
+\toprule
+Model & Benchmark & $n$ & bar & AVR & AVR $-$ bar & DWA & DWA $-$ bar \\
+\midrule
+Qwen3-VL-2B & V* & 191 & 62.3 & 67.5 & \gd{$+5.2$}~\ok & 72.8 & \gd{$+10.5$}~\ok \\
+Qwen3-VL-2B & HR-4K & 800 & 59.0 & 59.9 & $+0.9$ & 62.5 & $+3.5$ \\
+Qwen3-VL-2B & CV-Bench & 2{,}638 & 79.9 & 80.4 & $+0.5$ & 65.8 & \bad{$-14.1$}~\no \\
+Qwen3-VL-2B & RealworldQA & 765 & 62.6 & 63.3 & $+0.7$ & 56.9 & \bad{$-5.8$}~\no \\
+\midrule
+Qwen2-VL-7B & V* & 191 & 59.2 & 64.9 & \gd{$+5.8$}~\ok & 68.1 & \gd{$+8.9$}~\ok \\
+Qwen2-VL-7B & HR-4K & 800 & 57.0 & 57.1 & $+0.1$ & 59.1 & $+2.1$ \\
+Qwen2-VL-7B & CV-Bench & 2{,}638 & 75.0 & 71.5 & \bad{$-3.5$}~\no & 66.0 & \bad{$-9.0$}~\no \\
+Qwen2-VL-7B & RealworldQA & 765 & 64.7 & 62.6 & $-2.1$ & 57.5 & \bad{$-7.2$}~\no \\
+\midrule
+LLaVA-OV-7B & V* & 191 & 51.8 & 58.6 & \gd{$+6.8$}~\ok & 65.4 & \gd{$+13.6$}~\ok \\
+LLaVA-OV-7B & HR-4K & 800 & 48.2 & 46.2 & $-2.0$ & 56.5 & \gd{$+8.2$}~\ok \\
+LLaVA-OV-7B & CV-Bench & 2{,}638 & 76.6 & 76.0 & $-0.6$ & 65.9 & \bad{$-10.7$}~\no \\
+LLaVA-OV-7B & RealworldQA & 765 & 61.6 & 60.0 & $-1.6$ & 59.2 & $-2.4$ \\
+\midrule
+InternVL3-8B & V* & 191 & 74.9 & --- & --- & 75.9 & $+1.0$ \\
+InternVL3-8B & HR-4K & 800 & 70.5 & --- & --- & 65.6 & \bad{$-4.9$}~\no \\
+InternVL3-8B & CV-Bench & 2{,}638 & 81.7 & --- & --- & 68.6 & \bad{$-13.1$}~\no \\
+InternVL3-8B & RealworldQA & 765 & 67.6 & --- & --- & 59.9 & \bad{$-7.7$}~\no \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{The Benefit of Cropping Depends on the Required Evidence}
 \label{sec:scope_results}
 
