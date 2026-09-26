@@ -599,6 +599,33 @@ Black: the sample shown above.}
 \label{fig:boundary_samples}
 \end{figure}
 
+Table~\ref{tab:prefix} gives the full prefix/suffix grid, including the 36-layer checkpoint.
+
+\begin{table}[h]\centering\small
+\caption{Prefix and suffix masks, all text rows, $n=40$ per model, V$^*$Bench at 300 tokens. The prefix mask
+$L_0..\ell$ saturates at the full-mask value once $\ell$ passes the window; the suffix mask $L_\ell..\text{end}$
+falls to zero once $\ell$ is past it. Both read the boundary at the same place, and the $36$-layer checkpoint puts
+it at the same fraction of depth ($\ell{=}20$ of $36$).}
+\begin{tabular}{lcccccc}
+\toprule
+& $\ell{=}4$ & $\ell{=}8$ & $\ell{=}12$ & $\ell{=}16$ & $\ell{=}20$ & $\ell{=}24$\\
+\midrule
+Qwen3 prefix $L_0..\ell$ (KL) & 0.082 & 0.549 & \textbf{1.278} & 1.259 & 1.215 & 1.257\\
+Qwen3 suffix $L_\ell..$ (KL) & 0.967 & 0.880 & 0.320 & \textbf{0.014} & 0.002 & 0.001\\
+Qwen3 suffix (answers flipped) & 53\% & 50\% & 20\% & 12\% & \textbf{0\%} & \textbf{0\%}\\
+\midrule
+Qwen2 prefix $L_0..\ell$ (KL) & 0.037 & 0.105 & 0.364 & \textbf{0.547} & 0.534 & 0.538\\
+Qwen2 suffix $L_\ell..$ (KL) & 0.518 & 0.465 & 0.429 & \textbf{0.029} & 0.004 & 0.002\\
+Qwen2 suffix (answers flipped) & 53\% & 47\% & 40\% & 5\% & 3\% & \textbf{0\%}\\
+\midrule
+Qwen3-8B (36L) prefix $L_0..\ell$ (KL) & 0.100 & 0.309 & 1.190 & \textbf{1.740} & 1.559 & 1.565\\
+Qwen3-8B (36L) suffix $L_\ell..$ (KL) & 1.671 & 1.538 & 1.278 & 0.413 & \textbf{0.052} & 0.009\\
+Qwen3-8B (36L) suffix (answers flipped) & 35\% & 45\% & 40\% & 15\% & 5\% & \textbf{0\%}\\
+\bottomrule
+\end{tabular}\label{tab:prefix}
+\end{table}
+
+
 The scope of masking also matters. Restricting only the final prompt
 position across all layers gives KL divergences of 0.025 and 0.034,
 with 2.5\% and 0\% answer changes. Restricting all post-image text
@@ -610,7 +637,61 @@ prediction.
 
 The boundary is a fraction of depth rather than a layer index: on a 36-layer checkpoint (Qwen3-VL-8B) under the same mask, the suffix is already nearly harmless at L20 (KL $0.052$, $5\%$ flips) and fully harmless from L24, and pruning at L21 --- the same $0.57$ fraction --- is free, while a cut at $0.14\times$ depth costs $7.9$ points.
 
-Three further properties of the late stack follow from these measurements and are detailed in Appendix~\ref{app:late}. First, the late layers are \emph{agnostic to the image}: a suffix mask at layer~16 costs $0.014$/$0.029$ KL with $12\%$/$5\%$ answer changes and nothing at all from layer~24, replacing the image tokens' values changes the output no more than irrelevant early text ($0.009$/$0.005$ at L16, $0.0005$/$0.0008$ at L20), and masking only the answer-emission token's image access changes $2.5\%$/$0\%$ of answers. Second, \emph{image and text tokens merge} in the late stack: the patching controls invert across depth (at L4 the image matters $151\times$/$131\times$ more than text; at L20 the text matters $2492\times$/$965\times$ more than the image), and the answer position reads the image only through the text representations that consolidated it. Third, the \emph{layers disagree} about where to look: mean arg-max agreement across layer pairs is $13.8\%$/$38.1\%$, the agreement matrix splits into two clusters at the boundary, and only the layers after it carry a usable placement signal (coverage of the evidence box is at most $20\%$/$5\%$ before the boundary, $41$--$56\%$/$33$--$53\%$ just after it, decaying toward the output). Reading attention at a depth that carries the image is therefore not the same as reading it where placement is decodable, and the two occupy disjoint ranges.
+Table~\ref{tab:maskscope} compares the two mask scopes directly.
+
+\begin{table}[t]
+\caption{Mask scope at all layers. KL divergence and answer flips, both core checkpoints ($n=40$ each).}
+\label{tab:maskscope}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf mask scope (all layers)} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
+\\ \hline \\
+answer-emission token's row only & 0.025 / 2.5\% & 0.034 / 0\%\\
+all text rows after the image & 1.266 / 42\% & 0.532 / 45\%\\
+\end{tabular}
+\end{center}
+\end{table}
+
+
+Three further properties of the late stack follow from these measurements and are detailed in Appendix~\ref{app:late}. First, the late layers are \emph{agnostic to the image}: a suffix mask at layer~16 costs $0.014$/$0.029$ KL with $12\%$/$5\%$ answer changes and nothing at all from layer~24, replacing the image tokens' values changes the output no more than irrelevant early text ($0.009$/$0.005$ at L16, $0.0005$/$0.0008$ at L20), and masking only the answer-emission token's image access changes $2.5\%$/$0\%$ of answers. Second, \emph{image and text tokens merge} in the late stack: the patching controls invert across depth (at L4 the image matters $151\times$/$131\times$ more than text; at L20 the text matters $2492\times$/$965\times$ more than the image), and the answer position reads the image only through the text representations that consolidated it. Third, the \emph{layers disagree} about where to look: mean arg-max agreement across layer pairs is $13.8\%$/$38.1\%$, the agreement matrix splits into two clusters at the boundary, and only the layers after it carry a usable placement signal (coverage of the evidence box is at most $20\%$/$5\%$ before the boundary, $41$--$56\%$/$33$--$53\%$ just after it, decaying toward the output). Reading attention at a depth that carries the image is therefore not the same as reading it where placement is decodable, and the two occupy disjoint ranges. Tables~\ref{tab:agnostic} and~\ref{tab:disagree} quantify the first and third properties.
+
+\begin{table}[t]
+\caption{Late-depth agnosticism. KL divergence and answer flips for three probes, both core checkpoints. The
+all-post-image row is the full-text scope for reference.}
+\label{tab:agnostic}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf probe} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
+\\ \hline \\
+suffix mask @L16 (KL / flips) & 0.014 / 12\% & 0.029 / 5\%\\
+suffix mask @L20 (KL / flips) & 0.002 / 0\% & 0.004 / 2\%\\
+suffix mask @L24 (KL / flips) & 0.001 / 0\% & 0.002 / 0\%\\
+image-value patch @L16 (KL / flips) & 0.009 / 3.3\% & 0.005 / 5.0\%\\
+image-value patch @L20 (KL / flips) & 0.0005 / 0\% & 0.0008 / 1.7\%\\
+answer-row mask, all layers (KL / flips) & 0.025 / 2.5\% & 0.034 / 0\%\\
+all-post-image mask, all layers (KL / flips) & 1.266 / 42\% & 0.532 / 45\%\\
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[t]
+\caption{Layer disagreement and the read-out band. Agreement over layer pairs; coverage of the evidence box by a
+single-layer crop ($\ge50\%$ of the box), by read-out depth.}
+\label{tab:disagree}
+\begin{center}
+\small
+\begin{tabular}{lcc}
+\multicolumn{1}{c}{\bf quantity} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
+\\ \hline \\
+mean arg-max agreement ($28\times28$ pairs) & 13.8\% & 38.1\%\\
+coverage before the boundary (L0--L15) & $\le20\%$ & $\le5\%$\\
+coverage just after (L17--L22) & 41--56\% & 33--53\%\\
+coverage near the output (L25--L27) & 3--28\% & 5--9\%\\
+\end{tabular}
+\end{center}
+\end{table}
 
 \subsection{DWA Improves Crop Selection}
 \label{sec:placement_results}
@@ -715,7 +796,67 @@ Oracle placement & 87.9 & 87.4 \\
 
 AVR removes visual tokens after the boundary and spends the saving on higher-resolution encoding. Two controls separate the two components. Against the unmodified model at the same $900$-token input (\texttt{uniform@900}), the later restriction is within $0.5$ points in seven of the ten benchmark--checkpoint--stratum cells, two cells are positive by $1.3$ and $2.6$ points, and one (HR-Bench 8K cross-instance) shows a significant loss of $1.8$ points; at the boundary the choice of retained tokens is irrelevant, so random keep matches attention keep at every keep ratio and the pruning itself is free. What remains is the resolution: AVR's gain over the equal-compute bar tracks the accuracy the checkpoint already gains from $900$ over $600$ tokens, at slope $1.01$ with $r=0.966$ across ten cells and four checkpoints (Table~\ref{tab:identity}). The identity predicts where AVR fails: the one cell with a negative point estimate, HR-4K cross-instance, is the cell whose baseline is itself worse at $900$ tokens than at $600$.
 
-The risk profile follows from the identity. AVR is positive on both strata in $6$ of $7$ cells and never significantly worse; the gains concentrate where headroom exists. On HR-4K and HR-8K it improves single-instance accuracy by $+4.0$/$+2.8$ and $+6.5$ points, and on \vstar\ it is worth $+10.5$ on cross-instance for Qwen3-VL-2B --- the stratum where cropping loses. Because it never discards coverage, AVR is the policy of choice where the evidence is relational or scene-level; because it requires a resolution ladder, it is undefined for checkpoints that quantise resolution (InternVL3, Gemma-3), which we report rather than fake.
+\begin{table}[h]\centering\small
+\caption{AVR's gain against the headroom $\mathrm{acc}(900)-\mathrm{acc}(600)$, for the ten stratum-cells that
+carry the \texttt{uniform@900} diagnostic. Pearson $r=0.966$, OLS slope $1.01$, mean
+$|{\rm gain}-{\rm headroom}|=0.7$ points. Headroom is measurable from two baseline runs with no method involved.}
+\begin{tabular}{llcc}
+\toprule
+cell & stratum & AVR $-$ bar & headroom\\
+\midrule
+\multirow{2}{*}{\vstar\ Qwen2.5-VL-7B} & single & \gd{$+12.2$}~\ok & $+12.2$\\
+ & cross & $+7.9$ & $+5.2$\\
+\multirow{2}{*}{\vstar\ Qwen3-VL-8B} & single & $+7.0$ & $+7.0$\\
+ & cross & \gd{$+7.9$}~\ok & $+6.6$\\
+\multirow{2}{*}{HR-4K Qwen3-VL-2B} & single & \gd{$+4.0$}~\ok & $+4.0$\\
+ & cross & $-2.8$ & $-3.0$\\
+\multirow{2}{*}{HR-4K Qwen2-VL-7B} & single & $+2.8$ & $+2.8$\\
+ & cross & $+0.8$ & $+0.2$\\
+\multirow{2}{*}{HR-8K Qwen3-VL-2B} & single & \gd{$+6.5$}~\ok & $+6.8$\\
+ & cross & $+1.8$ & $+3.5$\\
+\bottomrule
+\end{tabular}\label{tab:identity}
+\end{table}
+
+
+The risk profile follows from the identity. AVR is positive on both strata in $6$ of $7$ cells and never significantly worse; the gains concentrate where headroom exists. On HR-4K and HR-8K it improves single-instance accuracy by $+4.0$/$+2.8$ and $+6.5$ points, and on \vstar\ it is worth $+10.5$ on cross-instance for Qwen3-VL-2B --- the stratum where cropping loses. Because it never discards coverage, AVR is the policy of choice where the evidence is relational or scene-level; because it requires a resolution ladder, it is undefined for checkpoints that quantise resolution (InternVL3, Gemma-3), which we report rather than fake (Table~\ref{tab:avrhr}); Table~\ref{tab:risk} gives the full risk profile.
+
+\begin{table}[t]
+\caption{AVR on HR-Bench. Gain over the equal-compute bar, the measured resolution headroom ($\mathrm{acc}_{900}-\mathrm{acc}_{600}$), and the pruning cost (AVR $-$ \texttt{uniform@900}).}
+\label{tab:avrhr}
+\begin{center}
+\small
+\begin{tabular}{llccc}
+\multicolumn{1}{c}{\bf cell} &\multicolumn{1}{c}{\bf stratum} &\multicolumn{1}{c}{\bf AVR $-$ bar} &\multicolumn{1}{c}{\bf headroom} &\multicolumn{1}{c}{\bf pruning cost}
+\\ \hline \\
+HR-4K Qwen3-VL-2B & single & $+4.0$ [$+0.5,+7.5$] & $+4.0$ & $+0.0$\\
+HR-4K Qwen3-VL-2B & cross & $-2.8$ & $-3.0$ & $+0.2$\\
+HR-4K Qwen2-VL-7B & single & $+2.8$ & $+2.8$ & $+0.0$\\
+HR-4K Qwen2-VL-7B & cross & $+0.8$ & $+0.2$ & $+0.5$\\
+HR-8K Qwen3-VL-2B & single & $+6.5$ [$+3.0,+10.2$] & $+6.8$ & $-0.2$\\
+HR-8K Qwen3-VL-2B & cross & $+1.8$ & $+3.5$ & $-1.8$ [$-3.2,-0.5$]\\
+\end{tabular}
+\end{center}
+\end{table}
+
+\begin{table}[t]
+\caption{Risk profiles at the bar: AVR and the crop, per stratum, seven cells. \ok\ = paired interval excludes zero.}
+\label{tab:risk}
+\begin{center}
+\small
+\begin{tabular}{lcccc}
+\multicolumn{1}{c}{\bf cell} &\multicolumn{1}{c}{\bf AVR single} &\multicolumn{1}{c}{\bf AVR cross} &\multicolumn{1}{c}{\bf crop single} &\multicolumn{1}{c}{\bf crop cross}
+\\ \hline \\
+V* Qwen3-VL-2B & $+3.5$ & \gd{$+10.5$}~\ok & \gd{$+14.8$}~\ok & $+0.0$\\
+V* Qwen2-VL-7B & $+3.5$ & $+1.3$ & \gd{$+13.9$}~\ok & $+9.2$\\
+V* Qwen2.5-VL-7B & \gd{$+12.2$}~\ok & $+7.9$ & \gd{$+12.2$}~\ok & $-2.6$\\
+V* Qwen3-VL-8B & $+7.0$ & \gd{$+7.9$}~\ok & $+6.1$ & $-3.9$\\
+HR-4K Qwen3-VL-2B & \gd{$+4.0$}~\ok & $-2.8$ & \gd{$+10.2$}~\ok & \bad{$-8.8$}~\no\\
+HR-4K Qwen2-VL-7B & $+2.8$ & $+0.8$ & \gd{$+9.2$}~\ok & \bad{$-6.0$}~\no\\
+HR-8K Qwen3-VL-2B & \gd{$+6.5$}~\ok & $+1.8$ & \gd{$+8.8$}~\ok & \bad{$-8.8$}~\no\\
+\end{tabular}
+\end{center}
+\end{table}
 
 \subsection{The Benefit of Cropping Depends on the Required Evidence}
 \label{sec:scope_results}

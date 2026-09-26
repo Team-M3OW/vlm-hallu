@@ -245,22 +245,6 @@ L20 & 0.0005 / 0.0008 & 1.834 / 0.802 & text $2492\times$ / $965\times$\\
 arg-max agreement across the $28\times28$ layer pairs is $13.8\%$/$38.1\%$, and the agreement matrix has block
 structure that splits at the transport boundary. The usable placement signal exists only after it.
 
-\begin{table}[t]
-\caption{Layer disagreement and the read-out band. Agreement over layer pairs; coverage of the evidence box by a
-single-layer crop ($\ge50\%$ of the box), by read-out depth.}
-\label{tab:disagree}
-\begin{center}
-\small
-\begin{tabular}{lcc}
-\multicolumn{1}{c}{\bf quantity} &\multicolumn{1}{c}{\bf Qwen3-VL-2B} &\multicolumn{1}{c}{\bf Qwen2-VL-7B}
-\\ \hline \\
-mean arg-max agreement ($28\times28$ pairs) & 13.8\% & 38.1\%\\
-coverage before the boundary (L0--L15) & $\le20\%$ & $\le5\%$\\
-coverage just after (L17--L22) & 41--56\% & 33--53\%\\
-coverage near the output (L25--L27) & 3--28\% & 5--9\%\\
-\end{tabular}
-\end{center}
-\end{table}
 
 Consequently, every label-free layer-disagreement rule from the language-model literature was ported to the
 read-out and compared with the fixed gate; none beats it, and most lose badly.

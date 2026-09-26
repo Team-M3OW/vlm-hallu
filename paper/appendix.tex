@@ -201,27 +201,6 @@ worse at $900$ tokens than at $600$.}
 \end{figure}
 
 
-\begin{table}[h]\centering\small
-\caption{AVR's gain against the headroom $\mathrm{acc}(900)-\mathrm{acc}(600)$, for the ten stratum-cells that
-carry the \texttt{uniform@900} diagnostic. Pearson $r=0.966$, OLS slope $1.01$, mean
-$|{\rm gain}-{\rm headroom}|=0.7$ points. Headroom is measurable from two baseline runs with no method involved.}
-\begin{tabular}{llcc}
-\toprule
-cell & stratum & AVR $-$ bar & headroom\\
-\midrule
-\multirow{2}{*}{\vstar\ Qwen2.5-VL-7B} & single & \gd{$+12.2$}~\ok & $+12.2$\\
- & cross & $+7.9$ & $+5.2$\\
-\multirow{2}{*}{\vstar\ Qwen3-VL-8B} & single & $+7.0$ & $+7.0$\\
- & cross & \gd{$+7.9$}~\ok & $+6.6$\\
-\multirow{2}{*}{HR-4K Qwen3-VL-2B} & single & \gd{$+4.0$}~\ok & $+4.0$\\
- & cross & $-2.8$ & $-3.0$\\
-\multirow{2}{*}{HR-4K Qwen2-VL-7B} & single & $+2.8$ & $+2.8$\\
- & cross & $+0.8$ & $+0.2$\\
-\multirow{2}{*}{HR-8K Qwen3-VL-2B} & single & \gd{$+6.5$}~\ok & $+6.8$\\
- & cross & $+1.8$ & $+3.5$\\
-\bottomrule
-\end{tabular}\label{tab:identity}
-\end{table}
 
 The identity also holds where it predicts \emph{nothing}. Applying AVR to a crop rather than to the full image
 gives eight further cells whose headroom is near zero; gain tracks headroom there with $r=0.911$ and slope $1.03$
