@@ -1,0 +1,64 @@
+% AVR, TikZ. \input inside a figure environment.
+\begin{tikzpicture}[
+  font=\scriptsize,
+  ibox/.style={rounded corners=1.5pt, draw=blue!55!black, fill=blue!8, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  gbox/.style={rounded corners=1.5pt, draw=green!45!black, fill=green!8, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  wbox/.style={rounded corners=1.5pt, draw=black!45, fill=white, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  ybox/.style={rounded corners=1.5pt, draw=yellow!55!black, fill=yellow!18, line width=0.6pt,
+               align=center, inner sep=2.5pt, minimum height=7mm},
+  arr/.style={-{Stealth[length=1.6mm]}, draw=black!55, line width=0.6pt},
+  barr/.style={-{Stealth[length=1.6mm]}, draw=blue!55!black, line width=0.7pt},
+  garr/.style={-{Stealth[length=1.6mm]}, draw=green!45!black, line width=0.7pt},
+]
+
+% ---------------- pipeline row ----------------
+\node[ibox] (img) at (0,0.25) {image\\$I$};
+\node[ibox, right=4mm of img] (enc) {vision\\encoder $E$};
+\node[ibox, right=4mm of enc] (proj) {projection $P$\\$N{=}900$ visual tokens};
+\draw[arr] (img) -- (enc);
+\draw[arr] (enc) -- (proj);
+
+% decoder: two segments -- full-width L0-16, narrowed L17-27 after the prune
+\coordinate (bar) at (7.2,0);
+\foreach \i in {0,...,16}{
+  \filldraw[draw=black!40, line width=0.2pt, fill=blue!15]
+    ($(bar)+(\i*0.19,0)$) rectangle ++(0.19,0.5);
+}
+\foreach \i in {0,...,10}{
+  \filldraw[draw=black!40, line width=0.2pt, fill=black!12]
+    ($(bar)+(17*0.19+\i*0.19,0.13)$) rectangle ++(0.19,0.24);
+}
+\draw[blue!55!black, line width=0.8pt] ($(bar)+(-0.02,-0.02)$) rectangle ++(3.25,0.54);
+\draw[black!55, line width=0.6pt] ($(bar)+(3.23,0.11)$) rectangle ++(2.11,0.28);
+\draw[red!65!black, dashed, line width=0.9pt] ($(bar)+(17*0.19,0.62)$) -- ++(0,-0.78);
+\node[anchor=south, blue!55!black] at ($(bar)+(1.6,0.62)$) {decoder $F_\theta$ ($L{=}28$)};
+\node[anchor=north, blue!55!black, font=\scriptsize] at ($(bar)+(1.6,-0.40)$) {L0--16: all $900$ tokens (full access)};
+
+\node[anchor=north, black!60, font=\scriptsize] at ($(bar)+(4.3,-0.85)$) {L17--27: $90$ retained};
+\node[anchor=south, red!65!black, font=\scriptsize] at ($(bar)+(3.95,0.95)$) {prune at L16 ($0.57L$)};
+\draw[arr] (proj.east) -- ($(bar)+(-0.02,0.25)$);
+
+\node[gbox] (logits) at ($(bar)+(7.4,0.25)$) {logits $z$ at the\\final prompt position};
+\draw[garr] ($(bar)+(5.36,0.25)$) -- (logits.west);
+\node[gbox, right=4mm of logits] (ans) {answer};
+\draw[garr] (logits) -- (ans);
+\node[font=\scriptsize, black!60, anchor=north] at ($(bar)+(4.4,-1.35)$) {no crop: full coverage preserved};
+
+% ---------------- token ranking ----------------
+\node[wbox] (rank) at (4.6,-2.2)
+  {attention at L12--16 on the $900$-token input: final prompt token $\to$ image cells,\\head-mean, normalised per layer; score $s_i^{\mathrm{AVR}} = \frac{1}{5}\sum_{\ell=12}^{16} A_i^{(\ell)}$};
+\node[ybox, right=5mm of rank] (topk) {keep the top $10\%$:\\$N_{\mathrm{keep}}=\max(1,\mathrm{round}(0.10\,N))=90$};
+\draw[arr] (rank) -- (topk);
+\draw[barr] (rank.north) -- ($(bar)+(2.9,-0.02)$);
+\node[font=\scriptsize, blue!55!black, anchor=west] at ($(rank.north)+(0.25,0.45)$) {rank};
+
+% ---------------- cost ----------------
+\node[font=\scriptsize, text=black!70, anchor=north west] at (-1.4,-3.6)
+  {allowance: $N(b{+}1)+N_{\mathrm{keep}}(L{-}b{-}1) = 900{\times}17 + 90{\times}11 = 16{,}290$ visual token-layers $\approx 97\%$ of the equal-compute reference ($600{\times}28 = 16{,}800$)};
+\node[font=\scriptsize, text=green!45!black, anchor=north west] at (-1.4,-3.95)
+  {the saved late-layer compute buys the higher-resolution input: $900$ tokens instead of $600$, with direct access kept only where it is causally live};
+
+\end{tikzpicture}

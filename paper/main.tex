@@ -290,6 +290,13 @@ including the 36-layer checkpoint, are in Appendix~\ref{app:depth}.
     \label{fig:method_depth_masks}
 \end{figure}
 
+\begin{figure}[t]
+\centering
+\resizebox{\linewidth}{!}{\input{figs/fig_avr_tikz}}
+\caption{\textbf{AVR: prune at the boundary, spend the saving on resolution.} The image is encoded at $900$ tokens (instead of the reference's $600$) and every layer keeps full visual access through L16. The final prompt token's attention over layers 12--16 ranks the tokens; the top $10\%$ ($N_{\mathrm{keep}}{=}90$) are retained, and from L17 onward only those keys remain accessible. The allowance $N(b{+}1)+N_{\mathrm{keep}}(L{-}b{-}1)=900{\times}17+90{\times}11=16{,}290$ visual token-layers is $\approx97\%$ of the equal-compute reference ($600{\times}28=16{,}800$). No crop is applied: full coverage is preserved.}
+\label{fig:avr}
+\end{figure}
+
 \subsection{DWA : DEPTH WEIGHTED ATTENTION}
 \label{sec:dwa_method}
 
@@ -399,7 +406,7 @@ visual tokens and used with the original question prompt for answering.
 \label{sec:avr_method}
 
 AVR examines whether later visual-token processing can be reduced while
-retaining higher-resolution input in the earlier layers. The main
+retaining higher-resolution input in the earlier layers (Fig.~\ref{fig:avr}). The main
 configuration encodes the full image toward \(900\) visual tokens,
 retains unrestricted processing through layer \(16\), and restricts
 visual access from layer \(17\) onward. No crop is applied.

@@ -3,6 +3,63 @@
 Date: 2026-09-26. Sources: `FINDINGS.md` (§71, §74, §14M), `data/phase225_*.jsonl`,
 `data/phase224_dwat_*.jsonl`. No number below is estimated; missing entries are reported as missing.
 
+## Transfer protocol (corrected: V* training and HR fitting)
+
+The original DWA is **fitted (trained) on V*Bench** --- out-of-fold, against GT-box coverage labels
+(`fig_ridge_w_*.npy`) --- and is then **applied to HR-Bench with NO refit**. The only target-side
+computation is the **label-free feature standardisation** (mean/std recomputed over the unlabelled
+target set; within each image for the extended benchmark protocol). A ridge refit on HR-Bench is
+impossible in principle, because **HR-Bench ships no bounding boxes**, hence no coverage labels.
+
+> "Weights fitted OOF on V* (`fig_ridge_w_*.npy`), applied to HR-Bench with **NO refit**; only the
+> feature standardisation is recomputed on the target (label-free)." --- FINDINGS §71 (line 8679)
+
+> "trained on V*Bench, 191 items, GT-box coverage labels (phase72a, frozen); applied to HR-Bench 4k,
+> 200 instances x 4 permutations, 4032x4032 images; **refitted: nothing.** Not W, not the layer
+> block, not the ring mask, not B0." --- `scripts/phase190_hr4k_qwen3_ridge.py` (Phase 72c header)
+
+> "V*Bench-transferred 40% firing rate, **not refit**. No oracle arm --- HR-Bench ships no boxes."
+> --- FINDINGS line 2647; see also lines 3830 and 3851 ("with zero refitting: +4.9pp per-row and
+> +6.5pp on HR-Bench's own strict...").
+
+**So the correct phrasing is: "DWA is trained on V*Bench and transferred to HR-Bench with no refit;
+only the label-free feature standardisation is recomputed on the target."** The phrasing "trained on
+V*, then fitted on HR" is incorrect and must not be used.
+
+## AVR accuracy across all four benchmarks and models (4x4)
+
+| Model | Benchmark | n | Reference (%) | AVR (%) | AVR - reference |
+|---|---|---|---|---|---|
+| Qwen3-VL-2B | V* | 191 | 62.3 | 67.5 | +5.2 (CI-clear) |
+| Qwen3-VL-2B | HR-4K | 800 | 59.0 | 59.9 | +0.9 |
+| Qwen3-VL-2B | CV-Bench | 2,638 | 79.9 | 80.4 | +0.5 |
+| Qwen3-VL-2B | RealworldQA | 765 | 62.6 | 63.3 | +0.7 |
+| Qwen2-VL-7B | V* | 191 | 59.2 | 64.9 | +5.8 (CI-clear) |
+| Qwen2-VL-7B | HR-4K | 800 | 57.0 | 57.1 | +0.1 |
+| Qwen2-VL-7B | CV-Bench | 2,638 | 75.0 | 71.5 | -3.5 (CI-clear loss) |
+| Qwen2-VL-7B | RealworldQA | 765 | 64.7 | 62.6 | -2.1 |
+| LLaVA-OV-7B | V* | 191 | 51.8 | 58.6 | +6.8 (CI-clear) |
+| LLaVA-OV-7B | HR-4K | 800 | 48.2 | 46.2 | -2.0 |
+| LLaVA-OV-7B | CV-Bench | 2,638 | 76.6 | 76.0 | -0.6 |
+| LLaVA-OV-7B | RealworldQA | 765 | 61.6 | 60.0 | -1.6 |
+| InternVL3-8B | (all) | --- | --- | n/a | n/a (no resolution ladder) |
+
+Source: `data/phase225_{model}_{bench}.jsonl` (`avr` arm, paired vs `uniform@lo`); InternVL3-8B
+cannot express AVR (token count is size-invariant; E_lo = E_hi), reported as infeasible.
+
+## Figures
+
+- `paper/figs/fig_vlm_dwa_tikz.pdf` (also `.png`, source `paper/figs/fig_vlm_dwa_tikz.tex`):
+  VLM internals + DWA --- layer bar with transport window (L0--15), boundary (L16), read-out band
+  (L17--21) and answer formation (L22+); the ridge chain from per-layer attention to the crop and
+  pass 2. Caption in `main.tex` (`fig:vlm_dwa`).
+- `paper/figs/fig_avr_tikz.pdf` (also `.png`, source `paper/figs/fig_avr_tikz.tex`): AVR --- 900-token
+  encoding, attention ranking at L12--16, top-10% retention (90 tokens), restriction from L17, and
+  the 16,290 token-layer allowance (~97% of the 16,800 reference); no crop. Caption in `main.tex`
+  (`fig:avr`).
+- `paper/figs/fig_dwa_qualitative.pdf` (source `scripts/fig_dwa_qualitative.py`): block-mean edge
+  artifact vs DWA on `direct_attributes/32` (water bottle, red). Caption at the end of this file.
+
 ## Task 1 — Zero-shot transfer table
 
 **MISSING ZERO-SHOT DATA:** Source Qwen2-VL-7B (V*Bench) → Target LLaVA-OV-7B (V*Bench) — no
