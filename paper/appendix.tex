@@ -218,6 +218,24 @@ this work. Pruning at the boundary is therefore free everywhere we have measured
 verified the pruning is applied rather than silently skipped at the distribution level: output probabilities change
 on $99\%$ of items while the arg-max changes on $2\%$. The discarded tokens are inert, not absent.
 
+\begin{table}[t]
+\caption{AVR on HR-Bench. Gain over the equal-compute reference, the measured resolution headroom ($\mathrm{acc}_{900}-\mathrm{acc}_{600}$), and the pruning cost (AVR $-$ \texttt{uniform@900}).}
+\label{tab:avrhr}
+\begin{center}
+\small
+\begin{tabular}{llccc}
+\multicolumn{1}{c}{\bf cell} &\multicolumn{1}{c}{\bf stratum} &\multicolumn{1}{c}{\bf AVR $-$ reference} &\multicolumn{1}{c}{\bf headroom} &\multicolumn{1}{c}{\bf pruning cost}
+\\ \hline \\
+HR-4K Qwen3-VL-2B & single & $+4.0$ [$+0.5,+7.5$] & $+4.0$ & $+0.0$\\
+HR-4K Qwen3-VL-2B & cross & $-2.8$ & $-3.0$ & $+0.2$\\
+HR-4K Qwen2-VL-7B & single & $+2.8$ & $+2.8$ & $+0.0$\\
+HR-4K Qwen2-VL-7B & cross & $+0.8$ & $+0.2$ & $+0.5$\\
+HR-8K Qwen3-VL-2B & single & $+6.5$ [$+3.0,+10.2$] & $+6.8$ & $-0.2$\\
+HR-8K Qwen3-VL-2B & cross & $+1.8$ & $+3.5$ & $-1.8$ [$-3.2,-0.5$]\\
+\end{tabular}
+\end{center}
+\end{table}
+
 \section{Claim-to-evidence map}\label{app:claims}
 
 Every headline claim, its strongest evidence, and its model count. \emph{Intervention} means the claim was tested by

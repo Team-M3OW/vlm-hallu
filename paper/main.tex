@@ -791,6 +791,38 @@ Oracle placement & 87.9 & 87.4 \\
 \end{tabular}
 \end{table}
 
+\begin{table}[t]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\caption{DWA accuracy across all four benchmarks and all four models. \emph{Reference} is the uncropped image at the equal-compute budget ($600$ visual tokens; the model's native encoding where it has no resolution ladder). Differences are paired and in percentage points; \ok\ = interval excludes zero.}
+\label{tab:dwa_all}
+\begin{tabular}{llrrrr}
+\toprule
+Model & Benchmark & $n$ & Reference & DWA & DWA $-$ reference \\
+\midrule
+Qwen3-VL-2B & V* & 191 & 62.3 & 72.8 & \gd{$+10.5$}~\ok \\
+Qwen3-VL-2B & HR-4K & 800 & 59.0 & 62.5 & $+3.5$ \\
+Qwen3-VL-2B & CV-Bench & 2{,}638 & 79.9 & 65.8 & \bad{$-14.1$}~\no \\
+Qwen3-VL-2B & RealworldQA & 765 & 62.6 & 56.9 & \bad{$-5.8$}~\no \\
+\midrule
+Qwen2-VL-7B & V* & 191 & 59.2 & 68.1 & \gd{$+8.9$}~\ok \\
+Qwen2-VL-7B & HR-4K & 800 & 57.0 & 59.1 & $+2.1$ \\
+Qwen2-VL-7B & CV-Bench & 2{,}638 & 75.0 & 66.0 & \bad{$-9.0$}~\no \\
+Qwen2-VL-7B & RealworldQA & 765 & 64.7 & 57.5 & \bad{$-7.2$}~\no \\
+\midrule
+LLaVA-OV-7B & V* & 191 & 51.8 & 65.4 & \gd{$+13.6$}~\ok \\
+LLaVA-OV-7B & HR-4K & 800 & 48.2 & 56.5 & \gd{$+8.2$}~\ok \\
+LLaVA-OV-7B & CV-Bench & 2{,}638 & 76.6 & 65.9 & \bad{$-10.7$}~\no \\
+LLaVA-OV-7B & RealworldQA & 765 & 61.6 & 59.2 & $-2.4$ \\
+\midrule
+InternVL3-8B & V* & 191 & 74.9 & 75.9 & $+1.0$ \\
+InternVL3-8B & HR-4K & 800 & 70.5 & 65.6 & \bad{$-4.9$}~\no \\
+InternVL3-8B & CV-Bench & 2{,}638 & 81.7 & 68.6 & \bad{$-13.1$}~\no \\
+InternVL3-8B & RealworldQA & 765 & 67.6 & 59.9 & \bad{$-7.7$}~\no \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \subsection{AVR Converts the Boundary into Resolution}
 \label{sec:avr_results}
 
@@ -802,7 +834,7 @@ carry the \texttt{uniform@900} diagnostic. Pearson $r=0.966$, OLS slope $1.01$, 
 $|{\rm gain}-{\rm headroom}|=0.7$ points. Headroom is measurable from two baseline runs with no method involved.}
 \begin{tabular}{llcc}
 \toprule
-cell & stratum & AVR $-$ bar & headroom\\
+cell & stratum & AVR $-$ reference & headroom\\
 \midrule
 \multirow{2}{*}{\vstar\ Qwen2.5-VL-7B} & single & \gd{$+12.2$}~\ok & $+12.2$\\
  & cross & $+7.9$ & $+5.2$\\
@@ -819,28 +851,40 @@ cell & stratum & AVR $-$ bar & headroom\\
 \end{table}
 
 
-The risk profile follows from the identity. AVR is positive on both strata in $6$ of $7$ cells and never significantly worse; the gains concentrate where headroom exists. On HR-4K and HR-8K it improves single-instance accuracy by $+4.0$/$+2.8$ and $+6.5$ points, and on \vstar\ it is worth $+10.5$ on cross-instance for Qwen3-VL-2B --- the stratum where cropping loses. Because it never discards coverage, AVR is the policy of choice where the evidence is relational or scene-level; because it requires a resolution ladder, it is undefined for checkpoints that quantise resolution (InternVL3, Gemma-3), which we report rather than fake (Table~\ref{tab:avrhr}); Table~\ref{tab:risk} gives the full risk profile.
+The risk profile follows from the identity. AVR is positive on both strata in $6$ of $7$ cells and never significantly worse; the gains concentrate where headroom exists. On HR-4K and HR-8K it improves single-instance accuracy by $+4.0$/$+2.8$ and $+6.5$ points, and on \vstar\ it is worth $+10.5$ on cross-instance for Qwen3-VL-2B --- the stratum where cropping loses. Because it never discards coverage, AVR is the policy of choice where the evidence is relational or scene-level; because it requires a resolution ladder, it is undefined for checkpoints that quantise resolution (InternVL3, Gemma-3), which we report rather than fake. Table~\ref{tab:avr_all} gives AVR's accuracy across every benchmark and model, and Table~\ref{tab:risk} the full risk profile.
+
 
 \begin{table}[t]
-\caption{AVR on HR-Bench. Gain over the equal-compute bar, the measured resolution headroom ($\mathrm{acc}_{900}-\mathrm{acc}_{600}$), and the pruning cost (AVR $-$ \texttt{uniform@900}).}
-\label{tab:avrhr}
-\begin{center}
-\small
-\begin{tabular}{llccc}
-\multicolumn{1}{c}{\bf cell} &\multicolumn{1}{c}{\bf stratum} &\multicolumn{1}{c}{\bf AVR $-$ bar} &\multicolumn{1}{c}{\bf headroom} &\multicolumn{1}{c}{\bf pruning cost}
-\\ \hline \\
-HR-4K Qwen3-VL-2B & single & $+4.0$ [$+0.5,+7.5$] & $+4.0$ & $+0.0$\\
-HR-4K Qwen3-VL-2B & cross & $-2.8$ & $-3.0$ & $+0.2$\\
-HR-4K Qwen2-VL-7B & single & $+2.8$ & $+2.8$ & $+0.0$\\
-HR-4K Qwen2-VL-7B & cross & $+0.8$ & $+0.2$ & $+0.5$\\
-HR-8K Qwen3-VL-2B & single & $+6.5$ [$+3.0,+10.2$] & $+6.8$ & $-0.2$\\
-HR-8K Qwen3-VL-2B & cross & $+1.8$ & $+3.5$ & $-1.8$ [$-3.2,-0.5$]\\
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\caption{AVR accuracy across all four benchmarks and all four models. \emph{Reference} is the uncropped image at the equal-compute budget ($600$ visual tokens). Differences are paired and in percentage points; \ok\ = interval excludes zero. AVR is infeasible for InternVL3-8B, which has no resolution ladder.}
+\label{tab:avr_all}
+\begin{tabular}{llrrrr}
+\toprule
+Model & Benchmark & $n$ & Reference & AVR & AVR $-$ reference \\
+\midrule
+Qwen3-VL-2B & V* & 191 & 62.3 & 67.5 & \gd{$+5.2$}~\ok \\
+Qwen3-VL-2B & HR-4K & 800 & 59.0 & 59.9 & $+0.9$ \\
+Qwen3-VL-2B & CV-Bench & 2{,}638 & 79.9 & 80.4 & $+0.5$ \\
+Qwen3-VL-2B & RealworldQA & 765 & 62.6 & 63.3 & $+0.7$ \\
+\midrule
+Qwen2-VL-7B & V* & 191 & 59.2 & 64.9 & \gd{$+5.8$}~\ok \\
+Qwen2-VL-7B & HR-4K & 800 & 57.0 & 57.1 & $+0.1$ \\
+Qwen2-VL-7B & CV-Bench & 2{,}638 & 75.0 & 71.5 & \bad{$-3.5$}~\no \\
+Qwen2-VL-7B & RealworldQA & 765 & 64.7 & 62.6 & $-2.1$ \\
+\midrule
+LLaVA-OV-7B & V* & 191 & 51.8 & 58.6 & \gd{$+6.8$}~\ok \\
+LLaVA-OV-7B & HR-4K & 800 & 48.2 & 46.2 & $-2.0$ \\
+LLaVA-OV-7B & CV-Bench & 2{,}638 & 76.6 & 76.0 & $-0.6$ \\
+LLaVA-OV-7B & RealworldQA & 765 & 61.6 & 60.0 & $-1.6$ \\
+\midrule
+InternVL3-8B & (all) & --- & --- & --- & --- \\
+\bottomrule
 \end{tabular}
-\end{center}
 \end{table}
 
 \begin{table}[t]
-\caption{Risk profiles at the bar: AVR and the crop, per stratum, seven cells. \ok\ = paired interval excludes zero.}
+\caption{Risk profiles at the equal-compute reference: AVR and the crop, per stratum, seven cells. \ok\ = paired interval excludes zero.}
 \label{tab:risk}
 \begin{center}
 \small
@@ -856,43 +900,6 @@ HR-4K Qwen2-VL-7B & $+2.8$ & $+0.8$ & \gd{$+9.2$}~\ok & \bad{$-6.0$}~\no\\
 HR-8K Qwen3-VL-2B & \gd{$+6.5$}~\ok & $+1.8$ & \gd{$+8.8$}~\ok & \bad{$-8.8$}~\no\\
 \end{tabular}
 \end{center}
-\end{table}
-
-\subsection{The Full Grid: Four Models, Four Benchmarks}
-\label{sec:grid_results}
-
-Table~\ref{tab:grid} reports absolute accuracy for the equal-compute bar, AVR, and DWA on all sixteen model--benchmark cells, with paired differences against the bar. The pattern is the same as the scope result: DWA is the stronger policy where the evidence is local (V*Bench, HR-4K) and the weaker one where answering requires the scene (CV-Bench, RealworldQA), while AVR's deviations from the bar are small in every cell where it exists --- and AVR is undefined for InternVL3-8B, which has no resolution ladder.
-
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{3pt}
-\caption{The full grid. Absolute accuracy (\%) and paired differences against the equal-compute bar (percentage points) for four models and four benchmarks. AVR is infeasible for InternVL3-8B (no resolution ladder). \ok\ = interval excludes zero.}
-\label{tab:grid}
-\begin{tabular}{llrcccccc}
-\toprule
-Model & Benchmark & $n$ & bar & AVR & AVR $-$ bar & DWA & DWA $-$ bar \\
-\midrule
-Qwen3-VL-2B & V* & 191 & 62.3 & 67.5 & \gd{$+5.2$}~\ok & 72.8 & \gd{$+10.5$}~\ok \\
-Qwen3-VL-2B & HR-4K & 800 & 59.0 & 59.9 & $+0.9$ & 62.5 & $+3.5$ \\
-Qwen3-VL-2B & CV-Bench & 2{,}638 & 79.9 & 80.4 & $+0.5$ & 65.8 & \bad{$-14.1$}~\no \\
-Qwen3-VL-2B & RealworldQA & 765 & 62.6 & 63.3 & $+0.7$ & 56.9 & \bad{$-5.8$}~\no \\
-\midrule
-Qwen2-VL-7B & V* & 191 & 59.2 & 64.9 & \gd{$+5.8$}~\ok & 68.1 & \gd{$+8.9$}~\ok \\
-Qwen2-VL-7B & HR-4K & 800 & 57.0 & 57.1 & $+0.1$ & 59.1 & $+2.1$ \\
-Qwen2-VL-7B & CV-Bench & 2{,}638 & 75.0 & 71.5 & \bad{$-3.5$}~\no & 66.0 & \bad{$-9.0$}~\no \\
-Qwen2-VL-7B & RealworldQA & 765 & 64.7 & 62.6 & $-2.1$ & 57.5 & \bad{$-7.2$}~\no \\
-\midrule
-LLaVA-OV-7B & V* & 191 & 51.8 & 58.6 & \gd{$+6.8$}~\ok & 65.4 & \gd{$+13.6$}~\ok \\
-LLaVA-OV-7B & HR-4K & 800 & 48.2 & 46.2 & $-2.0$ & 56.5 & \gd{$+8.2$}~\ok \\
-LLaVA-OV-7B & CV-Bench & 2{,}638 & 76.6 & 76.0 & $-0.6$ & 65.9 & \bad{$-10.7$}~\no \\
-LLaVA-OV-7B & RealworldQA & 765 & 61.6 & 60.0 & $-1.6$ & 59.2 & $-2.4$ \\
-\midrule
-InternVL3-8B & V* & 191 & 74.9 & --- & --- & 75.9 & $+1.0$ \\
-InternVL3-8B & HR-4K & 800 & 70.5 & --- & --- & 65.6 & \bad{$-4.9$}~\no \\
-InternVL3-8B & CV-Bench & 2{,}638 & 81.7 & --- & --- & 68.6 & \bad{$-13.1$}~\no \\
-InternVL3-8B & RealworldQA & 765 & 67.6 & --- & --- & 59.9 & \bad{$-7.7$}~\no \\
-\bottomrule
-\end{tabular}
 \end{table}
 
 \subsection{The Benefit of Cropping Depends on the Required Evidence}
