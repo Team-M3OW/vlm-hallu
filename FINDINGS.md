@@ -9307,6 +9307,40 @@ random) but there is nothing above the bar to reach, so a better placer is point
 is +5.5 of genuine room, but block-mean attention finds it no better than chance (−0.7) and loses
 to the bar outright (−9.8). What fails in video is not placement — it is the read-out.
 
+**§88.3b DWA REFIT ON VIDEO: fails OOF (phase251, n=600 / 223 base videos).**
+The ceiling passed, so the placer was built: same estimator as the vision ridge (log-attention per
+layer + within-layer rank + geometry, OOF GroupKFold(5) x 3 permutations, lambda=1, per-fold
+standardisation), refit on TempCompass, folds held out BY BASE VIDEO.
+
+| arm | acc |
+|---|---|
+| bar | 61.5 |
+| bar_matched (2x, DWA's true cost) | 62.8 |
+| crop_rand | 56.8 |
+| crop_block (incumbent) | 54.8 |
+| **DWA OOF** | **57.5** |
+| DWA in-sample | 61.8 |
+| crop_oracle | 70.5 |
+
+  DWA − bar_matched = **−8.3 [−12.5,−4.1]\***   DWA − crop_block = +0.8 n.s.
+  DWA − crop_rand   = +1.9 n.s.                oracle − DWA = +14.3 [+10.7,+18.2]\*
+
+The ridge LEARNS in-sample (61.8) and does NOT generalise (57.5, vs random 56.8). in-sample − OOF
+= +4.3 with picks differing on 18% of items: a healthy gap. Exact agreement would have been the
+§78 leak signature, so this is a trustworthy negative — the per-layer attention features simply do
+not carry which temporal window matters.
+
+**Every non-oracle crop arm loses to the bar** (56.8 / 54.8 / 57.5 vs 61.5). Only the label-using
+oracle wins. Temporal cropping HURTS on average here — the scope law again: TempCompass questions
+mostly need the whole clip, and the oracle's +5.5 is item-specific, not a general preference for
+concentration. Equal-compute matters: DWA pays localisation + window = 2x the bar, so
+bar_matched (16 frames, 392 tok) is the reference; against the 1x bar the loss would read −7.2,
+and against nothing at all it would have looked like a win over rand.
+
+**NET: neither modality yields a deployable DWA, for OPPOSITE reasons.**
+Audio: a working label-free read-out (+5.0 over random) with no room above the bar (ceiling −3.3).
+Video: +5.5 of genuine room that no label-free method finds (incumbent −0.7, refit ridge +1.9 n.s.).
+
 **TERMINOLOGY, stated because it was blurred earlier:** `crop_block` is the INCUMBENT BASELINE
 statistic (single block-mean attention), i.e. the thing DWA is measured against in vision. It is
 NOT DWA. DWA proper is the ridge over per-layer features, and **it has not been fitted on video**.
