@@ -33,6 +33,15 @@ SUITE=os.environ.get("SUITE","spatial")
 MID=f"openvla/openvla-7b-finetuned-libero-{SUITE}"
 NCAL=int(os.environ.get("NCAL","40"))
 
+def read_frame(path, idx):
+    """LIBERO LeRobot videos are AV1 (256x256). decord has NO AV1 support and dies with
+    'cannot find video stream with wanted index: -1'; PyAV decodes them via libdav1d."""
+    import av
+    with av.open(path) as c:
+        for i, f in enumerate(c.decode(video=0)):
+            if i == idx: return f.to_image().convert("RGB")
+        return f.to_image().convert("RGB")     # clamp to last frame
+
 def episodes(suite, n):
     base=glob.glob(f"/media/kavinder/hdd2/hf_cache/datasets--IPEC-COMMUNITY--libero_{suite}_no_noops_1.0.0_lerobot/snapshots/*")[0]
     pq=sorted(glob.glob(base+"/data/chunk-000/*.parquet"))[:n]
@@ -46,7 +55,6 @@ def episodes(suite, n):
 
 def main():
     from transformers import AutoModelForVision2Seq, AutoProcessor
-    import decord
     pq, vids, tasks = episodes(SUITE, NCAL)
     assert pq, "no episode parquet found -- did the asset fetch run?"
     print(f"  {len(pq)} episodes, {len(vids)} videos, {len(tasks)} task strings",flush=True)
@@ -97,9 +105,8 @@ def main():
         df=pd.read_parquet(ep); key=os.path.basename(ep).split('.')[0]
         if key not in vids or not len(df): continue
         instr=tasks.get(int(df.iloc[0]["task_index"]), "complete the task")
-        vr=decord.VideoReader(vids[key], num_threads=2)
-        t=min(len(vr)-1, len(df)//2)                       # mid-episode frame
-        img=Image.fromarray(vr[t].asnumpy()).convert("RGB").resize((224,224), Image.BICUBIC)
+        t=len(df)//2                                       # mid-episode frame
+        img=read_frame(vids[key], t).resize((224,224), Image.BICUBIC)
         inp=build(img, instr)
         state["layers"]=set(); base=logits(inp); ba=base[ACT]
         state["layers"]=set(range(NL)); alla=logits(inp)
